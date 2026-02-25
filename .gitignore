@@ -1,0 +1,26 @@
+# ─── Frozen source files ─────────────────────────────────────────────
+# Source HTML files are large (Shamela exports, typically 0.3–1.7MB each)
+# and are frozen at intake time. They are stored locally but not tracked
+# in version control. Each book's intake_metadata.json contains SHA-256
+# hashes for integrity verification.
+books/*/source/
+
+# ─── Other Books (raw Shamela exports, undocumented) ─────────────────
+# Large collection of Shamela exports used as a source library for future
+# intake. Not processed through the pipeline yet.
+books/Other Books/
+
+# ─── Python ──────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# ─── OS / Editor ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

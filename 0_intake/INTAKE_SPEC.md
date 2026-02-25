@@ -1,6 +1,6 @@
 # Stage 0: Book Intake — Specification
 
-**Status:** Finalized (sixth review pass — prompt_yn return-value audit, stress-test corpus documentation, concurrent-intake limitation)
+**Status:** Finalized (seventh review pass — muhaqiq keep-first/exclusions, truncation bilateral check, volume cross-check, verify mode, test suite, edge_cases.md)
 **Version:** 1.5
 **Precision level:** High
 
@@ -265,6 +265,10 @@ Note: The `<span class='footnote'>` after the title span is NOT a `<span class='
 
 **Muhaqiq matching is ordered and first-match-wins.** This is critical because labels can match multiple patterns. For example, `ضبطه وكتب هوامشه وعلق عليه` matches both `ضبط` (priority 7) and `علق` (priority 10). First match at priority 7 wins. `دراسة وتحقيق` (priority 4) is checked before `تحقيق` (priority 6) to prevent false substring matches.
 
+**Muhaqiq exclusions:** Some labels contain muhaqiq substrings but are NOT muhaqiq fields. Known exclusion: `أصل التحقيق` ("origin of the tahqiq" — e.g., a PhD thesis description). These are checked before muhaqiq matching and routed to `unrecognized_metadata_lines`. See EC-I.9.
+
+**Keep-first muhaqiq:** If multiple segments independently match muhaqiq patterns, the first match is kept and subsequent matches are routed to `unrecognized_metadata_lines` with a warning. This prevents silent data loss from overwriting the real editor's name with unrelated metadata. Observed in 4/788 files in the extended corpus.
+
 **Leading-digit parsing** for `shamela_page_count` and `shamela_volume_count`: Extract via regex `^(\d+)` from the value string. Shamela appends annotations directly to the number with no separator, e.g., `344[ترقيم الكتاب موافق للمطبوع]` or `80أعده للمكتبة الشاملة...`. A simple `int()` will crash on every book in the corpus. If no leading digits found, set to null and log warning.
 
 **Trailing annotation in page count values:** After extracting the leading digits, the remaining text in the value is discarded. In 6/7 books, this includes the `[ترقيم الكتاب موافق للمطبوع]` annotation (meaning "book numbering matches the printed edition"). In imla, it also includes a preparer attribution (`أعده للمكتبة الشاملة/ أبو ياسر الجزائري`). These annotations are low-value for our pipeline and are not separately captured. In ibn_aqil, the `[ترقيم...]` annotation is a separate segment (wrapped in its own `<span class='title'>`) and goes to `unrecognized_metadata_lines` — this is the one case where it IS preserved.
@@ -333,6 +337,8 @@ Cross-reference the user's primary science declaration against the HTML's الق
 | `أصول الفقه`, `العقيدة`, `الأدب`, etc. | Low — outside our sciences entirely | If user declares one of our 4, confirm: "القسم says X. You declared Y. Confirm?" |
 | Any other | Unknown | Log and ask user to confirm |
 
+**Note on إملاء:** No high-reliability قسم→imlaa mapping exists. Shamela does not appear to use a dedicated الإملاء category — imlaa books are typically filed under كتب اللغة. If a future Shamela export surfaces `الإملاء` as a قسم value, it will fall through to the "unknown" branch (soft confirmation). This is a known asymmetry where three of four sciences have auto-confirm paths and one does not.
+
 **Decision matrix with `--non-interactive` behavior:**
 
 | User declaration | القسم reliability | Interactive action | `--non-interactive` |
@@ -364,6 +370,8 @@ Based on the science declaration:
 Snapshot **all active taxonomy versions** from `taxonomy/taxonomy_registry.yaml` and record them in `taxonomy_at_intake`. This applies to every book regardless of category, because any excerpt from any book can land in any science's tree.
 
 **Missing registry:** If `taxonomy/taxonomy_registry.yaml` does not exist or is empty, set `taxonomy_at_intake` to `{}` (empty object) and log warning: `"No taxonomy registry found. taxonomy_at_intake will be empty."`. Intake proceeds — the snapshot records whatever exists. This is expected during early project setup before any taxonomy trees are created.
+
+**Provenance note:** The `taxonomy_at_intake` snapshot is immutable — it records what existed when the book was intaken. If taxonomy trees are later rebuilt with new version IDs, the snapshot in existing metadata files will reference the old versions. This is correct behavior: it preserves the historical provenance chain. Downstream stages should use the taxonomy registry's current state for active routing, not the snapshot. The snapshot exists for traceability and debugging, not for driving decisions.
 
 If a science has no taxonomy tree in the registry, this is a project-level blocker (not an intake error). Log: `"No active taxonomy for {science_id}. Taxonomy must be created before excerpting can begin for this science."` Intake proceeds — the snapshot records whatever exists.
 

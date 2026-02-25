@@ -54,6 +54,13 @@ MUHAQIQ_PATTERNS = [
     "علق",             # priority 10
 ]
 
+# Labels that contain muhaqiq substrings but are NOT muhaqiq fields.
+# These are checked BEFORE muhaqiq matching to prevent false positives.
+# "أصل التحقيق" = "origin of the tahqiq" (e.g., PhD thesis), not the editor.
+MUHAQIQ_EXCLUSIONS = [
+    "أصل التحقيق",
+]
+
 # Exact-match fields (§3.5.2 Step 4)
 EXACT_FIELDS = {
     "القسم": "html_qism_field",
@@ -129,18 +136,32 @@ def file_size(path):
 
 
 def find_repo_root():
-    """Find the repo root (directory containing books/, schemas/, tools/, taxonomy/).
+    """Find the repo root (directory containing books/, schemas/, tools/).
+    taxonomy/ is checked but not required — it may not exist before Stage 5.
     Walk up from this script's location."""
     here = Path(__file__).resolve().parent  # tools/
     candidate = here.parent                 # should be repo root
-    required = {"books", "schemas", "tools", "taxonomy"}
-    if required.issubset({p.name for p in candidate.iterdir() if p.is_dir()}):
+    required = {"books", "schemas", "tools"}
+    optional = {"taxonomy"}
+
+    def _check(path):
+        dirs = {p.name for p in path.iterdir() if p.is_dir()}
+        if required.issubset(dirs):
+            missing_optional = optional - dirs
+            if missing_optional:
+                for d in missing_optional:
+                    warn(f"Optional directory '{d}/' not found at repo root. "
+                         f"This is expected before the relevant stage is reached.")
+            return True
+        return False
+
+    if _check(candidate):
         return candidate
     # Fallback: try CWD
     cwd = Path.cwd()
-    if required.issubset({p.name for p in cwd.iterdir() if p.is_dir()}):
+    if _check(cwd):
         return cwd
-    abort("Cannot find repo root (expected directory containing books/, schemas/, tools/, taxonomy/). "
+    abort("Cannot find repo root (expected directory containing books/, schemas/, tools/). "
           "Run from the repo root or from tools/.")
 
 
@@ -256,11 +277,22 @@ def parse_metadata_card(html):
 
         # Try muhaqiq contains patterns (ordered, first match wins)
         if not matched:
-            for pat in MUHAQIQ_PATTERNS:
-                if pat in label:
-                    result["muhaqiq"] = value
-                    matched = True
-                    break
+            # Check exclusions first — labels that contain muhaqiq substrings
+            # but are NOT muhaqiq fields (e.g., أصل التحقيق)
+            is_excluded = any(excl in label for excl in MUHAQIQ_EXCLUSIONS)
+            if not is_excluded:
+                for pat in MUHAQIQ_PATTERNS:
+                    if pat in label:
+                        if result["muhaqiq"] is None:
+                            result["muhaqiq"] = value
+                        else:
+                            # Keep first muhaqiq, route subsequent to unrecognized
+                            warn(f"Multiple muhaqiq-matching labels found. "
+                                 f"Keeping first ('{result['muhaqiq'][:40]}...'). "
+                                 f"Routing '{label}: {value[:40]}...' to unrecognized.")
+                            result["unrecognized_metadata_lines"].append(full_text)
+                        matched = True
+                        break
 
         # Unrecognized
         if not matched:
@@ -549,6 +581,124 @@ def write_registry(registry_data, registry_path, new_entry):
         raise
 
 
+# ─── Verification (--verify) ───────────────────────────────────────────────
+
+def verify_intake(book_id, repo_root):
+    """Verify integrity of an existing intake.
+    Checks: metadata exists, validates against schema, source files exist
+    with correct hashes, and registry entry is consistent.
+    Returns (passed: bool, messages: list of str).
+    """
+    issues = []
+    checks_passed = 0
+    checks_total = 0
+
+    book_dir = repo_root / "books" / book_id
+    metadata_path = book_dir / "intake_metadata.json"
+
+    # 1. Metadata file exists
+    checks_total += 1
+    if not metadata_path.exists():
+        issues.append(f"FAIL: {metadata_path} does not exist.")
+        # Can't continue without metadata
+        return False, issues
+    checks_passed += 1
+
+    # 2. Metadata is valid JSON
+    checks_total += 1
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        checks_passed += 1
+    except json.JSONDecodeError as e:
+        issues.append(f"FAIL: {metadata_path} is not valid JSON: {e}")
+        return False, issues
+
+    # 3. Schema validation
+    checks_total += 1
+    schema_path = repo_root / "schemas" / "intake_metadata_schema_v0.1.json"
+    if schema_path.exists():
+        try:
+            import jsonschema
+            with open(schema_path, "r", encoding="utf-8") as f:
+                schema = json.load(f)
+            jsonschema.validate(metadata, schema)
+            checks_passed += 1
+        except ImportError:
+            issues.append("SKIP: jsonschema not installed — cannot validate schema.")
+        except jsonschema.ValidationError as e:
+            issues.append(f"FAIL: Schema validation error: {e.message}")
+    else:
+        issues.append(f"SKIP: Schema file not found at {schema_path}.")
+
+    # 4. book_id consistency
+    checks_total += 1
+    if metadata.get("book_id") != book_id:
+        issues.append(f"FAIL: Metadata book_id '{metadata.get('book_id')}' != requested '{book_id}'.")
+    else:
+        checks_passed += 1
+
+    # 5. Source files exist and hashes match
+    for sf in metadata.get("source_files", []):
+        relpath = sf["relpath"]
+        expected_sha = sf["sha256"]
+        expected_size = sf["size_bytes"]
+        full_path = repo_root / relpath
+
+        checks_total += 1
+        if not full_path.exists():
+            issues.append(f"FAIL: Source file missing: {relpath}")
+            continue
+
+        actual_sha = sha256_file(full_path)
+        if actual_sha != expected_sha:
+            issues.append(f"FAIL: Hash mismatch for {relpath}: "
+                          f"expected {expected_sha[:16]}..., got {actual_sha[:16]}...")
+            continue
+
+        actual_size = file_size(full_path)
+        if actual_size != expected_size:
+            issues.append(f"WARN: Size mismatch for {relpath}: "
+                          f"expected {expected_size}, got {actual_size}")
+            # Size mismatch with matching hash is theoretically impossible,
+            # but check anyway for filesystem weirdness
+        checks_passed += 1
+
+    # 6. Registry consistency
+    checks_total += 1
+    registry_data, _ = load_registry(repo_root)
+    if registry_data is None:
+        issues.append("FAIL: books_registry.yaml not found.")
+    else:
+        books = registry_data.get("books", [])
+        reg_entry = None
+        for b in books:
+            if b.get("book_id") == book_id:
+                reg_entry = b
+                break
+        if reg_entry is None:
+            issues.append(f"FAIL: Book '{book_id}' not found in registry.")
+        else:
+            # Cross-check key fields
+            if reg_entry.get("title") != metadata.get("title"):
+                issues.append(f"FAIL: Title mismatch between registry and metadata.")
+            if reg_entry.get("volume_count") != metadata.get("volume_count"):
+                issues.append(f"FAIL: Volume count mismatch between registry and metadata.")
+
+            reg_hashes = reg_entry.get("source_hashes", [])
+            meta_hashes = [sf["sha256"] for sf in metadata.get("source_files", [])]
+            if reg_hashes != meta_hashes:
+                issues.append(f"FAIL: Source hashes mismatch between registry "
+                              f"({len(reg_hashes)} hashes) and metadata ({len(meta_hashes)} hashes).")
+
+            if not issues or all("WARN" in i or "SKIP" in i for i in issues):
+                checks_passed += 1
+
+    passed = checks_passed == checks_total
+    summary = f"{checks_passed}/{checks_total} checks passed"
+    return passed, [summary] + issues
+
+
 # ─── Main Pipeline ─────────────────────────────────────────────────────────
 
 def main():
@@ -556,18 +706,43 @@ def main():
         description="Stage 0: Book Intake — freeze source, extract metadata, register book.",
         epilog="See INTAKE_SPEC.md for full documentation."
     )
-    parser.add_argument("source", help="Source .htm file or directory of .htm files")
-    parser.add_argument("--book-id", required=True, help="Short ASCII book identifier (3-40 chars)")
-    parser.add_argument("--science", required=True, choices=VALID_SCIENCES,
+    parser.add_argument("source", nargs="?", default=None,
+                        help="Source .htm file or directory of .htm files")
+    parser.add_argument("--book-id", default=None, help="Short ASCII book identifier (3-40 chars)")
+    parser.add_argument("--science", default=None, choices=VALID_SCIENCES,
                         help="Primary science declaration")
     parser.add_argument("--science-parts", help="YAML file mapping sections to sciences (required for --science multi)")
     parser.add_argument("--notes", help="Free-text edition/context notes")
     parser.add_argument("--force", action="store_true", help="Bypass duplicate SHA-256 check")
     parser.add_argument("--non-interactive", action="store_true", help="Skip interactive prompts")
     parser.add_argument("--dry-run", action="store_true", help="Validate and preview without writing")
+    parser.add_argument("--verify", metavar="BOOK_ID",
+                        help="Verify integrity of an existing intake (source hashes, schema, registry consistency)")
 
     args = parser.parse_args()
     repo_root = find_repo_root()
+
+    # ── --verify mode: verify existing intake and exit ────────────────
+    if args.verify:
+        info("=" * 60)
+        info(f"Stage 0: Verify Intake — {args.verify}")
+        info("=" * 60)
+        passed, messages = verify_intake(args.verify, repo_root)
+        for msg in messages:
+            info(f"  {msg}")
+        if passed:
+            info(f"\n✅ Intake '{args.verify}' verified successfully.")
+        else:
+            info(f"\n❌ Intake '{args.verify}' has integrity issues.")
+        sys.exit(0 if passed else 1)
+
+    # ── Validate required args for intake mode ────────────────────────
+    if not args.source:
+        parser.error("the following arguments are required: source (unless using --verify)")
+    if not args.book_id:
+        parser.error("the following arguments are required: --book-id (unless using --verify)")
+    if not args.science:
+        parser.error("the following arguments are required: --science (unless using --verify)")
 
     info("=" * 60)
     info("Stage 0: Book Intake")
@@ -624,12 +799,12 @@ def main():
     info("\n── Book ID validation ──")
     book_id = args.book_id
 
+    if len(book_id) < 3 or len(book_id) > 40:
+        abort(f"Book ID '{book_id}' is {len(book_id)} characters. Must be 3–40.")
+
     if not BOOK_ID_PATTERN.match(book_id):
         abort(f"Book ID '{book_id}' contains invalid characters. Must match [a-z][a-z_]*[a-z] "
               f"(start and end with a letter, only lowercase letters and underscores).")
-
-    if len(book_id) < 3 or len(book_id) > 40:
-        abort(f"Book ID '{book_id}' is {len(book_id)} characters. Must be 3–40.")
 
     # Check uniqueness against registry
     registry_data, registry_path = load_registry(repo_root)
@@ -854,11 +1029,28 @@ def main():
         ratio = total_actual_pages / shamela_count
         if ratio < 0.80:
             pct = round(ratio * 100, 1)
-            prompt_yn(
+            confirmed = prompt_yn(
                 f"HTML may be truncated. Shamela metadata says {shamela_count} pages, "
                 f"actual content has {total_actual_pages} pages ({pct}%). Continue anyway?",
                 non_interactive=args.non_interactive, hard=False
             )
+            if not confirmed:
+                abort("User declined to proceed with potentially truncated source.")
+        elif ratio > 1.25:
+            pct = round(ratio * 100, 1)
+            warn(f"Actual page count ({total_actual_pages}) significantly exceeds "
+                 f"Shamela metadata ({shamela_count}) — {pct}%. "
+                 f"Shamela count may be inaccurate or metadata may be stale.")
+
+    # ── Volume count cross-check ──────────────────────────────────────
+
+    shamela_vol_count = metadata["shamela_volume_count"]
+    actual_vol_count = len([sf for sf in source_files_info if sf["role"] == "volume"])
+    if shamela_vol_count is not None and actual_vol_count > 0:
+        if actual_vol_count != shamela_vol_count:
+            warn(f"Shamela metadata says {shamela_vol_count} volumes, "
+                 f"but {actual_vol_count} volume files found. "
+                 f"Export may be incomplete or Shamela count may be inaccurate.")
 
     # ── §3.8 Taxonomy snapshot ────────────────────────────────────────
 
@@ -912,7 +1104,7 @@ def main():
         "total_actual_pages": total_actual_pages,
         "source_files": source_files_out,
         "unrecognized_metadata_lines": metadata["unrecognized_metadata_lines"],
-        "edition_notes": args.notes,
+        "edition_notes": args.notes if args.notes else None,
         "language": "ar",
         "intake_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "taxonomy_at_intake": taxonomy_snapshot,
