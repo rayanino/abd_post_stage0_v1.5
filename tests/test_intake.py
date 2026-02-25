@@ -33,8 +33,11 @@ from intake import (
     check_duplicate_id,
     classify_directory,
     count_pages,
+    extract_scholarly_context,
+    normalize_volume_filename,
     parse_metadata_card,
     strip_html,
+    suggest_book_id,
     validate_science,
     validate_shamela_file,
 )
@@ -369,7 +372,7 @@ class TestExistingMetadata:
             pytest.skip("jsonschema not installed")
 
         meta_path = REPO_ROOT / "books" / book_id / "intake_metadata.json"
-        schema_path = REPO_ROOT / "schemas" / "intake_metadata_schema_v0.1.json"
+        schema_path = REPO_ROOT / "schemas" / "intake_metadata_schema.json"
         if not meta_path.exists():
             pytest.skip(f"Metadata not found: {meta_path}")
 
@@ -454,3 +457,140 @@ class TestParserOnCorpus:
                     f"{os.path.basename(path)}: muhaqiq contains thesis text"
                 assert "رسالة دكتوراة" not in result["muhaqiq"], \
                     f"{os.path.basename(path)}: muhaqiq contains thesis text"
+
+
+# ─── Unit tests: scholarly context extraction ──────────────────────────────
+
+class TestScholarlyContext:
+    def test_death_date_western_numerals(self):
+        meta = {"author": "عبد القاهر الجرجاني (ت 471 هـ)", "title": "Test", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["author_death_hijri"] == 471
+
+    def test_death_date_arabic_numerals(self):
+        meta = {"author": "القزويني (ت ٧٣٩هـ)", "title": "Test", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["author_death_hijri"] == 739
+
+    def test_madhab_shafii(self):
+        meta = {"author": "القزويني الشافعي", "title": "Test", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["fiqh_madhab"] == "shafii"
+
+    def test_madhab_hanafi(self):
+        meta = {"author": "ابن الهمام الحنفي", "title": "Test", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["fiqh_madhab"] == "hanafi"
+
+    def test_geographic_origin(self):
+        meta = {"author": "جلال الدين القزويني الشافعي", "title": "Test", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["geographic_origin"] == "القزويني"
+
+    def test_geographic_filters_madhab(self):
+        """الشافعي should not be captured as geographic origin."""
+        meta = {"author": "أحمد الشافعي", "title": "Test", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["geographic_origin"] != "الشافعي" or ctx["geographic_origin"] is None
+
+    def test_book_type_sharh(self):
+        meta = {"author": "Author", "title": "شرح ابن عقيل", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["book_type"] == "sharh"
+
+    def test_book_type_hashiya(self):
+        meta = {"author": "Author", "title": "حاشية الخضري", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["book_type"] == "hashiya"
+
+    def test_book_type_mukhtasar(self):
+        meta = {"author": "Author", "title": "مختصر المعاني", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["book_type"] == "mukhtasar"
+
+    def test_no_author_graceful(self):
+        meta = {"author": None, "title": "Test", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["author_death_hijri"] is None
+        assert ctx["fiqh_madhab"] is None
+
+    def test_extraction_source_always_auto(self):
+        meta = {"author": "Author (ت 500 هـ)", "title": "Test", "title_formal": None}
+        ctx = extract_scholarly_context(meta)
+        assert ctx["extraction_source"] == "auto"
+
+
+# ─── Unit tests: volume filename normalization ─────────────────────────────
+
+class TestNormalizeVolumeFilename:
+    def test_already_padded(self):
+        assert normalize_volume_filename("001.htm", 1) == "001.htm"
+
+    def test_needs_padding(self):
+        assert normalize_volume_filename("1.htm", 1) == "001.htm"
+
+    def test_two_digits(self):
+        assert normalize_volume_filename("12.htm", 12) == "012.htm"
+
+    def test_preserves_extension(self):
+        assert normalize_volume_filename("1.html", 1) == "001.html"
+
+
+# ─── Unit tests: adjacent science ──────────────────────────────────────────
+
+class TestAdjacentScience:
+    def test_adjacent_in_valid_sciences(self):
+        assert "adjacent" in VALID_SCIENCES
+
+    def test_adjacent_not_in_single_sciences(self):
+        assert "adjacent" not in SINGLE_SCIENCES
+
+    def test_adjacent_validation(self):
+        result = validate_science("adjacent", "الأدب", non_interactive=True)
+        assert result == "adjacent"
+
+
+# ─── Integration: scholarly context on real corpus ─────────────────────────
+
+@pytest.mark.skipif(not HAS_OTHER_BOOKS, reason="Other Books not present")
+class TestScholarlyContextCorpus:
+    def test_death_dates_are_reasonable(self):
+        """All auto-extracted death dates should be between 1-1500 AH."""
+        files = []
+        for root, dirs, fnames in os.walk(str(OTHER_BOOKS)):
+            for fn in fnames:
+                if fn.endswith('.htm'):
+                    files.append(os.path.join(root, fn))
+
+        unreasonable = []
+        for path in files:
+            html = open(path, 'r', encoding='utf-8', errors='replace').read()
+            result, _ = parse_metadata_card(html)
+            if result:
+                ctx = extract_scholarly_context(result)
+                d = ctx["author_death_hijri"]
+                if d is not None and (d < 1 or d > 1500):
+                    unreasonable.append((os.path.basename(path), d))
+
+        assert len(unreasonable) == 0, \
+            f"Unreasonable death dates: {unreasonable[:5]}"
+
+    def test_madhabs_are_valid(self):
+        """All auto-extracted madhabs should be from the known set."""
+        valid_madhabs = {"shafii", "hanafi", "maliki", "hanbali", None}
+        files = []
+        for root, dirs, fnames in os.walk(str(OTHER_BOOKS)):
+            for fn in fnames:
+                if fn.endswith('.htm'):
+                    files.append(os.path.join(root, fn))
+
+        invalid = []
+        for path in files:
+            html = open(path, 'r', encoding='utf-8', errors='replace').read()
+            result, _ = parse_metadata_card(html)
+            if result:
+                ctx = extract_scholarly_context(result)
+                if ctx["fiqh_madhab"] not in valid_madhabs:
+                    invalid.append((os.path.basename(path), ctx["fiqh_madhab"]))
+
+        assert len(invalid) == 0, f"Invalid madhabs: {invalid[:5]}"

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "intake_metadata_schema_v0.1.json",
+  "$id": "intake_metadata_schema_v0.2.json",
   "title": "ABD Intake Metadata",
   "description": "Schema for intake_metadata.json — the output of Stage 0 (Book Intake). One file per book.",
   "type": "object",
@@ -31,7 +31,11 @@
       "pattern": "^[a-z][a-z_]*[a-z]$",
       "minLength": 3,
       "maxLength": 40,
-      "description": "User-assigned short ASCII identifier. Starts and ends with a lowercase letter, only lowercase letters and underscores in between. 3-40 characters."
+      "description": "User-assigned short ASCII identifier. Convention: transliterated distinctive word(s) from the title, optionally with author keyword (e.g., iidah_qazwini, jawahir, ibn_aqil)."
+    },
+    "shamela_book_id": {
+      "type": ["integer", "null"],
+      "description": "Shamela Library numeric book ID. Enables shamela.ws/book/{id} reference. Captured at intake from user (--shamela-id). Null if not provided."
     },
     "title": {
       "type": "string",
@@ -91,8 +95,8 @@
     },
     "book_category": {
       "type": "string",
-      "enum": ["single_science", "multi_science", "tangentially_relevant"],
-      "description": "Category derived from science declaration. single_science: one of our 4 sciences. multi_science: covers multiple sciences. tangentially_relevant: user declared 'unrelated'."
+      "enum": ["single_science", "multi_science", "adjacent_field", "tangentially_relevant"],
+      "description": "Category derived from science declaration. single_science: one of our 4 sciences. multi_science: covers multiple sciences. adjacent_field: Arabic language/literature, not our 4 sciences but closely related. tangentially_relevant: user declared 'unrelated'."
     },
     "science_parts": {
       "type": ["array", "null"],
@@ -117,6 +121,47 @@
           }
         }
       }
+    },
+    "scholarly_context": {
+      "type": ["object", "null"],
+      "description": "Structured scholarly metadata about the author and book. Auto-extracted from metadata fields where possible (author death date, madhab, nisba), supplemented by user input. Null if no data available.",
+      "properties": {
+        "author_death_hijri": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Author's death year in Hijri calendar. Auto-extracted from (ت Xهـ) pattern in author field."
+        },
+        "author_birth_hijri": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Author's birth year in Hijri calendar. Auto-extracted when available."
+        },
+        "fiqh_madhab": {
+          "type": ["string", "null"],
+          "enum": ["shafii", "hanafi", "maliki", "hanbali", "other", null],
+          "description": "Author's fiqh madhab. Auto-extracted from nisba in author field (e.g., الشافعي → shafii)."
+        },
+        "grammatical_school": {
+          "type": ["string", "null"],
+          "enum": ["basri", "kufi", "baghdadi", "andalusi", "misri", "shami", "other", null],
+          "description": "Author's grammatical school alignment. Critical for nahw/sarf disputes (بصرة vs كوفة). Auto-extracted from geographic nisba where deterministic."
+        },
+        "geographic_origin": {
+          "type": ["string", "null"],
+          "description": "Geographic nisba from author field (e.g., القزويني, البغدادي). Raw Arabic string."
+        },
+        "book_type": {
+          "type": ["string", "null"],
+          "enum": ["matn", "sharh", "hashiya", "mukhtasar", "nazm", "other", null],
+          "description": "Book's genre/type. matn: base text, sharh: commentary, hashiya: marginal commentary, mukhtasar: abridgment, nazm: versified treatise. Auto-detected from title keywords."
+        },
+        "extraction_source": {
+          "type": "string",
+          "enum": ["auto", "user_provided", "enriched"],
+          "description": "How this context was obtained. auto: regex extraction from metadata. user_provided: user input at intake. enriched: post-intake enrichment tool."
+        }
+      },
+      "additionalProperties": false
     },
     "volume_count": {
       "type": "integer",

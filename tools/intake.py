@@ -27,10 +27,37 @@ import yaml
 
 # ─── Constants ──────────────────────────────────────────────────────────────
 
-SCHEMA_VERSION = "intake_metadata_v0.1"
-VALID_SCIENCES = ("balagha", "sarf", "nahw", "imlaa", "unrelated", "multi")
+SCHEMA_VERSION = "intake_metadata_v0.2"
+VALID_SCIENCES = ("balagha", "sarf", "nahw", "imlaa", "adjacent", "unrelated", "multi")
 SINGLE_SCIENCES = ("balagha", "sarf", "nahw", "imlaa")
 BOOK_ID_PATTERN = re.compile(r"^[a-z][a-z_]*[a-z]$")
+
+# Book type detection patterns (checked against title, title_formal, or unrecognized lines)
+BOOK_TYPE_PATTERNS = [
+    (r"\bحاشية\b", "hashiya"),        # marginal commentary
+    (r"\bشرح\b", "sharh"),            # commentary
+    (r"\bمختصر\b", "mukhtasar"),      # abridgment
+    (r"\bتلخيص\b", "mukhtasar"),      # summary/abridgment
+    (r"\bنظم\b", "nazm"),             # versified treatise
+    (r"\bمتن\b", "matn"),             # base text (explicit)
+]
+
+# Fiqh madhab detection (from author field nisbas)
+MADHAB_PATTERNS = {
+    "الشافعي": "shafii",
+    "الحنفي": "hanafi",
+    "المالكي": "maliki",
+    "الحنبلي": "hanbali",
+}
+
+# Grammatical school nisbas (الكوفي vs البصري is THE key distinction)
+GRAMMAR_SCHOOL_NISBAS = {
+    "البصري": "basri",
+    "الكوفي": "kufi",
+    "البغدادي": "baghdadi",
+    "الأندلسي": "andalusi",
+    "المصري": "misri",
+}
 
 # القسم → science mapping for validation (§3.6)
 QISM_HIGH_RELIABILITY = {
@@ -363,9 +390,14 @@ def validate_science(declared_science, qism_value, non_interactive):
     """§3.6: Cross-reference user's science declaration against القسم field.
     Returns the confirmed primary_science value.
     """
-    if declared_science in ("unrelated", "multi"):
-        # Soft confirmation for unrelated/multi
-        category_label = "unrelated" if declared_science == "unrelated" else "multi-science"
+    if declared_science in ("adjacent", "unrelated", "multi"):
+        # Soft confirmation for adjacent/unrelated/multi
+        category_labels = {
+            "adjacent": "adjacent field (related to Arabic language, not one of our 4 sciences)",
+            "unrelated": "unrelated",
+            "multi": "multi-science",
+        }
+        category_label = category_labels[declared_science]
         confirmed = prompt_yn(
             f"You declared this book as '{category_label}'. Confirm?",
             non_interactive=non_interactive, hard=False
@@ -522,6 +554,7 @@ def build_registry_entry(metadata):
     """§4.3: Build a registry entry from intake metadata."""
     entry = {
         "book_id": metadata["book_id"],
+        "shamela_book_id": metadata.get("shamela_book_id"),
         "title": metadata["title"],
         "title_formal": metadata.get("title_formal"),
         "author": metadata.get("author"),
@@ -581,6 +614,130 @@ def write_registry(registry_data, registry_path, new_entry):
         raise
 
 
+# ─── Scholarly context extraction ──────────────────────────────────────────
+
+def extract_scholarly_context(metadata):
+    """Auto-extract structured scholarly context from existing metadata fields.
+    
+    Extracts from the author field: death date, fiqh madhab, grammatical school.
+    Extracts from the title: book type (sharh, hashiya, mukhtasar, etc.).
+    
+    Returns a dict with all fields (None where not detected).
+    """
+    context = {
+        "author_death_hijri": None,
+        "author_birth_hijri": None,
+        "fiqh_madhab": None,
+        "grammatical_school": None,
+        "geographic_origin": None,
+        "book_type": None,
+        "extraction_source": "auto",
+    }
+
+    author = metadata.get("author") or ""
+
+    # ── Death date: patterns like (ت 739هـ), (ت ٧٣٩ هـ), (ت739 هـ) ────
+    # Arabic numerals first, then Western
+    death_match = re.search(r"ت\s*([٠-٩]+)\s*هـ", author)
+    if death_match:
+        arabic_num = death_match.group(1)
+        # Convert Arabic-Indic numerals to Western
+        context["author_death_hijri"] = int(
+            arabic_num.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789"))
+        )
+    else:
+        death_match = re.search(r"ت\s*(\d+)\s*هـ", author)
+        if death_match:
+            context["author_death_hijri"] = int(death_match.group(1))
+
+    # ── Birth date: sometimes in (birth - death هـ) pattern ────────
+    birth_match = re.search(r"\(([٠-٩\d]+)\s*[-–]\s*[٠-٩\d]+\s*هـ", author)
+    if birth_match:
+        raw = birth_match.group(1)
+        context["author_birth_hijri"] = int(
+            raw.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789"))
+        )
+
+    # ── Fiqh madhab: look for nisba patterns in author field ──────
+    for pattern, madhab in MADHAB_PATTERNS.items():
+        if pattern in author:
+            context["fiqh_madhab"] = madhab
+            break
+
+    # ── Grammatical school: look for geographic nisbas ────────────
+    for pattern, school in GRAMMAR_SCHOOL_NISBAS.items():
+        if pattern in author:
+            context["grammatical_school"] = school
+            break
+
+    # ── Geographic origin: extract the nisba (القزويني → قزوين) ───
+    # Look for الXXXي pattern that's a place name (this is a heuristic)
+    nisbas = re.findall(r"(ال[^\s,،()]+ي)\b", author)
+    # Filter out non-geographic nisbas (madhabs, kunyah components, descriptors)
+    non_geographic = set(MADHAB_PATTERNS.keys()) | {
+        "المعروف", "العجلي", "المعالي",
+        "الأصلي", "التقي", "العلي",
+        "الأولي", "التالي", "الثاني",
+    }
+    geographic_nisbas = [n for n in nisbas if n not in non_geographic]
+    if geographic_nisbas:
+        # Prefer the last geographic nisba (most specific, closest to madhab)
+        context["geographic_origin"] = geographic_nisbas[-1]
+
+    # ── Book type: detect from title and title_formal ─────────────
+    title_text = (metadata.get("title") or "") + " " + (metadata.get("title_formal") or "")
+    for pattern, book_type in BOOK_TYPE_PATTERNS:
+        if re.search(pattern, title_text):
+            context["book_type"] = book_type
+            break
+
+    return context
+
+
+def suggest_book_id(metadata):
+    """Suggest a book ID based on extracted metadata.
+    
+    Convention: {distinctive_title_word}  or  {title_word}_{author_word}
+    
+    Returns a suggestion string (Arabic, for the user to transliterate)
+    and a rationale.
+    """
+    title = metadata.get("title") or ""
+    # Strip common prefixes that don't help identify the book
+    skip_words = {"كتاب", "في", "على", "من", "إلى", "عن", "بين"}
+    words = [w for w in title.split() if w not in skip_words and len(w) > 2]
+
+    if not words:
+        return None, None
+
+    # First distinctive word
+    key_word = words[0]
+
+    author_short = metadata.get("shamela_author_short") or ""
+    author_words = [w for w in author_short.split() if w not in skip_words and len(w) > 2]
+    author_key = author_words[0] if author_words else None
+
+    suggestion = key_word
+    rationale = f"From title: '{key_word}'"
+    if author_key:
+        suggestion += f" ({author_key})"
+        rationale += f", author: '{author_key}'"
+
+    return suggestion, rationale
+
+
+# ─── Volume filename normalization ─────────────────────────────────────────
+
+def normalize_volume_filename(original_name, volume_number):
+    """Normalize volume filenames to zero-padded 3-digit format.
+    
+    1.htm → 001.htm, 02.htm → 002.htm, 001.htm → 001.htm (unchanged).
+    This ensures unambiguous sort order regardless of filesystem behavior.
+    """
+    ext = Path(original_name).suffix  # .htm
+    return f"{volume_number:03d}{ext}"
+
+
 # ─── Verification (--verify) ───────────────────────────────────────────────
 
 def verify_intake(book_id, repo_root):
@@ -616,7 +773,7 @@ def verify_intake(book_id, repo_root):
 
     # 3. Schema validation
     checks_total += 1
-    schema_path = repo_root / "schemas" / "intake_metadata_schema_v0.1.json"
+    schema_path = repo_root / "schemas" / "intake_metadata_schema.json"
     if schema_path.exists():
         try:
             import jsonschema
@@ -713,6 +870,8 @@ def main():
                         help="Primary science declaration")
     parser.add_argument("--science-parts", help="YAML file mapping sections to sciences (required for --science multi)")
     parser.add_argument("--notes", help="Free-text edition/context notes")
+    parser.add_argument("--shamela-id", type=int, metavar="N",
+                        help="Shamela Library book ID (enables shamela.ws/book/N reference)")
     parser.add_argument("--force", action="store_true", help="Bypass duplicate SHA-256 check")
     parser.add_argument("--non-interactive", action="store_true", help="Skip interactive prompts")
     parser.add_argument("--dry-run", action="store_true", help="Validate and preview without writing")
@@ -887,15 +1046,17 @@ def main():
             for vol_num, fpath in numbered:
                 html = fpath.read_text(encoding="utf-8")
                 pages = count_pages(html)
+                normalized_name = normalize_volume_filename(fpath.name, vol_num)
                 source_files_info.append({
                     "original_path": fpath,
-                    "target_name": fpath.name,
+                    "target_name": normalized_name,
                     "role": "volume",
                     "volume_number": vol_num,
                     "actual_page_count": pages,
                     "file_note": None,
                 })
-                info(f"  ✓ Volume {vol_num}: {fpath.name} ({pages} pages)")
+                rename_note = f" (→ {normalized_name})" if normalized_name != fpath.name else ""
+                info(f"  ✓ Volume {vol_num}: {fpath.name}{rename_note} ({pages} pages)")
 
         # Supplementary files (§3.2)
         if supplementary_candidates:
@@ -1010,6 +1171,9 @@ def main():
     elif confirmed_science == "multi":
         book_category = "multi_science"
         primary_science = None
+    elif confirmed_science == "adjacent":
+        book_category = "adjacent_field"
+        primary_science = None
     elif confirmed_science == "unrelated":
         book_category = "tangentially_relevant"
         primary_science = None
@@ -1019,6 +1183,38 @@ def main():
     info(f"  Category: {book_category}")
     if primary_science:
         info(f"  Primary science: {primary_science}")
+
+    # ── Scholarly context extraction ──────────────────────────────────
+
+    scholarly_ctx = extract_scholarly_context(metadata)
+    has_any = any(v is not None for k, v in scholarly_ctx.items() if k != "extraction_source")
+
+    if has_any:
+        info("\n── Scholarly context (auto-extracted) ──")
+        if scholarly_ctx["author_death_hijri"]:
+            info(f"  Death (Hijri): {scholarly_ctx['author_death_hijri']} هـ")
+        if scholarly_ctx["author_birth_hijri"]:
+            info(f"  Birth (Hijri): {scholarly_ctx['author_birth_hijri']} هـ")
+        if scholarly_ctx["fiqh_madhab"]:
+            info(f"  Fiqh madhab: {scholarly_ctx['fiqh_madhab']}")
+        if scholarly_ctx["grammatical_school"]:
+            info(f"  Grammatical school: {scholarly_ctx['grammatical_school']}")
+        if scholarly_ctx["geographic_origin"]:
+            info(f"  Geographic origin: {scholarly_ctx['geographic_origin']}")
+        if scholarly_ctx["book_type"]:
+            info(f"  Book type: {scholarly_ctx['book_type']}")
+    else:
+        info("\n── Scholarly context ──")
+        info("  (no structured data auto-extracted from metadata)")
+        scholarly_ctx = None  # Don't store empty context
+
+    # ── Book ID suggestion ────────────────────────────────────────────
+
+    suggestion, rationale = suggest_book_id(metadata)
+    if suggestion and not args.non_interactive:
+        info(f"\n  Book ID convention hint: consider transliterating '{suggestion}'")
+        if rationale:
+            info(f"  ({rationale})")
 
     # ── EC-I.6 Truncation check ───────────────────────────────────────
 
@@ -1085,6 +1281,7 @@ def main():
     intake_metadata = {
         "schema_version": SCHEMA_VERSION,
         "book_id": book_id,
+        "shamela_book_id": args.shamela_id,
         "title": metadata["title"],
         "title_formal": metadata["title_formal"],
         "shamela_author_short": metadata["shamela_author_short"],
@@ -1100,6 +1297,7 @@ def main():
         "primary_science": primary_science,
         "book_category": book_category,
         "science_parts": science_parts,
+        "scholarly_context": scholarly_ctx,
         "volume_count": volume_count,
         "total_actual_pages": total_actual_pages,
         "source_files": source_files_out,
@@ -1171,7 +1369,7 @@ def main():
         info(f"  ✓ Wrote: {metadata_path}")
 
         # Validate against schema
-        schema_path = repo_root / "schemas" / "intake_metadata_schema_v0.1.json"
+        schema_path = repo_root / "schemas" / "intake_metadata_schema.json"
         if schema_path.exists():
             try:
                 import jsonschema
