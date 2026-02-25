@@ -1,0 +1,51 @@
+{
+  "schema_version": "intake_metadata_v0.1",
+  "book_id": "dalail",
+  "title": "دلائل الإعجاز ت شاكر",
+  "title_formal": "دلائل الإعجاز في علم المعاني",
+  "shamela_author_short": "عبد القاهر الجرجاني",
+  "author": "أبو بكر عبد القاهر بن عبد الرحمن بن محمد الفارسي الأصل، الجرجاني الدار (ت 471 هـ)",
+  "muhaqiq": "محمود محمد شاكر أبو فهر",
+  "publisher": "مطبعة المدني بالقاهرة - دار المدني بجدة",
+  "shamela_page_count": 684,
+  "shamela_edition": "الثالثة 1413 هـ - 1992 م",
+  "shamela_volume_count": null,
+  "publication_year": null,
+  "html_qism_field": "البلاغة",
+  "shamela_pub_date": "24 ذو القعدة 1432",
+  "primary_science": "balagha",
+  "book_category": "single_science",
+  "science_parts": null,
+  "volume_count": 1,
+  "total_actual_pages": 688,
+  "source_files": [
+    {
+      "relpath": "books/dalail/source/001.htm",
+      "sha256": "c5eb9730b0a36253919d9321244f171bc3d89e7c04b383f2cb6d97c766df72e3",
+      "size_bytes": 1738904,
+      "role": "primary_export",
+      "volume_number": null,
+      "actual_page_count": 676,
+      "file_note": null
+    },
+    {
+      "relpath": "books/dalail/source/muqaddima.htm",
+      "sha256": "4ac3a58ef9583b5befaa960d14410c1e6700a9b48d5f4eda6ec8564edf19b4d3",
+      "size_bytes": 37926,
+      "role": "supplementary",
+      "volume_number": null,
+      "actual_page_count": 12,
+      "file_note": "muqaddima — 12-page preface by the muhaqiq"
+    }
+  ],
+  "unrecognized_metadata_lines": [],
+  "edition_notes": "Shamela desktop export (ت شاكر edition). Classical prose treatise.",
+  "language": "ar",
+  "intake_utc": "2026-02-25T16:07:11Z",
+  "taxonomy_at_intake": {
+    "balagha": "balagha_v0_4",
+    "sarf": "sarf_v0_1",
+    "nahw": "nahw_v0_1",
+    "imlaa": "imlaa_v0_1"
+  }
+}

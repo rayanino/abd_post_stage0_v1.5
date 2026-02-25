@@ -1,0 +1,205 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "intake_metadata_schema_v0.1.json",
+  "title": "ABD Intake Metadata",
+  "description": "Schema for intake_metadata.json — the output of Stage 0 (Book Intake). One file per book.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "book_id",
+    "title",
+    "author",
+    "primary_science",
+    "book_category",
+    "volume_count",
+    "total_actual_pages",
+    "source_files",
+    "unrecognized_metadata_lines",
+    "language",
+    "intake_utc",
+    "taxonomy_at_intake"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^intake_metadata_v[0-9]+\\.[0-9]+$",
+      "description": "Schema version identifier. Enables forward-compatible parsing when the schema evolves."
+    },
+    "book_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z_]*[a-z]$",
+      "minLength": 3,
+      "maxLength": 40,
+      "description": "User-assigned short ASCII identifier. Starts and ends with a lowercase letter, only lowercase letters and underscores in between. 3-40 characters."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Book title from the first <span class='title'> in the Shamela metadata card. May contain shorthand like editor markers. Required — intake aborts if missing."
+    },
+    "title_formal": {
+      "type": ["string", "null"],
+      "description": "Formal book title from the الكتاب metadata field. Often more accurate than title (e.g., proper name without editor shorthand). Null if absent. Downstream stages should prefer this over title when available."
+    },
+    "shamela_author_short": {
+      "type": ["string", "null"],
+      "description": "Short author name from the parenthetical trailing the title span, e.g., '(أحمد الهاشمي)' → 'أحمد الهاشمي'. Null if absent."
+    },
+    "author": {
+      "type": ["string", "null"],
+      "description": "Full author name from the المؤلف metadata field. Null if not present."
+    },
+    "muhaqiq": {
+      "type": ["string", "null"],
+      "description": "Editor/muhaqiq name. Extracted via ordered first-match against 7 known Arabic label variants. Null if absent."
+    },
+    "publisher": {
+      "type": ["string", "null"],
+      "description": "Publisher name from the الناشر metadata field. Null if absent."
+    },
+    "shamela_page_count": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Page count from Shamela metadata card (عدد الصفحات). Extracted via leading-digit regex — Shamela appends annotations directly to the number. Informational only — 69% mismatch rate observed. Null if absent."
+    },
+    "shamela_edition": {
+      "type": ["string", "null"],
+      "description": "Edition information from the الطبعة metadata field (e.g., 'الثانية، 1407 هـ - 1987 م'). Present in ~57% of books. Null if absent."
+    },
+    "shamela_volume_count": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Volume/part count from the عدد الأجزاء metadata field. Extracted via leading-digit regex. Shamela's declared count — may differ from actual file count. Null if absent."
+    },
+    "publication_year": {
+      "type": ["string", "null"],
+      "description": "Publication year from the عام النشر metadata field. String because format varies. Null if absent."
+    },
+    "html_qism_field": {
+      "type": ["string", "null"],
+      "description": "Raw القسم field from Shamela metadata card. May be a broad library category, not a science. Null if absent."
+    },
+    "shamela_pub_date": {
+      "type": ["string", "null"],
+      "description": "Shamela publication date string from تاريخ النشر بالشاملة. This is when the book was published on the Shamela platform, not the actual publication date. Null if absent."
+    },
+    "primary_science": {
+      "type": ["string", "null"],
+      "enum": ["balagha", "sarf", "nahw", "imlaa", null],
+      "description": "User's confirmed declaration of the book's primary science. Null for multi_science and tangentially_relevant books. Informational prior — does not constrain excerpt routing at Stage 4."
+    },
+    "book_category": {
+      "type": "string",
+      "enum": ["single_science", "multi_science", "tangentially_relevant"],
+      "description": "Category derived from science declaration. single_science: one of our 4 sciences. multi_science: covers multiple sciences. tangentially_relevant: user declared 'unrelated'."
+    },
+    "science_parts": {
+      "type": ["array", "null"],
+      "description": "For multi_science books: mapping of book sections to sciences. Null for single_science and tangentially_relevant.",
+      "items": {
+        "type": "object",
+        "required": ["section", "science_id", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "section": {
+            "type": "string",
+            "description": "Section name or label in the book (e.g., 'القسم الأول')."
+          },
+          "science_id": {
+            "type": "string",
+            "enum": ["balagha", "sarf", "nahw", "imlaa"],
+            "description": "Science this section primarily covers."
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief description of the section's scope."
+          }
+        }
+      }
+    },
+    "volume_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of volumes. 1 for single-volume books. For multi-volume: derived from the number of volume-role source files."
+    },
+    "total_actual_pages": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Total content pages across all source files. Sum of actual_page_count per file."
+    },
+    "source_files": {
+      "type": "array",
+      "minItems": 1,
+      "description": "List of frozen source files with integrity hashes and page counts.",
+      "items": {
+        "type": "object",
+        "required": ["relpath", "sha256", "size_bytes", "role", "actual_page_count"],
+        "additionalProperties": false,
+        "properties": {
+          "relpath": {
+            "type": "string",
+            "description": "Path from repo root to the frozen source file (e.g., 'books/jawahir/source/jawahir_al_balagha.htm')."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "SHA-256 hex digest of the file."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "File size in bytes."
+          },
+          "role": {
+            "type": "string",
+            "enum": ["primary_export", "volume", "supplementary"],
+            "description": "primary_export: single-volume main file or sole numbered file in directory. volume: one file in a multi-volume set. supplementary: additional non-volume file."
+          },
+          "volume_number": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "description": "Volume number derived from filename stem. Required when role is 'volume', null otherwise."
+          },
+          "actual_page_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of PageNumber spans found in this file. Computed during source validation."
+          },
+          "file_note": {
+            "type": ["string", "null"],
+            "description": "Optional free-text annotation. For supplementary files: describes purpose (collected via interactive prompt)."
+          }
+        }
+      }
+    },
+    "unrecognized_metadata_lines": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Metadata card segments whose labels did not match any known field pattern. Ensures zero data loss at the segment level — any unrecognized label:value pair is captured here. Note: trailing text within matched segments (e.g., ترقيم annotations after page count digits) is deliberately discarded as documented in §3.5.2."
+    },
+    "edition_notes": {
+      "type": ["string", "null"],
+      "description": "User-provided free-text about the edition, genre, or relevant context (via --notes). Null if not provided."
+    },
+    "language": {
+      "type": "string",
+      "default": "ar",
+      "description": "Language code. Always 'ar' for this project."
+    },
+    "intake_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp of when intake was performed."
+    },
+    "taxonomy_at_intake": {
+      "type": "object",
+      "description": "Snapshot of all active taxonomy versions at intake time. Keys are science_ids, values are taxonomy version strings. Includes all sciences regardless of book category, because any excerpt can route to any tree.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}

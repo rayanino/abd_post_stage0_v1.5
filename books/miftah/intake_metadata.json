@@ -1,0 +1,58 @@
+{
+  "schema_version": "intake_metadata_v0.1",
+  "book_id": "miftah",
+  "title": "مفتاح العلوم",
+  "title_formal": "مفتاح العلوم",
+  "shamela_author_short": "السكاكي",
+  "author": "يوسف بن أبي بكر بن محمد بن علي السكاكي الخوارزمي الحنفي أبو يعقوب (ت 626هـ)",
+  "muhaqiq": "نعيم زرزور",
+  "publisher": "دار الكتب العلمية، بيروت - لبنان",
+  "shamela_page_count": 602,
+  "shamela_edition": "الثانية، 1407 هـ - 1987 م",
+  "shamela_volume_count": null,
+  "publication_year": null,
+  "html_qism_field": "البلاغة",
+  "shamela_pub_date": "8 ذو الحجة 1431",
+  "primary_science": null,
+  "book_category": "multi_science",
+  "science_parts": [
+    {
+      "section": "القسم الأول",
+      "science_id": "sarf",
+      "description": "علم الصرف والاشتقاق"
+    },
+    {
+      "section": "القسم الثاني",
+      "science_id": "nahw",
+      "description": "علم النحو"
+    },
+    {
+      "section": "القسم الثالث",
+      "science_id": "balagha",
+      "description": "علم المعاني والبيان والبديع"
+    }
+  ],
+  "volume_count": 1,
+  "total_actual_pages": 592,
+  "source_files": [
+    {
+      "relpath": "books/miftah/source/miftah_al_ulum.htm",
+      "sha256": "40b41f796e28900f9ef75fd34367f9530e72de83c20f6a0762b99c5d3782b1be",
+      "size_bytes": 1416111,
+      "role": "primary_export",
+      "volume_number": null,
+      "actual_page_count": 592,
+      "file_note": null
+    }
+  ],
+  "unrecognized_metadata_lines": [],
+  "edition_notes": "Foundational cross-science text: Part 1 = صرف, Part 2 = نحو, Part 3 = بلاغة. Classical (626 هـ).",
+  "language": "ar",
+  "intake_utc": "2026-02-25T16:07:20Z",
+  "taxonomy_at_intake": {
+    "balagha": "balagha_v0_4",
+    "sarf": "sarf_v0_1",
+    "nahw": "nahw_v0_1",
+    "imlaa": "imlaa_v0_1"
+  }
+}

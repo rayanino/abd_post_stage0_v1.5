@@ -1,0 +1,42 @@
+{
+  "schema_version": "intake_metadata_v0.1",
+  "book_id": "jawahir",
+  "title": "جواهر البلاغة في المعاني والبيان والبديع",
+  "title_formal": "جواهر البلاغة في المعاني والبيان والبديع",
+  "shamela_author_short": "أحمد الهاشمي",
+  "author": "أحمد بن إبراهيم بن مصطفى الهاشمي (ت 1362هـ)",
+  "muhaqiq": "د. يوسف الصميلي",
+  "publisher": "المكتبة العصرية، بيروت",
+  "shamela_page_count": 344,
+  "shamela_edition": null,
+  "shamela_volume_count": null,
+  "publication_year": null,
+  "html_qism_field": "البلاغة",
+  "shamela_pub_date": "8 ذو الحجة 1431",
+  "primary_science": "balagha",
+  "book_category": "single_science",
+  "science_parts": null,
+  "volume_count": 1,
+  "total_actual_pages": 308,
+  "source_files": [
+    {
+      "relpath": "books/jawahir/source/jawahir_al_balagha.htm",
+      "sha256": "a4bb8979d8428daf61f88021d6548ad38dc827916aef28589aae6ef9dd6d1ec7",
+      "size_bytes": 1045269,
+      "role": "primary_export",
+      "volume_number": null,
+      "actual_page_count": 308,
+      "file_note": null
+    }
+  ],
+  "unrecognized_metadata_lines": [],
+  "edition_notes": "Shamela desktop HTML export. Modern textbook (بلاغة). Gold baselines exist for pp. 19-40.",
+  "language": "ar",
+  "intake_utc": "2026-02-25T16:06:43Z",
+  "taxonomy_at_intake": {
+    "balagha": "balagha_v0_4",
+    "sarf": "sarf_v0_1",
+    "nahw": "nahw_v0_1",
+    "imlaa": "imlaa_v0_1"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "schema_version": "intake_metadata_v0.1",
+  "book_id": "imla",
+  "title": "قواعد الإملاء",
+  "title_formal": "قواعد الإملاء",
+  "shamela_author_short": "عبد السلام هارون",
+  "author": "عبد السلام محمد هارون (ت 1408هـ)",
+  "muhaqiq": null,
+  "publisher": "مكتبة الأنجلو المصرية -القاهرة-",
+  "shamela_page_count": 80,
+  "shamela_edition": null,
+  "shamela_volume_count": null,
+  "publication_year": "1993",
+  "html_qism_field": "كتب اللغة",
+  "shamela_pub_date": "15 ربيع الأول 1433",
+  "primary_science": "imlaa",
+  "book_category": "single_science",
+  "science_parts": null,
+  "volume_count": 1,
+  "total_actual_pages": 77,
+  "source_files": [
+    {
+      "relpath": "books/imla/source/qawaid_al_imla.htm",
+      "sha256": "66b1c560a2d1eaabe1a4fe40996689f46696b9eb45fef219405e1301fb0b1c0c",
+      "size_bytes": 104590,
+      "role": "primary_export",
+      "volume_number": null,
+      "actual_page_count": 77,
+      "file_note": null
+    }
+  ],
+  "unrecognized_metadata_lines": [],
+  "edition_notes": "Shamela desktop HTML export. Smallest book in corpus (77 pp).",
+  "language": "ar",
+  "intake_utc": "2026-02-25T16:06:59Z",
+  "taxonomy_at_intake": {
+    "balagha": "balagha_v0_4",
+    "sarf": "sarf_v0_1",
+    "nahw": "nahw_v0_1",
+    "imlaa": "imlaa_v0_1"
+  }
+}

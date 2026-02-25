@@ -1,0 +1,44 @@
+{
+  "schema_version": "intake_metadata_v0.1",
+  "book_id": "qatr",
+  "title": "شرح قطر الندى وبل الصدى",
+  "title_formal": "شرح قطر الندى وبل الصدى",
+  "shamela_author_short": "ابن هشام النحوي",
+  "author": "أبو محمد، عبد الله، جمال الدين بن هشام الأنصاري (ت 761 هـ)",
+  "muhaqiq": "محمد محيى الدين عبد الحميد [ت 1392 هـ]",
+  "publisher": "المكتبة التجارية الكبرى بمصر",
+  "shamela_page_count": 335,
+  "shamela_edition": "الحادية عشرة للمحقق 1383 هـ- 1963 م تمتاز بدقة الضبط والزيادة في الشروح والتحقيقات",
+  "shamela_volume_count": null,
+  "publication_year": null,
+  "html_qism_field": "النحو والصرف",
+  "shamela_pub_date": "8 ذو الحجة 1431",
+  "primary_science": "nahw",
+  "book_category": "single_science",
+  "science_parts": null,
+  "volume_count": 1,
+  "total_actual_pages": 309,
+  "source_files": [
+    {
+      "relpath": "books/qatr/source/sharh_qatr_al_nada.htm",
+      "sha256": "9a7e7d9ee8f9f8ae0cb70c49f14a9a2340fd45f5af33be9fd3fda5749498ef3f",
+      "size_bytes": 527050,
+      "role": "primary_export",
+      "volume_number": null,
+      "actual_page_count": 309,
+      "file_note": null
+    }
+  ],
+  "unrecognized_metadata_lines": [
+    "طبع: مطبعة السعادة بمصر"
+  ],
+  "edition_notes": "Shamela desktop HTML export. Classical نحو textbook, single volume.",
+  "language": "ar",
+  "intake_utc": "2026-02-25T16:06:54Z",
+  "taxonomy_at_intake": {
+    "balagha": "balagha_v0_4",
+    "sarf": "sarf_v0_1",
+    "nahw": "nahw_v0_1",
+    "imlaa": "imlaa_v0_1"
+  }
+}
