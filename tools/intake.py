@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Stage 0: Book Intake — CLI Tool
-Implements INTAKE_SPEC.md v1.4
+Implements INTAKE_SPEC.md v1.5
 
 Creates an immutable anchor for everything downstream:
   - Freezes source HTML
@@ -334,10 +334,12 @@ def validate_science(declared_science, qism_value, non_interactive):
     if declared_science in ("unrelated", "multi"):
         # Soft confirmation for unrelated/multi
         category_label = "unrelated" if declared_science == "unrelated" else "multi-science"
-        prompt_yn(
+        confirmed = prompt_yn(
             f"You declared this book as '{category_label}'. Confirm?",
             non_interactive=non_interactive, hard=False
         )
+        if not confirmed:
+            abort(f"User declined '{category_label}' classification. Aborting.")
         return declared_science
 
     if qism_value is None:
@@ -365,17 +367,21 @@ def validate_science(declared_science, qism_value, non_interactive):
     if qism_value in QISM_MEDIUM_RELIABILITY:
         valid_pair = QISM_MEDIUM_RELIABILITY[qism_value]
         if declared_science in valid_pair:
-            prompt_yn(
+            confirmed = prompt_yn(
                 f"القسم is '{qism_value}' (could be either). You declared '{declared_science}'. Confirm?",
                 non_interactive=non_interactive, hard=False
             )
+            if not confirmed:
+                abort("User declined science confirmation. Aborting.")
             return declared_science
         else:
             # User declared something outside the pair
-            prompt_yn(
+            confirmed = prompt_yn(
                 f"القسم is '{qism_value}', but you declared '{declared_science}'. Confirm?",
                 non_interactive=non_interactive, hard=False
             )
+            if not confirmed:
+                abort("User declined science confirmation. Aborting.")
             return declared_science
 
     # Low reliability — broad categories
@@ -385,10 +391,12 @@ def validate_science(declared_science, qism_value, non_interactive):
 
     # Unknown القسم value
     if declared_science in SINGLE_SCIENCES:
-        prompt_yn(
+        confirmed = prompt_yn(
             f"القسم is '{qism_value}' (unknown mapping). You declared '{declared_science}'. Confirm?",
             non_interactive=non_interactive, hard=False
         )
+        if not confirmed:
+            abort("User declined science confirmation. Aborting.")
     return declared_science
 
 
@@ -453,14 +461,16 @@ def check_duplicate_id(registry_data, book_id):
 def check_duplicate_hashes(registry_data, file_hashes, force):
     """§3.3: Check if any file hash already exists in registry.
     file_hashes: dict of {filename: sha256_hex}
-    Returns True if OK to proceed, aborts otherwise.
+    Returns True if duplicates were found (and force-bypassed), False if clean.
+    Aborts if duplicate found without --force.
     """
     if registry_data is None:
-        return True
+        return False
     books = registry_data.get("books", [])
     if not books:
-        return True
+        return False
 
+    found_duplicate = False
     for filename, sha in file_hashes.items():
         for book in books:
             existing_hashes = book.get("source_hashes", [])
@@ -469,10 +479,11 @@ def check_duplicate_hashes(registry_data, file_hashes, force):
                 if force:
                     warn(f"File {filename} (SHA-256: {sha}) was already intaken as "
                          f"book '{existing_id}'. Proceeding due to --force.")
+                    found_duplicate = True
                 else:
                     abort(f"File {filename} (SHA-256: {sha}) was already intaken as "
                           f"book '{existing_id}'. Use --force to create a separate intake.")
-    return True
+    return found_duplicate
 
 
 def build_registry_entry(metadata):
@@ -763,8 +774,9 @@ def main():
 
     # Inter-book duplicates (skip if no registry)
     if registry_data is not None:
-        check_duplicate_hashes(registry_data, file_hashes, args.force)
-        info("  ✓ No duplicate files found in registry.")
+        had_duplicates = check_duplicate_hashes(registry_data, file_hashes, args.force)
+        if not had_duplicates:
+            info("  ✓ No duplicate files found in registry.")
     else:
         info("  ✓ No registry yet — skipping inter-book duplicate check.")
 

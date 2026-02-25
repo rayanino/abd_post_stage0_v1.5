@@ -1,7 +1,7 @@
 # Stage 0: Book Intake — Specification
 
-**Status:** Finalized (fifth review pass — prototype parser, schema stress tests, builder ambiguity audit)
-**Version:** 1.4
+**Status:** Finalized (sixth review pass — prompt_yn return-value audit, stress-test corpus documentation, concurrent-intake limitation)
+**Version:** 1.5
 **Precision level:** High
 
 ---
@@ -281,7 +281,7 @@ This has been validated on 18 files: 7 original corpus + 11 stress-test books co
 
 #### 3.5.3 Known metadata fields across corpus
 
-Validated against all 7 project books:
+Validated against all 18 files (7 project books + 11 stress-test books):
 
 | Field | Frequency | Target | Notes |
 |-------|-----------|--------|-------|
@@ -299,6 +299,8 @@ Validated against all 7 project books:
 | عام النشر | 1/7 | `publication_year` | Only imla |
 | طبع | 1/7 | → `unrecognized` | Only qatr. "Printer" — distinct from publisher. |
 | [ترقيم... | 1/7 | → `unrecognized` | Only ibn_aqil has this as a separate segment |
+
+**Additional labels observed in stress-test corpus (route to `unrecognized`):** `أعده للشاملة`, `كود المادة`, `المرحلة`, `مصدر الكتاب`, `قدم لها`, `طبع`. These are low-frequency labels that do not map to any pipeline-relevant field.
 
 The 7 muhaqiq label variants remain **known, not exhaustive** — the broader 1,046-file corpus may contain additional variants. The catch-all ensures zero data loss at the segment level: any metadata card segment whose label does not match a known pattern is preserved in full.
 
@@ -328,7 +330,7 @@ Cross-reference the user's primary science declaration against the HTML's الق
 | `الصرف` | High | Auto-confirm |
 | `النحو` | High | Auto-confirm |
 | `كتب اللغة` | Low — broad category, not science-specific | User declaration is sole authority |
-| `أصول الفقه`, `العقيدة`, etc. | Low — outside our sciences entirely | If user declares one of our 4, confirm: "القسم says X. You declared Y. Confirm?" |
+| `أصول الفقه`, `العقيدة`, `الأدب`, etc. | Low — outside our sciences entirely | If user declares one of our 4, confirm: "القسم says X. You declared Y. Confirm?" |
 | Any other | Unknown | Log and ask user to confirm |
 
 **Decision matrix with `--non-interactive` behavior:**
@@ -696,6 +698,8 @@ When the intake tool is built, it generates registry entries using the new field
 ## 5. Edge Cases
 
 → See `edge_cases.md` in this folder.
+
+**Known limitation — concurrent intake:** Two simultaneous `intake.py` invocations each load the registry at startup, append their entry in memory, and write the full file at the end. The second write silently overwrites the first's entry. The first book's directory and `intake_metadata.json` exist on disk but the book vanishes from the registry. This is acceptable for a single-user CLI tool but should not be used in parallel.
 
 ---
 
