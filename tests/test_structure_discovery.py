@@ -25,11 +25,13 @@ from discover_structure import (
     PageRecord,
     PassageRecord,
     TOCEntry,
+    apply_overrides,
     build_division_tree,
     build_hierarchical_tree,
     build_page_index,
     build_passages,
     classify_digestibility,
+    cross_reference_toc,
     detect_keyword_type_from_title,
     indic_to_int,
     integrate_pass3_results,
@@ -41,6 +43,7 @@ from discover_structure import (
     pass1_5_parse_toc,
     pass1_extract_html_headings,
     pass2_keyword_scan,
+    validate_ordinal_sequences,
 )
 
 
@@ -1229,6 +1232,145 @@ class TestPass3Integration:
             assert sorted_p[i].end_seq_index < sorted_p[i+1].start_seq_index, \
                 f"Overlap: {sorted_p[i].passage_id}[{sorted_p[i].start_seq_index}-{sorted_p[i].end_seq_index}] " \
                 f"vs {sorted_p[i+1].passage_id}[{sorted_p[i+1].start_seq_index}-{sorted_p[i+1].end_seq_index}]"
+
+
+class TestTOCCrossReference:
+    """Test TOC cross-reference matching."""
+
+    def test_exact_match(self):
+        pages = [PageRecord(seq_index=i, page_number_int=i+1, volume=1, matn_text="", page_hint=f"p{i}")
+                 for i in range(10)]
+        divs = [DivisionNode(id="d0", type="باب", title="الباب الأول", level=1,
+                             detection_method="html_tagged", confidence="confirmed",
+                             digestible="true", content_type="teaching",
+                             start_seq_index=0, end_seq_index=5, page_hint_start="p0",
+                             page_hint_end="p5", parent_id=None, page_count=6)]
+        toc = [TOCEntry(title="الباب الأول", page_number=1, indent_level=0)]
+
+        result = cross_reference_toc(divs, toc, pages)
+        assert len(result["matched"]) == 1
+        assert len(result["missed_headings"]) == 0
+
+    def test_missed_heading(self):
+        pages = [PageRecord(seq_index=i, page_number_int=i+1, volume=1, matn_text="", page_hint=f"p{i}")
+                 for i in range(10)]
+        divs = [DivisionNode(id="d0", type="باب", title="الباب الأول", level=1,
+                             detection_method="html_tagged", confidence="confirmed",
+                             digestible="true", content_type="teaching",
+                             start_seq_index=0, end_seq_index=5, page_hint_start="p0",
+                             page_hint_end="p5", parent_id=None, page_count=6)]
+        toc = [
+            TOCEntry(title="الباب الأول", page_number=1, indent_level=0),
+            TOCEntry(title="فصل مفقود", page_number=4, indent_level=1),
+        ]
+
+        result = cross_reference_toc(divs, toc, pages)
+        assert len(result["matched"]) == 1
+        assert len(result["missed_headings"]) == 1
+        assert result["missed_headings"][0]["title"] == "فصل مفقود"
+
+    def test_empty_toc(self):
+        pages = [PageRecord(seq_index=0, page_number_int=1, volume=1, matn_text="", page_hint="p0")]
+        divs = [DivisionNode(id="d0", type="باب", title="x", level=1,
+                             detection_method="html_tagged", confidence="confirmed",
+                             digestible="true", content_type="teaching",
+                             start_seq_index=0, end_seq_index=0, page_hint_start="p0",
+                             page_hint_end="p0", parent_id=None, page_count=1)]
+        result = cross_reference_toc(divs, [], pages)
+        assert result["toc_mismatch_count"] == 0
+
+
+class TestOrdinalSequenceValidation:
+    """Test ordinal sequence validation."""
+
+    def test_correct_sequence(self):
+        divs = [
+            DivisionNode(id="d0", type="باب", title="الباب الأول", level=1,
+                         detection_method="html_tagged", confidence="confirmed",
+                         digestible="true", content_type="teaching",
+                         start_seq_index=0, end_seq_index=5, page_hint_start="p0",
+                         page_hint_end="p5", parent_id=None, page_count=6, ordinal=1),
+            DivisionNode(id="d1", type="باب", title="الباب الثاني", level=1,
+                         detection_method="html_tagged", confidence="confirmed",
+                         digestible="true", content_type="teaching",
+                         start_seq_index=6, end_seq_index=10, page_hint_start="p6",
+                         page_hint_end="p10", parent_id=None, page_count=5, ordinal=2),
+        ]
+        warnings = validate_ordinal_sequences(divs)
+        assert len(warnings) == 0
+
+    def test_gap_detected(self):
+        divs = [
+            DivisionNode(id="d0", type="باب", title="الباب الأول", level=1,
+                         detection_method="html_tagged", confidence="confirmed",
+                         digestible="true", content_type="teaching",
+                         start_seq_index=0, end_seq_index=5, page_hint_start="p0",
+                         page_hint_end="p5", parent_id=None, page_count=6, ordinal=1),
+            DivisionNode(id="d1", type="باب", title="الباب الثالث", level=1,
+                         detection_method="html_tagged", confidence="confirmed",
+                         digestible="true", content_type="teaching",
+                         start_seq_index=6, end_seq_index=10, page_hint_start="p6",
+                         page_hint_end="p10", parent_id=None, page_count=5, ordinal=3),
+        ]
+        warnings = validate_ordinal_sequences(divs)
+        assert len(warnings) == 1
+        assert warnings[0]["type"] == "ordinal_gap"
+        assert warnings[0]["expected_ordinal"] == 2
+        assert warnings[0]["actual_ordinal"] == 3
+
+
+class TestApplyOverrides:
+    """Test the human override system."""
+
+    def test_reject_override(self):
+        divs = [
+            DivisionNode(id="d0", type="باب", title="الباب الأول", level=1,
+                         detection_method="html_tagged", confidence="confirmed",
+                         digestible="true", content_type="teaching",
+                         start_seq_index=0, end_seq_index=5, page_hint_start="p0",
+                         page_hint_end="p5", parent_id=None, page_count=6),
+        ]
+        pages = [PageRecord(seq_index=i, page_number_int=i+1, volume=1, matn_text="", page_hint=f"p{i}")
+                 for i in range(10)]
+
+        override_data = {"overrides": [
+            {"item_type": "division", "item_id": "d0", "action": "rejected", "notes": "test"}
+        ]}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+            json.dump(override_data, f)
+            path = f.name
+        try:
+            modified, changed = apply_overrides(divs, [], path, pages)
+            assert changed is True
+            assert modified[0].digestible == "false"
+            assert "human_rejected" in modified[0].review_flags
+        finally:
+            os.unlink(path)
+
+    def test_confirm_override(self):
+        divs = [
+            DivisionNode(id="d0", type="مقدمة", title="المقدمة", level=1,
+                         detection_method="html_tagged", confidence="confirmed",
+                         digestible="uncertain", content_type="teaching",
+                         start_seq_index=0, end_seq_index=5, page_hint_start="p0",
+                         page_hint_end="p5", parent_id=None, page_count=6),
+        ]
+        pages = [PageRecord(seq_index=i, page_number_int=i+1, volume=1, matn_text="", page_hint=f"p{i}")
+                 for i in range(10)]
+
+        override_data = {"overrides": [
+            {"item_type": "division", "item_id": "d0", "action": "confirmed", "notes": "has definitions"}
+        ]}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+            json.dump(override_data, f)
+            path = f.name
+        try:
+            modified, changed = apply_overrides(divs, [], path, pages)
+            assert changed is True
+            assert modified[0].digestible == "true"
+            assert modified[0].confidence == "confirmed"
+        finally:
+            os.unlink(path)
 
 
 class TestRegressionDuplicatePageNumbers:

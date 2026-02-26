@@ -1315,8 +1315,286 @@ def build_hierarchical_tree(
 
 
 # ---------------------------------------------------------------------------
-# Division Tree Builder
+# TOC Cross-Reference (Spec §7.5, §5.3)
 # ---------------------------------------------------------------------------
+
+def cross_reference_toc(
+    divisions: list[DivisionNode],
+    toc_entries: list[TOCEntry],
+    pages: list[PageRecord],
+) -> dict:
+    """Cross-reference discovered divisions against TOC entries.
+
+    Returns a dict with:
+    - matched: list of (toc_index, div_id, score) for matched pairs
+    - missed_headings: TOC entries with no matching division (potential gaps)
+    - false_positives: divisions not in TOC (potential false detections)
+    - toc_mismatch_count: number of mismatches for the report
+    """
+    if not toc_entries:
+        return {"matched": [], "missed_headings": [], "false_positives": [], "toc_mismatch_count": 0}
+
+    page_by_seq = {p.seq_index: p for p in pages}
+
+    # Build division lookup by page_number_int
+    div_by_page: dict[int, list[DivisionNode]] = {}
+    for d in divisions:
+        page = page_by_seq.get(d.start_seq_index)
+        if page:
+            div_by_page.setdefault(page.page_number_int, []).append(d)
+
+    matched: list[tuple[int, str, float]] = []
+    missed: list[dict] = []
+    matched_div_ids: set[str] = set()
+
+    for ti, toc in enumerate(toc_entries):
+        best_score = 0.0
+        best_div = None
+
+        # Search on same page and adjacent pages (±1 for boundary issues)
+        for offset in [0, -1, 1]:
+            target_page = toc.page_number + offset
+            for d in div_by_page.get(target_page, []):
+                score = _toc_match_score(toc.title, d.title)
+                if score > best_score:
+                    best_score = score
+                    best_div = d
+
+        if best_score >= 0.4 and best_div:
+            matched.append((ti, best_div.id, best_score))
+            matched_div_ids.add(best_div.id)
+        else:
+            missed.append({
+                "toc_index": ti,
+                "title": toc.title,
+                "page_number": toc.page_number,
+                "indent_level": toc.indent_level,
+                "nearest_div": best_div.id if best_div else None,
+                "nearest_score": round(best_score, 2),
+            })
+
+    # Divisions not in TOC (excluding non-digestible and LLM-discovered)
+    false_positives = []
+    for d in divisions:
+        if d.id not in matched_div_ids and d.digestible != "false" and d.detection_method != "llm_discovered":
+            false_positives.append({
+                "div_id": d.id,
+                "title": d.title,
+                "detection_method": d.detection_method,
+            })
+
+    return {
+        "matched": matched,
+        "missed_headings": missed,
+        "false_positives": false_positives,
+        "toc_mismatch_count": len(missed),
+    }
+
+
+def _toc_match_score(toc_title: str, div_title: str) -> float:
+    """Compute fuzzy match score between a TOC entry title and a division title."""
+    t = normalize_arabic_for_match(toc_title.strip())
+    d = normalize_arabic_for_match(div_title.strip())
+
+    if not t or not d:
+        return 0.0
+
+    # Exact match
+    if t == d:
+        return 1.0
+
+    # Prefix match (TOC titles are often truncated)
+    min_len = min(len(t), len(d))
+    if min_len < 4:
+        return 0.0
+
+    prefix_len = 0
+    for i in range(min_len):
+        if t[i] == d[i]:
+            prefix_len += 1
+        else:
+            break
+
+    max_len = max(len(t), len(d))
+    if prefix_len >= 12 or (prefix_len / max_len > 0.5 and prefix_len >= 5):
+        return prefix_len / max_len
+
+    # Containment
+    if len(t) > 5 and t in d:
+        return 0.8
+    if len(d) > 5 and d in t:
+        return 0.8
+
+    return 0.0
+
+
+# ---------------------------------------------------------------------------
+# Ordinal Sequence Validation (Spec §7.5.3)
+# ---------------------------------------------------------------------------
+
+def validate_ordinal_sequences(
+    divisions: list[DivisionNode],
+) -> list[dict]:
+    """Validate that sibling divisions with the same keyword have sequential ordinals.
+
+    Returns list of warnings for ordinal gaps or misordering.
+    """
+    warnings = []
+
+    # Group siblings by parent_id and type
+    from collections import defaultdict
+    sibling_groups: dict[tuple[Optional[str], str], list[DivisionNode]] = defaultdict(list)
+
+    for d in divisions:
+        if d.ordinal is not None:
+            key = (d.parent_id, d.type)
+            sibling_groups[key].append(d)
+
+    for (parent_id, div_type), siblings in sibling_groups.items():
+        if len(siblings) < 2:
+            continue
+
+        # Sort by document order (start_seq_index)
+        sorted_sibs = sorted(siblings, key=lambda d: d.start_seq_index)
+        ordinals = [d.ordinal for d in sorted_sibs]
+
+        for i in range(len(ordinals) - 1):
+            expected = ordinals[i] + 1
+            actual = ordinals[i + 1]
+            if actual != expected:
+                warnings.append({
+                    "type": "ordinal_gap" if actual > expected else "ordinal_misordering",
+                    "parent_id": parent_id,
+                    "keyword": div_type,
+                    "expected_ordinal": expected,
+                    "actual_ordinal": actual,
+                    "div_id": sorted_sibs[i + 1].id,
+                    "title": sorted_sibs[i + 1].title,
+                    "previous_div_id": sorted_sibs[i].id,
+                })
+
+    return warnings
+
+
+# ---------------------------------------------------------------------------
+# Human Override System (Spec §10.5)
+# ---------------------------------------------------------------------------
+
+def apply_overrides(
+    divisions: list[DivisionNode],
+    passages: list[PassageRecord],
+    overrides_path: str,
+    pages: list[PageRecord],
+) -> tuple[list[DivisionNode], bool]:
+    """Apply human review overrides to divisions.
+
+    Override actions:
+    - reject: remove a division (and its descendants)
+    - confirm: mark an uncertain division as confirmed
+    - modify: change a division's properties
+    - split: split a passage at a given seq_index (creates new division boundary)
+    - merge: merge a passage with its successor
+
+    Returns (modified_divisions, any_changes_applied).
+    Passages must be rebuilt after overrides are applied.
+    """
+    with open(overrides_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    override_list = data.get("overrides", [])
+    if not override_list:
+        return divisions, False
+
+    div_by_id = {d.id: d for d in divisions}
+    changes = 0
+
+    for ov in override_list:
+        item_type = ov.get("item_type")
+        item_id = ov.get("item_id")
+        action = ov.get("action")
+
+        if item_type == "division":
+            div = div_by_id.get(item_id)
+            if not div:
+                print(f"  [Override] WARNING: division '{item_id}' not found, skipping")
+                continue
+
+            if action == "rejected":
+                div.digestible = "false"
+                div.content_type = "non_content"
+                div.review_flags.append("human_rejected")
+                div.human_override = ov.get("notes", "rejected by human")
+                changes += 1
+
+            elif action == "confirmed":
+                if div.digestible == "uncertain":
+                    div.digestible = "true"
+                div.confidence = "confirmed"
+                div.human_override = ov.get("notes", "confirmed by human")
+                changes += 1
+
+            elif action == "modify":
+                if "new_title" in ov:
+                    div.title = ov["new_title"]
+                if "new_type" in ov:
+                    div.type = ov["new_type"]
+                if "digestible" in ov:
+                    div.digestible = ov["digestible"]
+                if "content_type" in ov:
+                    div.content_type = ov["content_type"]
+                div.human_override = ov.get("notes", "modified by human")
+                changes += 1
+
+        elif item_type == "passage":
+            if action == "split":
+                split_seq = ov.get("split_at_seq_index")
+                if split_seq is not None:
+                    # Find the passage and the division it belongs to
+                    target_passage = next(
+                        (p for p in passages if p.passage_id == item_id), None
+                    )
+                    if target_passage:
+                        # Find the owning division
+                        owner_div = div_by_id.get(target_passage.division_ids[0])
+                        if owner_div and owner_div.start_seq_index < split_seq <= owner_div.end_seq_index:
+                            # Create a new division at the split point
+                            page_by_seq = {p.seq_index: p for p in pages}
+                            split_page = page_by_seq.get(split_seq)
+                            new_id = f"{owner_div.id}_split"
+                            new_div = DivisionNode(
+                                id=new_id,
+                                type=owner_div.type,
+                                title=ov.get("new_title", f"{owner_div.title} (cont.)"),
+                                level=owner_div.level,
+                                detection_method="human_override",
+                                confidence="confirmed",
+                                digestible=owner_div.digestible,
+                                content_type=owner_div.content_type,
+                                start_seq_index=split_seq,
+                                end_seq_index=owner_div.end_seq_index,
+                                page_hint_start=split_page.page_hint if split_page else f"seq:{split_seq}",
+                                page_hint_end=owner_div.page_hint_end,
+                                parent_id=owner_div.parent_id,
+                                page_count=owner_div.end_seq_index - split_seq + 1,
+                                human_override=ov.get("notes", "split by human"),
+                            )
+                            # Truncate the original division
+                            owner_div.end_seq_index = split_seq - 1
+                            owner_div.page_count = owner_div.end_seq_index - owner_div.start_seq_index + 1
+                            if split_seq - 1 in page_by_seq:
+                                p = page_by_seq[split_seq - 1]
+                                owner_div.page_hint_end = p.page_hint
+
+                            divisions.append(new_div)
+                            div_by_id[new_id] = new_div
+                            changes += 1
+
+    if changes:
+        print(f"  [Override] Applied {changes} override(s)")
+        # Re-sort divisions by start_seq_index
+        divisions.sort(key=lambda d: (d.start_seq_index, d.level))
+
+    return divisions, changes > 0
 
 # Deterministic digestibility rules (STRUCTURE_SPEC v1.0 §8)
 NON_DIGESTIBLE_TYPES = {"فهرس", "المحتويات", "فهرس الموضوعات", "تقاريظ"}
@@ -1807,6 +2085,8 @@ def generate_structure_report(
     toc_count: int,
     total_pages: int,
     pass3_stats: Optional[dict] = None,
+    toc_xref: Optional[dict] = None,
+    ordinal_warnings: Optional[list] = None,
 ) -> dict:
     """Generate the structure_report.json content."""
     from collections import Counter
@@ -1882,7 +2162,10 @@ def generate_structure_report(
             "low_confidence_divisions": sum(1 for d in divisions if "low_confidence" in d.review_flags),
             "uncertain_digestibility": uncert_count,
             "long_passages": sum(1 for p in passages if "long_passage" in p.review_flags),
-            "toc_mismatches": 0,
+            "toc_matched": len(toc_xref.get("matched", [])) if toc_xref else 0,
+            "toc_missed_headings": len(toc_xref.get("missed_headings", [])) if toc_xref else 0,
+            "toc_false_positives": len(toc_xref.get("false_positives", [])) if toc_xref else 0,
+            "ordinal_warnings": len(ordinal_warnings or []),
             "flagged_items": flagged_items,
         },
     }
@@ -1894,6 +2177,8 @@ def generate_full_review_md(
     passages: list[PassageRecord],
     toc_entries: list[TOCEntry],
     pages: list[PageRecord],
+    toc_xref: Optional[dict] = None,
+    ordinal_warnings: Optional[list] = None,
 ) -> str:
     """Generate a full human-readable structure review Markdown."""
     lines = [
@@ -1931,13 +2216,44 @@ def generate_full_review_md(
         )
         lines.append(f"  → {p.title}")
 
-    if toc_entries:
+    # TOC Cross-Reference Analysis
+    if toc_xref and toc_entries:
+        matched_count = len(toc_xref.get("matched", []))
+        missed = toc_xref.get("missed_headings", [])
+
         lines.extend(["", "## TOC Cross-Reference", ""])
-        for entry in toc_entries[:30]:  # Cap at 30 entries for readability
+        lines.append(f"Matched: {matched_count}/{len(toc_entries)} TOC entries → discovered divisions")
+        lines.append("")
+
+        if missed:
+            lines.append(f"### Missed Headings ({len(missed)} TOC entries with no matching division)")
+            lines.append("")
+            lines.append("These TOC entries may represent structural divisions that Pass 1/2/3 missed:")
+            lines.append("")
+            for m in missed:
+                lines.append(f"- p.{m['page_number']} **{m['title']}**")
+                if m.get("nearest_div"):
+                    lines.append(f"  nearest: {m['nearest_div']} (score={m['nearest_score']})")
+            lines.append("")
+
+    elif toc_entries:
+        lines.extend(["", "## TOC Entries (raw)", ""])
+        for entry in toc_entries[:30]:
             indent = "  " * entry.indent_level
             lines.append(f"  {indent}- {entry.title} ... p.{entry.page_number}")
         if len(toc_entries) > 30:
             lines.append(f"  ... and {len(toc_entries) - 30} more entries")
+
+    # Ordinal Sequence Warnings
+    if ordinal_warnings:
+        lines.extend(["", "## Ordinal Sequence Warnings", ""])
+        lines.append(f"{len(ordinal_warnings)} ordinal sequence issue(s) detected:")
+        lines.append("")
+        for w in ordinal_warnings:
+            lines.append(
+                f"- **{w['keyword']}**: expected ordinal {w['expected_ordinal']}, "
+                f"got {w['actual_ordinal']} at {w['div_id']} ({w['title'][:40]})"
+            )
 
     lines.extend(["", "---", ""])
 
@@ -1956,6 +2272,8 @@ def write_full_output(
     pass1_count: int,
     pass2_count: int,
     pass3_stats: Optional[dict] = None,
+    toc_xref: Optional[dict] = None,
+    ordinal_warnings: Optional[list] = None,
 ):
     """Write all Stage 2 output artifacts."""
     os.makedirs(outdir, exist_ok=True)
@@ -1993,6 +2311,7 @@ def write_full_output(
     report = generate_structure_report(
         book_id, divisions, passages, pass1_count, pass2_count,
         len(toc_entries), len(pages), pass3_stats=pass3_stats,
+        toc_xref=toc_xref, ordinal_warnings=ordinal_warnings,
     )
     report_path = os.path.join(outdir, f"{book_id}_structure_report.json")
     with open(report_path, "w", encoding="utf-8") as f:
@@ -2000,7 +2319,10 @@ def write_full_output(
     print(f"[Output] Report: {report_path}")
 
     # 4. structure_review.md
-    review_md = generate_full_review_md(book_id, divisions, passages, toc_entries, pages)
+    review_md = generate_full_review_md(
+        book_id, divisions, passages, toc_entries, pages,
+        toc_xref=toc_xref, ordinal_warnings=ordinal_warnings,
+    )
     review_path = os.path.join(outdir, f"{book_id}_structure_review.md")
     with open(review_path, "w", encoding="utf-8") as f:
         f.write(review_md)
@@ -2238,77 +2560,81 @@ def main():
                     print(f"  [Pass 3a] LLM notes: {result_3a['structure_notes'][:120]}")
 
                 # Step 3b: Deep scan for large divisions
+                # Skip for small books (<50 pages) — 3a already sees full structure
                 pass3b_results: dict[int, dict] = {}
 
-                # Identify confirmed macro divisions > 5 pages for deep scan
-                decisions = result_3a.get("decisions", [])
-                decision_map = {d["candidate_index"]: d for d in decisions if "candidate_index" in d}
-
-                # Build preliminary page ranges to identify large divisions
-                confirmed_headings = []
-                for i, h in enumerate(all_headings):
-                    dec = decision_map.get(i)
-                    if dec and dec.get("action") == "reject":
-                        continue
-                    confirmed_headings.append((i, h))
-
-                # Compute approximate page ranges for deep scan eligibility
-                max_seq = max(p.seq_index for p in pages)
-                deep_scan_targets = []
-                for idx_in_list, (orig_idx, h) in enumerate(confirmed_headings):
-                    dec = decision_map.get(orig_idx, {})
-                    level = dec.get("level", 1)
-                    # Only scan top-level or second-level divisions
-                    if level > 2:
-                        continue
-
-                    # Estimate end page: next heading at same or higher level
-                    end_est = max_seq
-                    for j in range(idx_in_list + 1, len(confirmed_headings)):
-                        other_orig_idx, other_h = confirmed_headings[j]
-                        other_dec = decision_map.get(other_orig_idx, {})
-                        other_level = other_dec.get("level", 1)
-                        if other_level <= level:
-                            end_est = other_h.seq_index - 1
-                            break
-
-                    page_count_est = end_est - h.seq_index + 1
-                    if page_count_est > 5:
-                        # Find known sub-headings within this range
-                        sub_headings = []
-                        for _, (sub_orig_idx, sub_h) in enumerate(confirmed_headings):
-                            sub_dec = decision_map.get(sub_orig_idx, {})
-                            sub_level = sub_dec.get("level", 1)
-                            if (sub_h.seq_index >= h.seq_index and
-                                sub_h.seq_index <= end_est and
-                                sub_level > level and
-                                sub_orig_idx != orig_idx):
-                                sub_headings.append(sub_h)
-
-                        deep_scan_targets.append((orig_idx, h, end_est, sub_headings))
-
-                if deep_scan_targets:
-                    print(f"[Pass 3b] Deep scanning {len(deep_scan_targets)} macro divisions...")
-                    for orig_idx, h, end_est, sub_headings in deep_scan_targets:
-                        pass3_stats["llm_calls"] += 1
-                        result_3b = pass3b_deep_scan(
-                            client,
-                            section_title=h.title,
-                            section_type=h.keyword_type or "implicit",
-                            start_seq=h.seq_index,
-                            end_seq=end_est,
-                            known_subheadings=sub_headings,
-                            pages=pages,
-                            metadata=metadata,
-                            prompt_dir=prompt_dir,
-                        )
-                        if result_3b:
-                            pass3b_results[orig_idx] = result_3b
-                            new_subs = len(result_3b.get("new_subdivisions", []))
-                            if new_subs > 0:
-                                pass3_stats["new_discovered"] += new_subs
+                if len(pages) < 50:
+                    print(f"[Pass 3b] Skipping — small book ({len(pages)} pages < 50)")
                 else:
-                    print("[Pass 3b] No divisions > 5 pages — skipping deep scan.")
+                    # Identify confirmed macro divisions > 5 pages for deep scan
+                    decisions = result_3a.get("decisions", [])
+                    decision_map = {d["candidate_index"]: d for d in decisions if "candidate_index" in d}
+
+                    # Build preliminary page ranges to identify large divisions
+                    confirmed_headings = []
+                    for i, h in enumerate(all_headings):
+                        dec = decision_map.get(i)
+                        if dec and dec.get("action") == "reject":
+                            continue
+                        confirmed_headings.append((i, h))
+
+                    # Compute approximate page ranges for deep scan eligibility
+                    max_seq = max(p.seq_index for p in pages)
+                    deep_scan_targets = []
+                    for idx_in_list, (orig_idx, h) in enumerate(confirmed_headings):
+                        dec = decision_map.get(orig_idx, {})
+                        level = dec.get("level", 1)
+                        # Only scan top-level or second-level divisions
+                        if level > 2:
+                            continue
+
+                        # Estimate end page: next heading at same or higher level
+                        end_est = max_seq
+                        for j in range(idx_in_list + 1, len(confirmed_headings)):
+                            other_orig_idx, other_h = confirmed_headings[j]
+                            other_dec = decision_map.get(other_orig_idx, {})
+                            other_level = other_dec.get("level", 1)
+                            if other_level <= level:
+                                end_est = other_h.seq_index - 1
+                                break
+
+                        page_count_est = end_est - h.seq_index + 1
+                        if page_count_est > 5:
+                            # Find known sub-headings within this range
+                            sub_headings = []
+                            for _, (sub_orig_idx, sub_h) in enumerate(confirmed_headings):
+                                sub_dec = decision_map.get(sub_orig_idx, {})
+                                sub_level = sub_dec.get("level", 1)
+                                if (sub_h.seq_index >= h.seq_index and
+                                    sub_h.seq_index <= end_est and
+                                    sub_level > level and
+                                    sub_orig_idx != orig_idx):
+                                    sub_headings.append(sub_h)
+
+                            deep_scan_targets.append((orig_idx, h, end_est, sub_headings))
+
+                    if deep_scan_targets:
+                        print(f"[Pass 3b] Deep scanning {len(deep_scan_targets)} macro divisions...")
+                        for orig_idx, h, end_est, sub_headings in deep_scan_targets:
+                            pass3_stats["llm_calls"] += 1
+                            result_3b = pass3b_deep_scan(
+                                client,
+                                section_title=h.title,
+                                section_type=h.keyword_type or "implicit",
+                                start_seq=h.seq_index,
+                                end_seq=end_est,
+                                known_subheadings=sub_headings,
+                                pages=pages,
+                                metadata=metadata,
+                                prompt_dir=prompt_dir,
+                            )
+                            if result_3b:
+                                pass3b_results[orig_idx] = result_3b
+                                new_subs = len(result_3b.get("new_subdivisions", []))
+                                if new_subs > 0:
+                                    pass3_stats["new_discovered"] += new_subs
+                    else:
+                        print("[Pass 3b] No divisions > 5 pages — skipping deep scan.")
 
                 # Integrate all Pass 3 results
                 enriched_headings = integrate_pass3_results(
@@ -2324,8 +2650,44 @@ def main():
                 max_depth = max((d.level for d in divisions), default=0)
                 print(f"  Max depth: {max_depth}, LLM calls: {pass3_stats['llm_calls']}")
 
+    # --- Post-tree validation and cross-referencing ---
+
+    # TOC cross-reference (Spec §7.5)
+    toc_xref = cross_reference_toc(divisions, toc_entries, pages)
+    if toc_entries:
+        n_matched = len(toc_xref["matched"])
+        n_missed = len(toc_xref["missed_headings"])
+        print(f"[TOC] Cross-reference: {n_matched}/{len(toc_entries)} matched, "
+              f"{n_missed} missed headings")
+        if n_missed > 0 and args.verbose:
+            for m in toc_xref["missed_headings"][:5]:
+                print(f"  missed: page {m['page_number']} '{m['title'][:50]}'")
+
+    # Ordinal sequence validation (Spec §7.5.3)
+    ordinal_warnings = validate_ordinal_sequences(divisions)
+    if ordinal_warnings:
+        print(f"[Ordinal] {len(ordinal_warnings)} ordinal sequence warning(s)")
+        for w in ordinal_warnings:
+            div = next((d for d in divisions if d.id == w["div_id"]), None)
+            if div and "ordinal_gap" not in div.review_flags:
+                div.review_flags.append("ordinal_gap")
+
+    # Apply human overrides if provided (Spec §10.5)
+    if args.apply_overrides:
+        if os.path.exists(args.apply_overrides):
+            print(f"[Override] Applying overrides from {args.apply_overrides}")
+            divisions, overrides_applied = apply_overrides(
+                divisions, passages if 'passages' in dir() else [],
+                args.apply_overrides, pages,
+            )
+            if overrides_applied:
+                print("[Override] Re-building passages after overrides...")
+        else:
+            print(f"[Override] WARNING: file not found: {args.apply_overrides}")
+
     # --- Build passages ---
 
+    science_id = metadata.get("science_id") or metadata.get("primary_science")
     passages = build_passages(divisions, book_id, science_id, pages=pages)
     print(f"[Passages] Built {len(passages)} passages")
 
@@ -2351,6 +2713,8 @@ def main():
         pass1_count=len(all_pass1_headings),
         pass2_count=len(pass2_headings),
         pass3_stats=pass3_stats,
+        toc_xref=toc_xref,
+        ordinal_warnings=ordinal_warnings if ordinal_warnings else [],
     )
 
     print(f"[Stage 2] Complete. Review: {os.path.join(args.outdir, f'{book_id}_structure_review.md')}")
