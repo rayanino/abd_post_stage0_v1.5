@@ -82,6 +82,25 @@ VERSE_STAR_RE = re.compile(r"\*\s*([^*]+?)\s*\*")
 # Verse hemistich separator (ellipsis)
 HEMISTICH_SEP = "…"
 
+# Prose "etcetera" patterns that look like hemistich separators but aren't.
+# All known Arabic variants of "etc." that appear after … in the corpus.
+_ETC_PATTERNS = ("إلخ", "الخ", "إلى آخره", "إلى آخر")
+
+
+def read_html_file(path: str) -> str:
+    """Read an HTML file with strict UTF-8, falling back to Windows-1256.
+    
+    All known Shamela exports are clean UTF-8, but this ensures any future
+    non-UTF-8 file raises a clear error rather than silently losing bytes
+    via errors='ignore'.
+    """
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except UnicodeDecodeError:
+        with open(path, encoding="windows-1256") as f:
+            return f.read()
+
 
 # ─── Data classes ────────────────────────────────────────────────────────────
 
@@ -95,15 +114,19 @@ class FootnoteRecord:
 @dataclass
 class PageRecord:
     """One printed page after normalization."""
+    seq_index: int                # Zero-based document-order index (unique within book)
     volume: int                   # Volume number (1 for single-volume books)
     page_number_arabic: str       # e.g. "٢٠"
     page_number_int: int          # e.g. 20
     matn_text: str                # Cleaned matn layer text
     footnotes: list[FootnoteRecord]  # Separated footnote entries
-    footnote_ref_numbers: list[int]  # Footnote numbers referenced in matn
+    footnote_preamble: str            # Text before first (N) in footnote section
+    footnote_section_format: str      # "numbered_parens"|"bare_number"|"unnumbered"|"none"
+    footnote_ref_numbers: list[int]  # Unique sorted footnote numbers referenced in matn
     has_verse: bool               # Whether the page contains verse/poetry
     is_image_only: bool           # True if page is an embedded scan with no text
     has_tables: bool              # True if page contains HTML tables
+    starts_with_zwnj_heading: bool  # True if matn starts with \u200c\u200c (section heading marker)
     warnings: list[str]           # Any normalization warnings
     raw_matn_html: str            # Original HTML of matn portion (for debugging)
     raw_fn_html: str              # Original HTML of footnote portion
@@ -117,10 +140,18 @@ class NormalizationReport:
     volume: int                   # Volume number (1 for single-volume)
     total_pages: int
     pages_with_footnotes: int
+    pages_with_fn_preamble: int   # Pages with text before first (N) in footnote section
+    pages_with_bare_number_fns: int  # Pages where footnote section uses bare-number format
+    pages_with_unnumbered_fns: int   # Pages with unnumbered footnote sections
     total_footnotes: int
+    total_matn_chars: int         # Total characters in matn_text across all pages
+    total_footnote_chars: int     # Total characters in footnote text
+    total_preamble_chars: int     # Total characters in footnote_preamble
     pages_with_verse: int
     pages_with_tables: int        # Pages containing HTML tables
     pages_image_only: int         # Pages that are embedded scans (no text)
+    pages_with_zwnj_heading: int  # Pages starting with ‌‌ (double ZWNJ section heading)
+    pages_with_duplicate_numbers: int  # Pages sharing a page_number_int with another page
     orphan_footnote_refs: int     # Refs in matn with no matching footnote
     orphan_footnotes: int         # Footnotes with no matching ref in matn
     warnings: list[str]
@@ -235,17 +266,61 @@ def clean_verse_markers(text: str) -> str:
 
 
 def detect_verse(text: str) -> bool:
-    """Detect if page contains verse/poetry."""
-    # Verse hemistich separator
-    if HEMISTICH_SEP in text:
-        return True
+    """Detect if page contains verse/poetry.
+    
+    A horizontal ellipsis (…) triggers has_verse ONLY when it appears as a
+    balanced hemistich separator: text_≥5chars … text_≥5chars on the same line.
+    A lone … used for prose truncation/omission does NOT trigger has_verse.
+    Star markers (* text *) remain a trigger as-is.
+    
+    Prose exclusion: Lines where the right side of … starts with إلخ (etc.)
+    are prose continuation markers, not verse hemistichs.
+    """
     # Star-marked verses
     if VERSE_STAR_RE.search(text):
         return True
+    # Balanced hemistich separator: ≥5 chars on each side of …
+    for line in text.split("\n"):
+        if HEMISTICH_SEP not in line:
+            continue
+        parts = line.split(HEMISTICH_SEP)
+        if len(parts) >= 2:
+            left = parts[0].strip()
+            right = HEMISTICH_SEP.join(parts[1:]).strip()
+            if len(left) >= 5 and len(right) >= 5:
+                # Exclude prose "etcetera" patterns (all known Arabic variants)
+                if any(right.startswith(pat) for pat in _ETC_PATTERNS):
+                    continue
+                return True
     return False
 
 
-def parse_footnotes(fn_html: str) -> list[FootnoteRecord]:
+def detect_fn_section_format(fn_text: str) -> str:
+    """Classify the format used in a footnote section.
+    
+    Returns one of:
+      "numbered_parens"  — standard (1), (2) markers
+      "bare_number"      — 1 text, 2 text format (no parentheses)
+      "unnumbered"       — text without any numbering system
+      "none"             — no footnote section at all
+    """
+    if not fn_text or not fn_text.strip():
+        return "none"
+    
+    # Check for (N) markers first (most common)
+    FN_BOUNDARY = re.compile(r"(?:^|\n)\((\d+)\)\s*(?:[ـ\-–]\s*)?", re.MULTILINE)
+    if FN_BOUNDARY.search(fn_text):
+        return "numbered_parens"
+    
+    # Check for bare-number markers: "1 text" or "1 ـ text" at line start
+    BARE_NUM = re.compile(r"(?:^|\n)(\d+)\s+\S", re.MULTILINE)
+    if BARE_NUM.search(fn_text):
+        return "bare_number"
+    
+    return "unnumbered"
+
+
+def parse_footnotes(fn_html: str) -> tuple[list[FootnoteRecord], str, str]:
     """Parse footnote HTML into individual footnote records.
     
     Footnotes in Shamela are inside <div class='footnote'> and separated by
@@ -253,20 +328,30 @@ def parse_footnotes(fn_html: str) -> list[FootnoteRecord]:
     Within the HTML, subsequent footnote numbers are often wrapped in
     <font color=#be0000>(N)</font>.
     
+    Returns (records, preamble, format) where:
+      records  — parsed FootnoteRecord list (empty if format != numbered_parens)
+      preamble — text appearing before the first (N) marker, OR the entire
+                 footnote text if no (N) markers exist
+      format   — "numbered_parens", "bare_number", "unnumbered", or "none"
+    
     Strategy: 
     1. First, normalize the HTML by unwrapping font tags
     2. Convert to text
-    3. Split at (N) boundaries that start a new footnote
+    3. Classify the footnote section format
+    4. Split at (N) boundaries that start a new footnote
     """
     if not fn_html or not fn_html.strip():
-        return []
+        return [], "", "none"
 
     # Strip tags
     fn_text = strip_tags(fn_html)
     fn_text = normalize_whitespace(fn_text)
 
     if not fn_text.strip():
-        return []
+        return [], "", "none"
+
+    # Classify the format
+    fmt = detect_fn_section_format(fn_text)
 
     # Split at footnote number boundaries.
     # A footnote boundary is: (N) at the start of text, or (N) after a newline,
@@ -278,8 +363,13 @@ def parse_footnotes(fn_html: str) -> list[FootnoteRecord]:
     matches = list(FN_BOUNDARY.finditer(fn_text))
     
     if not matches:
-        # No structured footnotes found — treat whole block as one note
-        return []
+        # No structured footnotes found — entire text is preamble
+        return [], fn_text.strip(), fmt
+
+    # Capture any preamble text before the first (N) marker
+    preamble = ""
+    if matches[0].start() > 0:
+        preamble = fn_text[:matches[0].start()].strip()
     
     # First pass: split at all (N) boundaries
     raw_records = []
@@ -309,7 +399,7 @@ def parse_footnotes(fn_html: str) -> list[FootnoteRecord]:
         else:
             records.append(rec)
 
-    return records
+    return records, preamble, fmt
 
 
 # Embedded images (base64 page scans)
@@ -388,15 +478,19 @@ def normalize_page(page_html: str, volume: int = 1) -> Optional[PageRecord]:
     if is_image_only:
         warnings.append("IMAGE_ONLY_PAGE: page is an embedded scan with no extractable text")
         return PageRecord(
+            seq_index=0,  # placeholder — assigned by normalize_book
             volume=volume,
             page_number_arabic=page_arabic,
             page_number_int=page_int,
             matn_text="",
             footnotes=[],
+            footnote_preamble="",
+            footnote_section_format="none",
             footnote_ref_numbers=[],
             has_verse=False,
             is_image_only=True,
             has_tables=False,
+            starts_with_zwnj_heading=False,
             warnings=warnings,
             raw_matn_html=page_html,
             raw_fn_html="",
@@ -431,12 +525,13 @@ def normalize_page(page_html: str, volume: int = 1) -> Optional[PageRecord]:
     has_verse = detect_verse(strip_tags(matn_html))
 
     # Parse footnotes FIRST so we know which numbers are real footnote refs
-    footnotes = parse_footnotes(fn_html)
+    footnotes, fn_preamble, fn_format = parse_footnotes(fn_html)
     fn_numbers = {fn.number for fn in footnotes}
 
-    # Clean matn
+    # Clean matn — preserve source text faithfully (§4.1):
+    # asterisks (*) are source data, not Shamela artifacts, so they are NOT stripped.
+    # has_verse signals verse presence; Stage 2 handles verse formatting with full context.
     matn_text = strip_tags(matn_html)
-    matn_text = clean_verse_markers(matn_text)
     matn_text, fn_refs = strip_fn_refs_from_matn(matn_text, known_fn_numbers=fn_numbers)
     matn_text = normalize_whitespace(matn_text)
 
@@ -456,24 +551,45 @@ def normalize_page(page_html: str, volume: int = 1) -> Optional[PageRecord]:
     if not matn_text:
         warnings.append("EMPTY_PAGE: page has no extractable matn text")
 
+    # Warn on footnote preamble (text before first numbered footnote)
+    if fn_preamble and fn_format == "numbered_parens":
+        warnings.append(f"FN_PREAMBLE: {len(fn_preamble)} chars before first numbered footnote")
+    elif fn_preamble and fn_format != "numbered_parens":
+        warnings.append(f"FN_UNPARSED_SECTION: {len(fn_preamble)} chars in {fn_format} footnote section")
+
+    # Detect ZWNJ section heading marker (double U+200C at start of matn)
+    starts_with_zwnj = matn_text.startswith("\u200c\u200c")
+
     return PageRecord(
+        seq_index=0,  # placeholder — assigned by normalize_book
         volume=volume,
         page_number_arabic=page_arabic,
         page_number_int=page_int,
         matn_text=matn_text,
         footnotes=footnotes,
-        footnote_ref_numbers=sorted(fn_refs),
+        footnote_preamble=fn_preamble,
+        footnote_section_format=fn_format,
+        footnote_ref_numbers=sorted(set(fn_refs)),  # deduplicated unique sorted list
         has_verse=has_verse,
         is_image_only=False,
         has_tables=has_tables,
+        starts_with_zwnj_heading=starts_with_zwnj,
         warnings=warnings,
         raw_matn_html=raw_matn_html,
         raw_fn_html=raw_fn_html,
     )
 
 
-def normalize_book(html_text: str, book_id: str, source_path: str, volume: int = 1) -> tuple[list[PageRecord], NormalizationReport]:
-    """Normalize an entire Shamela HTML export (one volume file)."""
+def normalize_book(html_text: str, book_id: str, source_path: str, volume: int = 1,
+                   seq_offset: int = 0) -> tuple[list[PageRecord], NormalizationReport]:
+    """Normalize an entire Shamela HTML export (one volume file).
+    
+    Args:
+        seq_offset: Starting seq_index for this volume's pages. For single-volume
+                    books this is 0. For multi-volume books, the caller passes the
+                    cumulative page count from preceding volumes so that seq_index
+                    is continuous across the entire book.
+    """
     pages = []
     all_warnings = []
     skipped = []
@@ -495,6 +611,8 @@ def normalize_book(html_text: str, book_id: str, source_path: str, volume: int =
             else:
                 skipped.append("(no page number)")
             continue
+        # Assign seq_index: continuous across volumes
+        page.seq_index = seq_offset + len(pages)
         pages.append(page)
 
     # Compute source hash
@@ -504,6 +622,17 @@ def normalize_book(html_text: str, book_id: str, source_path: str, volume: int =
     total_fns = sum(len(p.footnotes) for p in pages)
     orphan_refs = sum(1 for p in pages for w in p.warnings if "no matching footnote" in w)
     orphan_fns = sum(1 for p in pages for w in p.warnings if "no matching ref" in w)
+
+    # Detect duplicate page numbers (N3)
+    from collections import Counter as _Counter
+    pn_counts = _Counter(p.page_number_int for p in pages)
+    dup_pns = {pn for pn, count in pn_counts.items() if count > 1}
+    pages_with_dup = 0
+    for p in pages:
+        if p.page_number_int in dup_pns:
+            pages_with_dup += 1
+            if f"DUPLICATE_PAGE" not in " ".join(p.warnings):
+                p.warnings.append(f"DUPLICATE_PAGE: page_number_int={p.page_number_int} appears {pn_counts[p.page_number_int]} times in this volume")
 
     for p in pages:
         for w in p.warnings:
@@ -516,10 +645,18 @@ def normalize_book(html_text: str, book_id: str, source_path: str, volume: int =
         volume=volume,
         total_pages=len(pages),
         pages_with_footnotes=sum(1 for p in pages if p.footnotes),
+        pages_with_fn_preamble=sum(1 for p in pages if p.footnote_preamble and p.footnote_section_format == "numbered_parens"),
+        pages_with_bare_number_fns=sum(1 for p in pages if p.footnote_section_format == "bare_number"),
+        pages_with_unnumbered_fns=sum(1 for p in pages if p.footnote_section_format == "unnumbered"),
         total_footnotes=total_fns,
+        total_matn_chars=sum(len(p.matn_text) for p in pages),
+        total_footnote_chars=sum(len(fn.text) for p in pages for fn in p.footnotes),
+        total_preamble_chars=sum(len(p.footnote_preamble) for p in pages),
         pages_with_verse=sum(1 for p in pages if p.has_verse),
         pages_with_tables=sum(1 for p in pages if p.has_tables),
         pages_image_only=sum(1 for p in pages if p.is_image_only),
+        pages_with_zwnj_heading=sum(1 for p in pages if p.starts_with_zwnj_heading),
+        pages_with_duplicate_numbers=pages_with_dup,
         orphan_footnote_refs=orphan_refs,
         orphan_footnotes=orphan_fns,
         warnings=all_warnings,
@@ -537,8 +674,10 @@ def page_to_jsonl_record(page: PageRecord, book_id: str) -> dict:
     Omits raw HTML fields (they're for debugging, not for output).
     """
     rec = {
+        "schema_version": "1.1",
         "record_type": "normalized_page",
         "book_id": book_id,
+        "seq_index": page.seq_index,
         "volume": page.volume,
         "page_number_arabic": page.page_number_arabic,
         "page_number_int": page.page_number_int,
@@ -552,8 +691,11 @@ def page_to_jsonl_record(page: PageRecord, book_id: str) -> dict:
             for fn in page.footnotes
         ],
         "footnote_ref_numbers": page.footnote_ref_numbers,
+        "footnote_preamble": page.footnote_preamble,
+        "footnote_section_format": page.footnote_section_format,
         "has_verse": page.has_verse,
         "has_table": page.has_tables,
+        "starts_with_zwnj_heading": page.starts_with_zwnj_heading,
         "warnings": page.warnings,
     }
     return rec
@@ -606,11 +748,13 @@ def normalize_multivolume(
 
     all_pages: list[PageRecord] = []
     reports: list[NormalizationReport] = []
+    seq_offset = 0  # continuous seq_index across volumes
 
     for vol_num, fpath in volumes:
-        with open(fpath, encoding="utf-8", errors="ignore") as f:
-            html_text = f.read()
-        pages, report = normalize_book(html_text, book_id, fpath, volume=vol_num)
+        html_text = read_html_file(fpath)
+        pages, report = normalize_book(html_text, book_id, fpath, volume=vol_num,
+                                       seq_offset=seq_offset)
+        seq_offset += len(pages)  # next volume starts after this one
         if page_start is not None:
             pages = [p for p in pages if p.page_number_int >= page_start]
         if page_end is not None:
@@ -628,10 +772,18 @@ def aggregate_reports(reports: list[NormalizationReport], book_id: str) -> dict:
         "volume_count": len(reports),
         "total_pages": sum(r.total_pages for r in reports),
         "pages_with_footnotes": sum(r.pages_with_footnotes for r in reports),
+        "pages_with_fn_preamble": sum(r.pages_with_fn_preamble for r in reports),
+        "pages_with_bare_number_fns": sum(r.pages_with_bare_number_fns for r in reports),
+        "pages_with_unnumbered_fns": sum(r.pages_with_unnumbered_fns for r in reports),
         "total_footnotes": sum(r.total_footnotes for r in reports),
+        "total_matn_chars": sum(r.total_matn_chars for r in reports),
+        "total_footnote_chars": sum(r.total_footnote_chars for r in reports),
+        "total_preamble_chars": sum(r.total_preamble_chars for r in reports),
         "pages_with_verse": sum(r.pages_with_verse for r in reports),
         "pages_with_tables": sum(r.pages_with_tables for r in reports),
         "pages_image_only": sum(r.pages_image_only for r in reports),
+        "pages_with_zwnj_heading": sum(r.pages_with_zwnj_heading for r in reports),
+        "pages_with_duplicate_numbers": sum(r.pages_with_duplicate_numbers for r in reports),
         "orphan_footnote_refs": sum(r.orphan_footnote_refs for r in reports),
         "orphan_footnotes": sum(r.orphan_footnotes for r in reports),
         "warnings": [],
@@ -649,10 +801,17 @@ def aggregate_reports(reports: list[NormalizationReport], book_id: str) -> dict:
             "source_sha256": r.source_sha256,
             "total_pages": r.total_pages,
             "pages_with_footnotes": r.pages_with_footnotes,
+            "pages_with_fn_preamble": r.pages_with_fn_preamble,
+            "pages_with_bare_number_fns": r.pages_with_bare_number_fns,
+            "pages_with_unnumbered_fns": r.pages_with_unnumbered_fns,
             "total_footnotes": r.total_footnotes,
+            "total_matn_chars": r.total_matn_chars,
+            "total_footnote_chars": r.total_footnote_chars,
+            "total_preamble_chars": r.total_preamble_chars,
             "pages_with_verse": r.pages_with_verse,
             "pages_with_tables": r.pages_with_tables,
             "pages_image_only": r.pages_image_only,
+            "pages_with_zwnj_heading": r.pages_with_zwnj_heading,
         })
     return agg
 
@@ -730,11 +889,13 @@ def normalize_book_by_id(
 
     all_pages: list[PageRecord] = []
     reports: list[NormalizationReport] = []
+    seq_offset = 0  # continuous seq_index across volumes
 
     for vol, path in sources:
-        with open(path, encoding="utf-8", errors="ignore") as f:
-            html_text = f.read()
-        pages, report = normalize_book(html_text, book_id, path, volume=vol)
+        html_text = read_html_file(path)
+        pages, report = normalize_book(html_text, book_id, path, volume=vol,
+                                       seq_offset=seq_offset)
+        seq_offset += len(pages)  # next volume starts after this one
         if page_start is not None:
             pages = [p for p in pages if p.page_number_int >= page_start]
         if page_end is not None:
@@ -878,8 +1039,7 @@ def _run_single_html_mode(args):
     print(f"Book ID: {book_id}")
     print(f"Volume: {volume}")
 
-    with open(html_path, encoding="utf-8", errors="ignore") as f:
-        html_text = f.read()
+    html_text = read_html_file(html_path)
 
     pages, report = normalize_book(html_text, book_id, html_path, volume=volume)
 
@@ -920,12 +1080,22 @@ def _print_summary(report: dict, jsonl_path: str, report_path: str):
 
     print(f"\nNormalized {total_pages} pages{vol_label}")
     print(f"  Pages with footnotes: {report['pages_with_footnotes']}")
+    if report.get("pages_with_fn_preamble"):
+        print(f"  Pages with footnote preamble: {report['pages_with_fn_preamble']}")
+    if report.get("pages_with_bare_number_fns"):
+        print(f"  Pages with bare-number footnotes: {report['pages_with_bare_number_fns']}")
+    if report.get("pages_with_unnumbered_fns"):
+        print(f"  Pages with unnumbered footnotes: {report['pages_with_unnumbered_fns']}")
     print(f"  Total footnotes: {report['total_footnotes']}")
     print(f"  Pages with verse: {report['pages_with_verse']}")
+    if report.get("pages_with_zwnj_heading"):
+        print(f"  Pages with ZWNJ heading: {report['pages_with_zwnj_heading']}")
     if report["pages_with_tables"]:
         print(f"  Pages with tables: {report['pages_with_tables']}")
     if report["pages_image_only"]:
         print(f"  ⚠ Image-only pages (no text): {report['pages_image_only']}")
+    if report.get("pages_with_duplicate_numbers"):
+        print(f"  ⚠ Pages with duplicate page numbers: {report['pages_with_duplicate_numbers']}")
     if report["orphan_footnote_refs"]:
         print(f"  ⚠ Orphan footnote refs: {report['orphan_footnote_refs']}")
     if report["orphan_footnotes"]:
@@ -934,6 +1104,13 @@ def _print_summary(report: dict, jsonl_path: str, report_path: str):
         print(f"  Skipped pages: {len(report['pages_skipped'])}")
     if report["warnings"]:
         print(f"  Total warnings: {len(report['warnings'])}")
+
+    # Character counts
+    matn_chars = report.get('total_matn_chars', 0)
+    fn_chars = report.get('total_footnote_chars', 0)
+    pre_chars = report.get('total_preamble_chars', 0)
+    if matn_chars:
+        print(f"  Characters: {matn_chars:,} matn + {fn_chars:,} footnotes + {pre_chars:,} preamble = {matn_chars+fn_chars+pre_chars:,} total")
 
     print(f"\nWrote: {jsonl_path}")
     print(f"Wrote: {report_path}")

@@ -10,7 +10,15 @@
 
 ### C1. Footnote Preamble Text Is Silently Dropped (DATA LOSS)
 
-**Severity:** 🔴 CRITICAL — silent data loss affecting 1.3 million characters
+**Severity:** ✅ RESOLVED (was 🔴 CRITICAL)
+**Fixed:** 2026-02-26 — `parse_footnotes()` now returns `(records, preamble)` tuple; `PageRecord.footnote_preamble` field added; `NormalizationReport.pages_with_fn_preamble` counter added.
+
+**Post-fix corpus validation (333 books, 167,106 pages):**
+- 31,453 pages now have footnote preamble captured (was: silently dropped)
+- 16,729,131 total characters saved (initial probe underestimated — was 1.3M on subset)
+- `FN_PREAMBLE` warning generated on affected pages
+- Zero residual HTML in output ✅
+- 171/171 tests pass ✅
 
 `parse_footnotes()` splits at `(N)` boundaries using `FN_BOUNDARY = re.compile(r"(?:^|\n)\((\d+)\)\s*(?:[ـ\-–]\s*)?", re.MULTILINE)`. Text that appears *before* the first `(N)` marker is silently discarded — it never appears in any footnote record.
 
@@ -48,7 +56,14 @@ However: blindly merging into footnote 1 may be wrong when the preamble is bibli
 
 ### C2. `clean_verse_markers()` Mangles Non-Verse Content (DATA CORRUPTION)
 
-**Severity:** 🔴 CRITICAL — silent text corruption on 7,741 pages
+**Severity:** ✅ RESOLVED (was 🔴 CRITICAL)
+**Fixed:** 2026-02-26 — `clean_verse_markers()` removed from the normalization pipeline. Asterisks are now preserved as source data per spec §5 ("NEVER alter author's text"). The function still exists as a utility for Stage 2 to call selectively with full context.
+
+**Post-fix corpus validation (333 books, 167,106 pages):**
+- 11,473 pages now have asterisks preserved in output (was: silently stripped/mangled)
+- `has_verse` detection unchanged — still correctly flags `* text *` and balanced hemistich patterns
+- Zero residual HTML in output ✅
+- 171/171 tests pass ✅
 
 `VERSE_STAR_RE = re.compile(r"\*\s*([^*]+?)\s*\*")` matches ANY `* text *` pattern, not just verse. `clean_verse_markers()` unconditionally strips the asterisks from all matches.
 
@@ -168,7 +183,7 @@ These passed adversarial probing and need no changes:
 - **Footnote layer separation (L1–L2):** The `<hr width='95'>` split is 100% reliable. Zero cases of multiple separators on one page. Zero text between separator and footnote div.
 - **Page number extraction (P2):** Zero pages with `page_number_int == 0`. Zero Arabic-digit `(٣)` refs that could confuse footnote stripping.
 - **PageHead removal (H1):** Zero nested divs inside PageHead blocks. The non-greedy `.*?` regex is safe.
-- **Source fidelity (§4.1):** Diacritics, tatweel, ZWNJ, Unicode forms all byte-identical between input and output. (Except where C2 strips asterisks — that's the one violation.)
+- **Source fidelity (§5):** Diacritics, tatweel, ZWNJ, asterisks, all Unicode forms byte-identical between input and output.
 - **`seq_index` uniqueness:** Verified across all 332 books: unique, monotonic, continuous across volumes.
 - **`footnote_ref_numbers` deduplication:** Zero books with duplicates or unsorted values.
 - **`starts_with_zwnj_heading`:** Correctly detecting 15,814 pages (9.5%) across 310/332 books.
@@ -181,15 +196,15 @@ These passed adversarial probing and need no changes:
 
 ## Recommended Fix Priority
 
-| # | Issue | Severity | Effort | Impact |
+| # | Issue | Severity | Status | Impact |
 |---|-------|----------|--------|--------|
-| C1 | Footnote preamble text silently dropped | 🔴 CRITICAL | Medium | 1.3M chars lost in 87 books |
-| C2 | `clean_verse_markers` mangles non-verse content | 🔴 CRITICAL | Medium | 7,741 pages corrupted |
-| I1 | `detect_verse` false positives on prose `… إلخ` | 🟡 IMPORTANT | Small | Misclassifies prose as verse |
-| I2 | `seq_index` non-contiguous under page filtering | 🟡 IMPORTANT | Trivial | Document the semantic |
-| I3 | Report missing ZWNJ heading count | 🟢 LOW | Trivial | Missing metric |
-| D3 | Silent encoding data loss trap | 🟢 LOW | Small | Latent risk |
-| D4 | No JSON Schema for output records | 🟢 LOW | Small | Safety net |
-| D5 | Gold samples only cover one easy book | 🟢 LOW | Medium | Test coverage gap |
+| C1 | Footnote preamble text silently dropped | ✅ RESOLVED | Fixed 2026-02-26 | 16.7M chars saved across 31,453 pages |
+| C2 | `clean_verse_markers` mangles non-verse content | ✅ RESOLVED | Fixed 2026-02-26 | 11,473 pages now have asterisks preserved |
+| I1 | `detect_verse` false positives on prose `… إلخ` | 🟡 IMPORTANT | Open | Misclassifies prose as verse |
+| I2 | `seq_index` non-contiguous under page filtering | 🟡 IMPORTANT | Open | Document the semantic |
+| I3 | Report missing ZWNJ heading count | 🟢 LOW | Open | Missing metric |
+| D3 | Silent encoding data loss trap | 🟢 LOW | Open | Latent risk |
+| D4 | No JSON Schema for output records | 🟢 LOW | Open | Safety net |
+| D5 | Gold samples only cover one easy book | 🟢 LOW | Open | Test coverage gap |
 
-**Bottom line:** C1 and C2 are the only true blockers. C1 is active data loss — 1.3 million characters of scholarly footnote content vanishing without trace. C2 is active data corruption — asterisks stripped from headings and separators that are not verse. Everything else is either documented behavior, a missing metric, or a latent risk with no current impact.
+**Bottom line:** Both blockers (C1, C2) are resolved. The remaining items are either documented behavior, missing metrics, or latent risks with no current impact. Stage 2 can proceed.

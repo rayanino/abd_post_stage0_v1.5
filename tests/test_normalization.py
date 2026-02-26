@@ -32,6 +32,7 @@ from normalize_shamela import (
     PageRecord,
     arabic_to_int,
     clean_verse_markers,
+    detect_fn_section_format,
     detect_image_only_page,
     detect_verse,
     discover_volume_files,
@@ -42,6 +43,7 @@ from normalize_shamela import (
     normalize_whitespace,
     page_to_jsonl_record,
     parse_footnotes,
+    read_html_file,
     replace_tables_with_text,
     strip_fn_refs_from_matn,
     strip_tags,
@@ -57,6 +59,8 @@ GOLD_SAMPLES_DIR = REPO_ROOT / "1_normalization" / "gold_samples"
 GOLD_FULL_JSONL = GOLD_SAMPLES_DIR / "jawahir_normalized_full.jsonl"
 GOLD_JSONL = GOLD_SAMPLES_DIR / "jawahir_normalized.jsonl"
 GOLD_REPORT = GOLD_SAMPLES_DIR / "jawahir_normalization_report.json"
+GOLD_DIVERSE_FULL = GOLD_SAMPLES_DIR / "gold_full.jsonl"
+GOLD_DIVERSE_COMPACT = GOLD_SAMPLES_DIR / "gold_compact.jsonl"
 BOOKS_DIR = REPO_ROOT / "books"
 OTHER_BOOKS = BOOKS_DIR / "Other Books"
 HAS_OTHER_BOOKS = OTHER_BOOKS.exists()
@@ -326,7 +330,7 @@ class TestVerseHandling:
         assert clean_verse_markers("* تركت ناقتي *") == "تركت ناقتي"
 
     def test_hemistich_detected(self):
-        """V2: Hemistich separator triggers has_verse."""
+        """V2: Balanced hemistich separator (≥5 chars each side) triggers has_verse."""
         assert detect_verse("first hemistich … second hemistich") is True
 
     def test_star_marker_detected(self):
@@ -336,6 +340,33 @@ class TestVerseHandling:
     def test_no_verse(self):
         """V2: Plain text has no verse."""
         assert detect_verse("regular prose without poetry") is False
+
+    def test_lone_ellipsis_not_verse(self):
+        """Fix #2: A lone … used as prose truncation does NOT trigger has_verse."""
+        assert detect_verse("وقد ذكر المؤلف …") is False
+        assert detect_verse("…") is False
+        assert detect_verse("قال … ") is False  # < 5 chars on right side
+
+    def test_short_sides_not_verse(self):
+        """Fix #2: < 5 chars on either side of … → not verse."""
+        assert detect_verse("abc … defghijk") is False  # left < 5
+        assert detect_verse("abcdefgh … def") is False   # right < 5
+
+    def test_balanced_hemistich_is_verse(self):
+        """Fix #2: ≥5 chars on both sides of … → verse."""
+        assert detect_verse("خمسة أحرف … خمسة أحرف") is True
+        assert detect_verse("first … second") is True  # 5 and 6 chars
+
+    def test_etc_ellipsis_not_verse(self):
+        """Fix I1+N2: prose etcetera patterns (all variants) are NOT verse."""
+        # All Arabic "etc." variants excluded
+        assert detect_verse("وعلامة الفصاحة أن يكون اللفظ جاريا … إلخ، وبما ذكرنا") is False
+        assert detect_verse("(والغرابة) نحو … إلخ، بل كان يعرف الغرابة") is False
+        assert detect_verse("وعلامة الفصاحة الراجعة إلى اللفظ … الخ والمعنى") is False
+        assert detect_verse("وكذلك بقية الأقسام … إلى آخره وقد ذكرنا") is False
+        assert detect_verse("والتفصيل في هذا الباب … إلى آخر ما قاله") is False
+        # But actual verse with إلخ elsewhere on right is still verse
+        assert detect_verse("first hemistich … second hemistich including إلخ") is True
 
     def test_verse_text_preserved(self):
         """V3: Verse formatting preserved (no reformatting)."""
@@ -350,43 +381,43 @@ class TestVerseHandling:
 class TestParseFootnotes:
     def test_single_footnote(self):
         """L3: Single footnote parsed correctly."""
-        fns = parse_footnotes("(1) This is a footnote.")
+        fns, _, _ = parse_footnotes("(1) This is a footnote.")
         assert len(fns) == 1
         assert fns[0].number == 1
         assert "This is a footnote." in fns[0].text
 
     def test_multiple_footnotes(self):
         """L3: Multiple footnotes split at (N) boundaries."""
-        fns = parse_footnotes("(1) First note.\n(2) Second note.")
+        fns, _, _ = parse_footnotes("(1) First note.\n(2) Second note.")
         assert len(fns) == 2
         assert fns[0].number == 1
         assert fns[1].number == 2
 
     def test_dash_separator(self):
         """L4: Footnote with dash separator: (N) ـ text."""
-        fns = parse_footnotes("(1) ـ This has a dash.")
+        fns, _, _ = parse_footnotes("(1) ـ This has a dash.")
         assert len(fns) == 1
         assert "This has a dash." in fns[0].text
         assert "ـ" not in fns[0].text
 
     def test_no_dash_separator(self):
         """L4: Footnote without dash: (N) text."""
-        fns = parse_footnotes("(1) Direct text here.")
+        fns, _, _ = parse_footnotes("(1) Direct text here.")
         assert len(fns) == 1
         assert "Direct text here." in fns[0].text
 
     def test_empty_footnote_html(self):
-        fns = parse_footnotes("")
+        fns, _, _ = parse_footnotes("")
         assert fns == []
 
     def test_whitespace_only(self):
-        fns = parse_footnotes("   \n\n  ")
+        fns, _, _ = parse_footnotes("   \n\n  ")
         assert fns == []
 
     def test_font_color_in_footnotes(self):
         """Footnote numbers wrapped in font color tags."""
         html = "(1) First note.\n<font color=#be0000>(2)</font> Second note."
-        fns = parse_footnotes(html)
+        fns, _, _ = parse_footnotes(html)
         assert len(fns) == 2
 
     def test_subpoints_merged_into_parent(self):
@@ -405,7 +436,7 @@ class TestParseFootnotes:
             "(1) Sub-point within fn 2.\n"
             "(2) Another sub-point.\n"
         )
-        fns = parse_footnotes(fn_text)
+        fns, _, _ = parse_footnotes(fn_text)
         # Monotonic merge produces 2 footnotes:
         # FN(1): main + sub-point A (sub-point (1) ≤ 1, merged)
         # FN(2): sub-point B + main fn 2 + remaining (all ≤ 2, merged)
@@ -424,7 +455,7 @@ class TestParseFootnotes:
     def test_strictly_increasing_footnotes_unchanged(self):
         """Normal sequential footnotes are not affected by merge logic."""
         fn_text = "(1) First.\n(2) Second.\n(3) Third."
-        fns = parse_footnotes(fn_text)
+        fns, _, _ = parse_footnotes(fn_text)
         assert len(fns) == 3
         assert [fn.number for fn in fns] == [1, 2, 3]
 
@@ -560,10 +591,16 @@ class TestNormalizePage:
         assert "(2)" in page.matn_text
 
     def test_verse_detected(self):
-        """V2: Verse presence flagged."""
-        html = make_page_html("first … second")
+        """V2: Verse presence flagged (balanced hemistich)."""
+        html = make_page_html("first hemistich … second hemistich")
         page = normalize_page(html)
         assert page.has_verse is True
+
+    def test_lone_ellipsis_not_verse_in_page(self):
+        """Fix #2: Lone ellipsis in page does not trigger has_verse."""
+        html = make_page_html("وقد ذكر المؤلف …")
+        page = normalize_page(html)
+        assert page.has_verse is False
 
     def test_volume_tagging(self):
         html = make_page_html("text", page_num_arabic="٣")
@@ -615,15 +652,19 @@ class TestJSONLFormat:
     @pytest.fixture
     def sample_record(self):
         page = PageRecord(
+            seq_index=0,
             volume=1,
             page_number_arabic="٢٠",
             page_number_int=20,
             matn_text="sample text",
             footnotes=[FootnoteRecord(number=1, text="fn text", raw_text="(1) fn text")],
+            footnote_preamble="",
+            footnote_section_format="none",
             footnote_ref_numbers=[1],
             has_verse=True,
             is_image_only=False,
             has_tables=False,
+            starts_with_zwnj_heading=False,
             warnings=[],
             raw_matn_html="<p>sample text</p>",
             raw_fn_html="",
@@ -633,9 +674,11 @@ class TestJSONLFormat:
     def test_required_fields_present(self, sample_record):
         """All spec §3 fields must be present."""
         required = {
-            "record_type", "book_id", "volume", "page_number_arabic",
-            "page_number_int", "content_type", "matn_text", "footnotes",
-            "footnote_ref_numbers", "has_verse", "has_table", "warnings",
+            "schema_version", "record_type", "book_id", "seq_index", "volume",
+            "page_number_arabic", "page_number_int", "content_type", "matn_text",
+            "footnotes", "footnote_ref_numbers", "footnote_preamble",
+            "footnote_section_format", "has_verse", "has_table",
+            "starts_with_zwnj_heading", "warnings",
         }
         assert required.issubset(set(sample_record.keys()))
 
@@ -647,9 +690,12 @@ class TestJSONLFormat:
 
     def test_content_type_image_only(self):
         page = PageRecord(
-            volume=1, page_number_arabic="٥", page_number_int=5,
-            matn_text="", footnotes=[], footnote_ref_numbers=[],
+            seq_index=0, volume=1, page_number_arabic="٥", page_number_int=5,
+            matn_text="", footnotes=[], footnote_preamble="",
+            footnote_section_format="none",
+            footnote_ref_numbers=[],
             has_verse=False, is_image_only=True, has_tables=False,
+            starts_with_zwnj_heading=False,
             warnings=[], raw_matn_html="", raw_fn_html="",
         )
         rec = page_to_jsonl_record(page, "test")
@@ -724,7 +770,7 @@ class TestNormalizeBook:
     def test_report_statistics(self):
         """Report aggregates stats correctly."""
         p1 = make_page_html("Text (1) ref", footnotes="(1) A note")
-        p2 = make_page_html("Verse … here")
+        p2 = make_page_html("first hemistich … second hemistich")
         html = make_book_html(p1, p2)
         _, report = normalize_book(html, "test", "test.htm")
         assert report.total_pages == 2
@@ -740,7 +786,7 @@ class TestNormalizeBook:
     def test_determinism(self):
         """Same input → identical output (normalizer is deterministic)."""
         p1 = make_page_html("Content (1) here", footnotes="(1) Note")
-        p2 = make_page_html("More text … verse")
+        p2 = make_page_html("first hemistich … second hemistich")
         html = make_book_html(p1, p2)
 
         pages_a, _ = normalize_book(html, "test", "test.htm")
@@ -800,22 +846,42 @@ class TestMultiVolume:
         r1 = NormalizationReport(
             book_id="test", source_file="001.htm", source_sha256="abc",
             volume=1, total_pages=100, pages_with_footnotes=50,
-            total_footnotes=200, pages_with_verse=10, pages_with_tables=1,
-            pages_image_only=0, orphan_footnote_refs=0, orphan_footnotes=2,
+            pages_with_fn_preamble=3, pages_with_bare_number_fns=10,
+            pages_with_unnumbered_fns=2,
+            total_footnotes=200,
+            total_matn_chars=50000, total_footnote_chars=10000, total_preamble_chars=3000,
+            pages_with_verse=10, pages_with_tables=1,
+            pages_image_only=0, pages_with_zwnj_heading=5,
+            pages_with_duplicate_numbers=0,
+            orphan_footnote_refs=0, orphan_footnotes=2,
             warnings=["w1"], pages_skipped=["s1"],
         )
         r2 = NormalizationReport(
             book_id="test", source_file="002.htm", source_sha256="def",
             volume=2, total_pages=80, pages_with_footnotes=30,
-            total_footnotes=100, pages_with_verse=5, pages_with_tables=0,
-            pages_image_only=1, orphan_footnote_refs=1, orphan_footnotes=0,
+            pages_with_fn_preamble=1, pages_with_bare_number_fns=5,
+            pages_with_unnumbered_fns=1,
+            total_footnotes=100,
+            total_matn_chars=40000, total_footnote_chars=8000, total_preamble_chars=1000,
+            pages_with_verse=5, pages_with_tables=0,
+            pages_image_only=1, pages_with_zwnj_heading=3,
+            pages_with_duplicate_numbers=2,
+            orphan_footnote_refs=1, orphan_footnotes=0,
             warnings=["w2"], pages_skipped=[],
         )
         agg = aggregate_reports([r1, r2], "test")
         assert agg["total_pages"] == 180
         assert agg["volume_count"] == 2
         assert agg["total_footnotes"] == 300
+        assert agg["pages_with_fn_preamble"] == 4
+        assert agg["pages_with_bare_number_fns"] == 15
+        assert agg["pages_with_unnumbered_fns"] == 3
+        assert agg["total_matn_chars"] == 90000
+        assert agg["total_footnote_chars"] == 18000
+        assert agg["total_preamble_chars"] == 4000
         assert agg["pages_with_verse"] == 15
+        assert agg["pages_with_duplicate_numbers"] == 2
+        assert agg["pages_with_zwnj_heading"] == 8
         assert agg["pages_with_tables"] == 1
         assert agg["pages_image_only"] == 1
         assert agg["orphan_footnotes"] == 2
@@ -1006,7 +1072,7 @@ class TestGoldSamples:
             raw_fn = rec.get("raw_fn_html", "")
 
             # Parse footnotes to get known numbers
-            fns = parse_footnotes(raw_fn)
+            fns, _, _ = parse_footnotes(raw_fn)
             fn_numbers = {fn.number for fn in fns}
 
             # Reproduce normalization
@@ -1014,7 +1080,6 @@ class TestGoldSamples:
             from normalize_shamela import IMG_TAG_RE
             matn_html = IMG_TAG_RE.sub("", matn_html)
             matn_text = strip_tags(matn_html)
-            matn_text = clean_verse_markers(matn_text)
             matn_text, _ = strip_fn_refs_from_matn(matn_text, known_fn_numbers=fn_numbers)
             matn_text = normalize_whitespace(matn_text)
 
@@ -1028,7 +1093,7 @@ class TestGoldSamples:
         for rec in gold_full_records:
             if "raw_fn_html" not in rec:
                 continue
-            fns = parse_footnotes(rec.get("raw_fn_html", ""))
+            fns, _, _ = parse_footnotes(rec.get("raw_fn_html", ""))
             gold_fns = rec.get("footnotes", [])
             assert len(fns) == len(gold_fns), (
                 f"Footnote count mismatch on page {rec['page_number_int']}: "
@@ -1048,12 +1113,132 @@ class TestGoldSamples:
         assert report["total_pages"] == 308
         assert report["pages_with_footnotes"] > 0
         assert report["total_footnotes"] > 0
+        # N6: character counts present
+        assert report["total_matn_chars"] > 0
+        assert report["total_footnote_chars"] > 0
+
+    def test_gold_schema_version(self, gold_records):
+        """All gold records have schema_version=1.1."""
+        for r in gold_records:
+            assert r.get("schema_version") == "1.1"
+
+    def test_gold_footnote_section_format(self, gold_records):
+        """All gold records have footnote_section_format field."""
+        for r in gold_records:
+            assert "footnote_section_format" in r
+            assert r["footnote_section_format"] in ("numbered_parens", "bare_number", "unnumbered", "none")
 
     def test_unique_page_keys(self, gold_records):
-        """Spec: (book_id, volume, page_number_int) is unique."""
-        # Gold records are from old format (no volume field), so use page_number_int
+        """Jawahir has unique page numbers (no dup-key issue in this book)."""
         page_nums = [r["page_number_int"] for r in gold_records]
         assert len(page_nums) == len(set(page_nums))
+
+
+class TestDiverseGoldSamples:
+    """Validate the multi-book diverse gold samples covering all edge cases."""
+
+    @pytest.fixture(scope="class")
+    def gold_full(self) -> list[dict]:
+        records = []
+        with open(GOLD_DIVERSE_FULL, encoding="utf-8") as f:
+            for line in f:
+                records.append(json.loads(line))
+        return records
+
+    @pytest.fixture(scope="class")
+    def gold_compact(self) -> list[dict]:
+        records = []
+        with open(GOLD_DIVERSE_COMPACT, encoding="utf-8") as f:
+            for line in f:
+                records.append(json.loads(line))
+        return records
+
+    def test_diverse_gold_files_exist(self):
+        assert GOLD_DIVERSE_FULL.exists()
+        assert GOLD_DIVERSE_COMPACT.exists()
+
+    def test_diverse_gold_record_count(self, gold_full):
+        """Diverse gold has 14 samples."""
+        assert len(gold_full) == 14
+
+    def test_diverse_gold_categories_complete(self, gold_full):
+        """All required edge case categories are represented."""
+        categories = {r["_gold_category"] for r in gold_full}
+        required = {
+            "standard_prose_fns", "no_footnotes_zwnj", "verse_hemistich",
+            "verse_star", "many_footnotes", "bare_number_fns",
+            "duplicate_page", "fn_preamble_true", "unnumbered_fn_section",
+            "has_table", "image_only", "orphan_footnotes",
+            "jawahir_standard", "empty_page",
+        }
+        missing = required - categories
+        assert not missing, f"Missing gold categories: {missing}"
+
+    def test_diverse_gold_multiple_books(self, gold_full):
+        """Samples come from at least 3 different books."""
+        books = {r["_gold_source_file"] for r in gold_full}
+        assert len(books) >= 3
+
+    def test_diverse_gold_schema_version(self, gold_full):
+        """All records have schema_version=1.1."""
+        for r in gold_full:
+            assert r.get("schema_version") == "1.1"
+
+    def test_diverse_gold_footnote_formats_covered(self, gold_full):
+        """All footnote formats represented."""
+        formats = {r["footnote_section_format"] for r in gold_full}
+        assert "numbered_parens" in formats
+        assert "bare_number" in formats
+        assert "unnumbered" in formats
+        assert "none" in formats
+
+    @pytest.mark.skipif(not HAS_OTHER_BOOKS, reason="Other Books not available")
+    def test_diverse_gold_roundtrip_matn(self, gold_full):
+        """Re-normalizing raw HTML produces identical matn text."""
+        for rec in gold_full:
+            if rec.get("content_type") == "image_only" or not rec.get("raw_matn_html"):
+                continue
+            raw_matn = rec["raw_matn_html"]
+            raw_fn = rec.get("raw_fn_html", "")
+
+            fns, _, _ = parse_footnotes(raw_fn)
+            fn_numbers = {fn.number for fn in fns}
+
+            matn_html, _ = replace_tables_with_text(raw_matn)
+            from normalize_shamela import IMG_TAG_RE
+            matn_html = IMG_TAG_RE.sub("", matn_html)
+            matn_text = strip_tags(matn_html)
+            matn_text, _ = strip_fn_refs_from_matn(matn_text, known_fn_numbers=fn_numbers)
+            matn_text = normalize_whitespace(matn_text)
+
+            assert matn_text == rec["matn_text"], (
+                f"Matn mismatch on {rec['_gold_category']} page {rec['page_number_int']}: "
+                f"expected {len(rec['matn_text'])}c, got {len(matn_text)}c"
+            )
+
+    @pytest.mark.skipif(not HAS_OTHER_BOOKS, reason="Other Books not available")
+    def test_diverse_gold_roundtrip_footnotes(self, gold_full):
+        """Re-normalizing raw HTML produces identical footnotes."""
+        for rec in gold_full:
+            raw_fn = rec.get("raw_fn_html", "")
+            if not raw_fn:
+                continue
+            fns, _, _ = parse_footnotes(raw_fn)
+            gold_fns = rec.get("footnotes", [])
+            assert len(fns) == len(gold_fns), (
+                f"FN count mismatch on {rec['_gold_category']} p{rec['page_number_int']}: "
+                f"expected {len(gold_fns)}, got {len(fns)}"
+            )
+            for fn, gfn in zip(fns, gold_fns):
+                assert fn.number == gfn["number"]
+                assert fn.text == gfn["text"]
+
+    def test_compact_matches_full(self, gold_full, gold_compact):
+        """Compact records match full records (minus raw HTML)."""
+        assert len(gold_full) == len(gold_compact)
+        for full, compact in zip(gold_full, gold_compact):
+            for key in compact:
+                assert compact[key] == full[key], f"Mismatch on {key} for {compact['_gold_category']}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1081,8 +1266,7 @@ class TestCorpusSmoke:
     def test_balagha_books_normalize(self, sample_balagha_files):
         """بلاغة books normalize without errors."""
         for f in sample_balagha_files:
-            with open(f, encoding="utf-8", errors="ignore") as fh:
-                html = fh.read()
+            html = read_html_file(str(f))
             pages, report = normalize_book(html, "test", str(f))
             assert report.total_pages > 0, f"No pages extracted from {f.name}"
             for p in pages:
@@ -1092,16 +1276,14 @@ class TestCorpusSmoke:
     def test_nahw_books_normalize(self, sample_nahw_files):
         """نحو/صرف books normalize without errors."""
         for f in sample_nahw_files:
-            with open(f, encoding="utf-8", errors="ignore") as fh:
-                html = fh.read()
+            html = read_html_file(str(f))
             pages, report = normalize_book(html, "test", str(f))
             assert report.total_pages > 0, f"No pages extracted from {f.name}"
 
     def test_all_output_records_valid_json(self, sample_balagha_files):
         """Every output record serializes to valid JSON."""
         for f in sample_balagha_files:
-            with open(f, encoding="utf-8", errors="ignore") as fh:
-                html = fh.read()
+            html = read_html_file(str(f))
             pages, _ = normalize_book(html, "test", str(f))
             for p in pages:
                 rec = page_to_jsonl_record(p, "test")
@@ -1112,8 +1294,7 @@ class TestCorpusSmoke:
     def test_no_page_has_negative_number(self, sample_balagha_files):
         """Sanity: no page has a negative or zero page number."""
         for f in sample_balagha_files:
-            with open(f, encoding="utf-8", errors="ignore") as fh:
-                html = fh.read()
+            html = read_html_file(str(f))
             pages, _ = normalize_book(html, "test", str(f))
             for p in pages:
                 assert p.page_number_int > 0
@@ -1121,8 +1302,7 @@ class TestCorpusSmoke:
     def test_shamela_format_assumptions(self, sample_balagha_files):
         """A1–A6: Core Shamela format assumptions hold."""
         for f in sample_balagha_files:
-            with open(f, encoding="utf-8", errors="ignore") as fh:
-                html = fh.read()
+            html = read_html_file(str(f))
             # A1: PageText divs exist
             assert "<div class='PageText'>" in html, f"A1 failed: {f.name}"
             # A2: PageHead structure
@@ -1137,18 +1317,321 @@ class TestCorpusSmoke:
         balagha_dir = OTHER_BOOKS / "كتب البلاغة"
         files = [f for f in balagha_dir.iterdir() if f.suffix == ".htm" and f.is_file()]
         for f in files[:10]:
-            with open(f, encoding="utf-8", errors="ignore") as fh:
-                html = fh.read()
+            html = read_html_file(str(f))
             _, report = normalize_book(html, "test", str(f))
             total += report.total_pages
         assert total > 1000
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Edge case tests
+# Fix #1: seq_index (unique document-order key)
 # ═══════════════════════════════════════════════════════════════════════════
 
-class TestEdgeCases:
+class TestSeqIndex:
+    """Verify seq_index is monotonically increasing and globally unique."""
+
+    def test_seq_index_starts_at_zero(self):
+        """seq_index starts at 0 for first page."""
+        p1 = make_page_html("First page", page_num_arabic="١")
+        html = make_book_html(p1)
+        pages, _ = normalize_book(html, "test", "test.htm")
+        assert pages[0].seq_index == 0
+
+    def test_seq_index_monotonic(self):
+        """seq_index is monotonically increasing within a book."""
+        p1 = make_page_html("Page one", page_num_arabic="١")
+        p2 = make_page_html("Page two", page_num_arabic="٢")
+        p3 = make_page_html("Page three", page_num_arabic="٣")
+        html = make_book_html(p1, p2, p3)
+        pages, _ = normalize_book(html, "test", "test.htm")
+        assert [p.seq_index for p in pages] == [0, 1, 2]
+
+    def test_seq_index_unique_despite_duplicate_page_numbers(self):
+        """seq_index is unique even when page_number_int repeats."""
+        p1 = make_page_html("First", page_num_arabic="٥")
+        p2 = make_page_html("Second", page_num_arabic="٥")  # duplicate page number!
+        html = make_book_html(p1, p2)
+        pages, _ = normalize_book(html, "test", "test.htm")
+        assert pages[0].seq_index == 0
+        assert pages[1].seq_index == 1
+        assert pages[0].page_number_int == pages[1].page_number_int == 5
+
+    def test_seq_index_skips_metadata_pages(self):
+        """Skipped metadata pages don't consume seq_index values."""
+        meta = "<div class='PageText'><div class='PageHead'><span class='title'>Title</span><hr/></div>intro</div>"
+        p1 = make_page_html("Real content", page_num_arabic="١")
+        p2 = make_page_html("More content", page_num_arabic="٢")
+        html = make_book_html(meta, p1, p2)
+        pages, _ = normalize_book(html, "test", "test.htm")
+        assert len(pages) == 2
+        assert pages[0].seq_index == 0
+        assert pages[1].seq_index == 1
+
+    def test_seq_index_continuous_across_volumes(self, tmp_path):
+        """Multi-volume: seq_index is continuous across volumes."""
+        # Vol 1: 3 pages
+        vol1_pages = [make_page_html(f"V1P{i}", page_num_arabic=f"{'٠١٢٣٤٥٦٧٨٩'[i]}") for i in range(1, 4)]
+        (tmp_path / "001.htm").write_text(make_book_html(*vol1_pages), encoding="utf-8")
+        # Vol 2: 2 pages
+        vol2_pages = [make_page_html(f"V2P{i}", page_num_arabic=f"{'٠١٢٣٤٥٦٧٨٩'[i]}") for i in range(1, 3)]
+        (tmp_path / "002.htm").write_text(make_book_html(*vol2_pages), encoding="utf-8")
+
+        pages, _ = normalize_multivolume(str(tmp_path), "test")
+        seq_indices = [p.seq_index for p in pages]
+        assert seq_indices == [0, 1, 2, 3, 4]
+        # Vol 1 pages: 0, 1, 2. Vol 2 pages: 3, 4.
+        assert pages[2].volume == 1 and pages[2].seq_index == 2
+        assert pages[3].volume == 2 and pages[3].seq_index == 3
+
+    def test_seq_index_in_jsonl_output(self):
+        """seq_index appears in JSONL output."""
+        p1 = make_page_html("Text", page_num_arabic="١")
+        html = make_book_html(p1)
+        pages, _ = normalize_book(html, "test", "test.htm")
+        rec = page_to_jsonl_record(pages[0], "test")
+        assert "seq_index" in rec
+        assert rec["seq_index"] == 0
+
+    def test_seq_index_with_seq_offset(self):
+        """normalize_book with seq_offset starts numbering correctly."""
+        p1 = make_page_html("Text", page_num_arabic="١")
+        html = make_book_html(p1)
+        pages, _ = normalize_book(html, "test", "test.htm", seq_offset=100)
+        assert pages[0].seq_index == 100
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fix #4: footnote_ref_numbers deduplication
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFootnoteRefDedup:
+    """Verify footnote_ref_numbers is a unique sorted list (no duplicates)."""
+
+    def test_duplicate_refs_deduplicated(self):
+        """Fix #4: Multiple refs to same footnote → deduplicated list."""
+        html = make_page_html(
+            "First ref (1) and second ref (1) done.",
+            footnotes="(1) The footnote."
+        )
+        page = normalize_page(html)
+        assert page.footnote_ref_numbers == [1]  # deduplicated, not [1, 1]
+
+    def test_multiple_unique_refs_sorted(self):
+        """Fix #4: Multiple different refs → sorted unique list."""
+        html = make_page_html(
+            "Ref (2) then (1) then (3) here.",
+            footnotes="(1) Note one.\n(2) Note two.\n(3) Note three."
+        )
+        page = normalize_page(html)
+        assert page.footnote_ref_numbers == [1, 2, 3]
+
+    def test_single_ref_unchanged(self):
+        """Fix #4: Single ref → single-element list (no change)."""
+        html = make_page_html(
+            "Text (1) here.",
+            footnotes="(1) A footnote."
+        )
+        page = normalize_page(html)
+        assert page.footnote_ref_numbers == [1]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fix #5: ZWNJ heading markers
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestZWNJHeading:
+    """Verify starts_with_zwnj_heading detection."""
+
+    def test_zwnj_heading_detected(self):
+        """Fix #5: Double ZWNJ at start of matn → starts_with_zwnj_heading=True."""
+        html = make_page_html("\u200c\u200cالفصل الأول")
+        page = normalize_page(html)
+        assert page.starts_with_zwnj_heading is True
+
+    def test_no_zwnj_heading(self):
+        """Fix #5: Normal text without ZWNJ → starts_with_zwnj_heading=False."""
+        html = make_page_html("الفصل الأول")
+        page = normalize_page(html)
+        assert page.starts_with_zwnj_heading is False
+
+    def test_single_zwnj_not_heading(self):
+        """Fix #5: Single ZWNJ is not a heading marker (need double)."""
+        html = make_page_html("\u200ctext")
+        page = normalize_page(html)
+        assert page.starts_with_zwnj_heading is False
+
+    def test_zwnj_in_jsonl_output(self):
+        """Fix #5: starts_with_zwnj_heading appears in JSONL output."""
+        html = make_page_html("\u200c\u200cعنوان")
+        pages_html = make_book_html(html)
+        pages, _ = normalize_book(pages_html, "test", "test.htm")
+        rec = page_to_jsonl_record(pages[0], "test")
+        assert "starts_with_zwnj_heading" in rec
+        assert rec["starts_with_zwnj_heading"] is True
+
+    def test_image_only_page_no_zwnj(self):
+        """Fix #5: Image-only pages have starts_with_zwnj_heading=False."""
+        html = (
+            "<div class='PageText'>"
+            "<div class='PageHead'>"
+            "<span class='PartName'>Book</span>"
+            "<span class='PageNumber'>(ص: ٧)</span><hr/></div>"
+            "<img src='data:image/jpg;base64,abc123'>"
+            "</div>"
+        )
+        page = normalize_page(html)
+        assert page.starts_with_zwnj_heading is False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fix C1: Footnote preamble capture (no more silent data loss)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFootnotePreamble:
+    """Verify text before the first (N) marker is captured, not dropped."""
+
+    def test_preamble_captured(self):
+        """Text before first (N) is returned as preamble."""
+        fn_text = "Bibliographic reference.\n(1) First footnote."
+        fns, preamble, _ = parse_footnotes(fn_text)
+        assert len(fns) == 1
+        assert fns[0].number == 1
+        assert preamble == "Bibliographic reference."
+
+    def test_no_preamble(self):
+        """When (1) starts the text, preamble is empty."""
+        fns, preamble, _ = parse_footnotes("(1) Just a footnote.")
+        assert len(fns) == 1
+        assert preamble == ""
+
+    def test_preamble_with_multiple_footnotes(self):
+        """Preamble captured even with multiple footnotes after it."""
+        fn_text = "Editorial context here.\n(1) First.\n(2) Second."
+        fns, preamble, _ = parse_footnotes(fn_text)
+        assert len(fns) == 2
+        assert preamble == "Editorial context here."
+
+    def test_preamble_in_page(self):
+        """Preamble flows through to PageRecord.footnote_preamble."""
+        html = make_page_html(
+            "Matn text (1) ref",
+            footnotes="Scholarly context.\n(1) The actual footnote."
+        )
+        page = normalize_page(html)
+        assert page.footnote_preamble == "Scholarly context."
+        assert len(page.footnotes) == 1
+
+    def test_no_preamble_in_page(self):
+        """Pages without preamble have empty footnote_preamble."""
+        html = make_page_html(
+            "Matn text (1) ref",
+            footnotes="(1) Normal footnote."
+        )
+        page = normalize_page(html)
+        assert page.footnote_preamble == ""
+
+    def test_preamble_in_jsonl(self):
+        """footnote_preamble appears in JSONL output."""
+        html = make_page_html(
+            "Matn (1) here",
+            footnotes="Context text.\n(1) Footnote."
+        )
+        pages_html = make_book_html(html)
+        pages, _ = normalize_book(pages_html, "test", "test.htm")
+        rec = page_to_jsonl_record(pages[0], "test")
+        assert "footnote_preamble" in rec
+        assert rec["footnote_preamble"] == "Context text."
+
+    def test_preamble_warning_generated(self):
+        """Pages with preamble before (N) fns get FN_PREAMBLE warning."""
+        html = make_page_html(
+            "Matn (1) here",
+            footnotes="Dropped text before.\n(1) Footnote."
+        )
+        page = normalize_page(html)
+        assert any("FN_PREAMBLE" in w for w in page.warnings)
+
+    def test_unparsed_section_warning_generated(self):
+        """Pages with bare-number footnotes get FN_UNPARSED_SECTION warning."""
+        html = make_page_html(
+            "Matn text",
+            footnotes="1 First footnote text.\n2 Second footnote text."
+        )
+        page = normalize_page(html)
+        assert any("FN_UNPARSED_SECTION" in w for w in page.warnings)
+        assert page.footnote_section_format == "bare_number"
+
+    def test_no_structured_footnotes_returns_preamble(self):
+        """Footnote section with no (N) markers returns entire text as preamble."""
+        fns, preamble, fmt = parse_footnotes("Just some text with no numbered footnotes.")
+        assert len(fns) == 0
+        assert preamble == "Just some text with no numbered footnotes."
+        assert fmt == "unnumbered"
+
+    def test_image_only_page_no_preamble(self):
+        """Image-only pages have empty footnote_preamble."""
+        html = (
+            "<div class='PageText'>"
+            "<div class='PageHead'>"
+            "<span class='PartName'>Book</span>"
+            "<span class='PageNumber'>(ص: ٧)</span><hr/></div>"
+            "<img src='data:image/jpg;base64,abc123'>"
+            "</div>"
+        )
+        page = normalize_page(html)
+        assert page.footnote_preamble == ""
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fix C2: Asterisks preserved in output (source fidelity)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestAsteriskPreservation:
+    """Verify asterisks are preserved as source data, not stripped."""
+
+    def test_star_verse_markers_preserved(self):
+        """* verse * markers are preserved in matn_text (not stripped)."""
+        html = make_page_html("* تركت ناقتي *")
+        page = normalize_page(html)
+        assert "* تركت ناقتي *" in page.matn_text
+
+    def test_star_heading_preserved(self):
+        """* heading * style markers preserved."""
+        html = make_page_html("* أقسام الكلام وعلامات الاسم. *")
+        page = normalize_page(html)
+        assert "* أقسام الكلام وعلامات الاسم. *" in page.matn_text
+
+    def test_star_separator_preserved(self):
+        """* * decorative separators preserved."""
+        html = make_page_html("text before\n* *\ntext after")
+        page = normalize_page(html)
+        assert "* *" in page.matn_text
+
+    def test_decorative_stars_preserved(self):
+        """Runs of asterisks preserved verbatim."""
+        html = make_page_html("*********title***********")
+        page = normalize_page(html)
+        assert "*********" in page.matn_text
+
+    def test_has_verse_still_detects_star_markers(self):
+        """has_verse detection still works for * verse * patterns."""
+        html = make_page_html("* تركت ناقتي *")
+        page = normalize_page(html)
+        assert page.has_verse is True
+
+    def test_has_verse_still_detects_hemistich(self):
+        """has_verse detection unchanged for balanced hemistich."""
+        html = make_page_html("first hemistich … second hemistich")
+        page = normalize_page(html)
+        assert page.has_verse is True
+
+    def test_clean_verse_markers_function_still_exists(self):
+        """clean_verse_markers is still importable (for downstream use)."""
+        from normalize_shamela import clean_verse_markers
+        assert clean_verse_markers("* text *") == "text"
+
+
+
     def test_empty_page(self):
         """Page with header but no content generates EMPTY_PAGE warning."""
         html = make_page_html("", page_num_arabic="١")
@@ -1160,7 +1643,7 @@ class TestEdgeCases:
     def test_footnote_spanning_formats(self):
         """L4: Both footnote formats in same page."""
         fn_html = "(1) ـ First with dash.\n(2) Second without dash."
-        fns = parse_footnotes(fn_html)
+        fns, _, _ = parse_footnotes(fn_html)
         assert len(fns) == 2
         assert "First with dash." in fns[0].text
         assert "Second without dash." in fns[1].text
@@ -1214,10 +1697,142 @@ class TestEdgeCases:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CLI tests
+# Fix N1: Footnote section format classification
 # ═══════════════════════════════════════════════════════════════════════════
 
-class TestCLI:
+class TestFootnoteSectionFormat:
+    """Verify footnote section format is correctly classified."""
+
+    def test_numbered_parens_format(self):
+        """Standard (1), (2) format detected."""
+        assert detect_fn_section_format("(1) First.\n(2) Second.") == "numbered_parens"
+
+    def test_bare_number_format(self):
+        """Bare number format: 1 text, 2 text."""
+        assert detect_fn_section_format("1 First footnote.\n2 Second footnote.") == "bare_number"
+
+    def test_unnumbered_format(self):
+        """Unnumbered footnote section."""
+        assert detect_fn_section_format("Editorial commentary about this page.") == "unnumbered"
+
+    def test_empty_format(self):
+        """Empty footnote section."""
+        assert detect_fn_section_format("") == "none"
+        assert detect_fn_section_format("   \n  ") == "none"
+
+    def test_format_in_page(self):
+        """Format flows through to PageRecord."""
+        html = make_page_html(
+            "Matn text (1) ref",
+            footnotes="(1) Standard footnote."
+        )
+        page = normalize_page(html)
+        assert page.footnote_section_format == "numbered_parens"
+
+    def test_bare_number_in_page(self):
+        """Bare-number footnotes classified correctly in page."""
+        html = make_page_html(
+            "Matn text",
+            footnotes="1 First note.\n2 Second note."
+        )
+        page = normalize_page(html)
+        assert page.footnote_section_format == "bare_number"
+        assert page.footnotes == []  # Not parsed into individual records
+        assert len(page.footnote_preamble) > 0  # But content captured
+
+    def test_no_footnotes_format(self):
+        """Page without footnotes has format=none."""
+        html = make_page_html("Just text")
+        page = normalize_page(html)
+        assert page.footnote_section_format == "none"
+
+    def test_format_in_jsonl(self):
+        """footnote_section_format appears in JSONL output."""
+        html = make_page_html(
+            "Matn (1) here",
+            footnotes="(1) Footnote."
+        )
+        pages_html = make_book_html(html)
+        pages, _ = normalize_book(pages_html, "test", "test.htm")
+        rec = page_to_jsonl_record(pages[0], "test")
+        assert "footnote_section_format" in rec
+        assert rec["footnote_section_format"] == "numbered_parens"
+
+    def test_format_in_report(self):
+        """Report counts bare-number and unnumbered pages."""
+        p1 = make_page_html("Text", footnotes="(1) Standard.")
+        p2 = make_page_html("Text", page_num_arabic="٢",
+                            footnotes="1 Bare number footnote.")
+        html = make_book_html(p1, p2)
+        _, report = normalize_book(html, "test", "test.htm")
+        assert report.pages_with_bare_number_fns >= 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fix N3: Duplicate page number warnings
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestDuplicatePageNumbers:
+    """Verify duplicate page numbers generate warnings."""
+
+    def test_duplicate_generates_warning(self):
+        """Pages with duplicate page_number_int get DUPLICATE_PAGE warning."""
+        p1 = make_page_html("First occurrence", page_num_arabic="٥")
+        p2 = make_page_html("Second occurrence", page_num_arabic="٥")
+        html = make_book_html(p1, p2)
+        pages, report = normalize_book(html, "test", "test.htm")
+        assert len(pages) == 2
+        assert all(any("DUPLICATE_PAGE" in w for w in p.warnings) for p in pages)
+        assert report.pages_with_duplicate_numbers == 2
+
+    def test_no_duplicate_no_warning(self):
+        """Unique page numbers generate no DUPLICATE_PAGE warning."""
+        p1 = make_page_html("Page one", page_num_arabic="١")
+        p2 = make_page_html("Page two", page_num_arabic="٢")
+        html = make_book_html(p1, p2)
+        pages, report = normalize_book(html, "test", "test.htm")
+        for p in pages:
+            assert not any("DUPLICATE_PAGE" in w for w in p.warnings)
+        assert report.pages_with_duplicate_numbers == 0
+
+    def test_duplicate_seq_index_still_unique(self):
+        """Duplicate page numbers still get unique seq_index."""
+        p1 = make_page_html("First", page_num_arabic="٣")
+        p2 = make_page_html("Second", page_num_arabic="٣")
+        p3 = make_page_html("Third", page_num_arabic="٣")
+        html = make_book_html(p1, p2, p3)
+        pages, _ = normalize_book(html, "test", "test.htm")
+        seq_indices = [p.seq_index for p in pages]
+        assert len(seq_indices) == len(set(seq_indices))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fix N5: Schema version in JSONL output
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestSchemaVersion:
+    """Verify schema_version field in JSONL output."""
+
+    def test_schema_version_present(self):
+        """JSONL records include schema_version."""
+        html = make_page_html("Text", page_num_arabic="١")
+        html = make_book_html(html)
+        pages, _ = normalize_book(html, "test", "test.htm")
+        rec = page_to_jsonl_record(pages[0], "test")
+        assert "schema_version" in rec
+        assert rec["schema_version"] == "1.1"
+
+    def test_schema_version_is_first_field(self):
+        """schema_version is the first field in output (for easy grep)."""
+        html = make_page_html("Text", page_num_arabic="١")
+        html = make_book_html(html)
+        pages, _ = normalize_book(html, "test", "test.htm")
+        rec = page_to_jsonl_record(pages[0], "test")
+        first_key = list(rec.keys())[0]
+        assert first_key == "schema_version"
+
+
+
     def test_single_file_mode(self, tmp_path):
         """CLI: --html mode produces output files."""
         html = make_book_html(
@@ -1250,6 +1865,7 @@ class TestCLI:
         assert records[0]["book_id"] == "test_book"
         assert records[0]["content_type"] == "text"
         assert records[0]["volume"] == 1
+        assert records[0]["seq_index"] == 0
 
     def test_html_dir_mode(self, tmp_path):
         """CLI: --html-dir mode produces multi-volume output."""

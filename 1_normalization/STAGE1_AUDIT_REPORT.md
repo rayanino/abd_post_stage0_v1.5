@@ -144,3 +144,23 @@ These aspects passed rigorous stress-testing and need no changes:
 | 9 | Hash from decoded text | LOW | Trivial | Hash raw bytes |
 | 10 | No idempotency guard | LOW | Small | Check existing output |
 | 11 | Misleading raw_matn_html name | LOW | Trivial | Rename field |
+
+---
+
+## Resolution Status (2026-02-26)
+
+| # | Status | Notes |
+|---|--------|-------|
+| 1 | ✅ RESOLVED | `seq_index` field implemented in code + spec v0.3. Continuous across volumes via `seq_offset`. |
+| 2 | ✅ RESOLVED | Balanced hemistich heuristic (≥5 chars each side) implemented in `detect_verse()` + spec v0.3 §4.8. |
+| 3 | ✅ RESOLVED | Spec v0.3 §4.10 TAB2 updated to ` \| ` (pipe) to match code. |
+| 4 | ✅ RESOLVED | `sorted(set(fn_refs))` in code + spec v0.3 §4.6 Rule F4 documents set semantic. |
+| 5 | ✅ RESOLVED | `starts_with_zwnj_heading` field implemented in code + spec v0.3 §4.12, §3. |
+| 6 | OPEN | Cross-page footnote warning split not yet implemented. |
+| 7 | OPEN | `--volume` CLI flag not yet implemented. |
+| 8 | OPEN | Encoding detection not yet implemented. |
+| 9 | OPEN | Hash still computed from decoded text. |
+| 10 | OPEN | No idempotency guard. |
+| 11 | OPEN | `raw_matn_html` field not renamed. |
+
+**All CRITICAL and IMPORTANT (1–5) items are resolved. Items 6–11 (IMPORTANT/LOW) remain open for future work.**

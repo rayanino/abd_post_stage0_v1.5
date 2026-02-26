@@ -47,21 +47,42 @@ One JSON object per line, one line per page:
 
 ```json
 {
-  "page_num": 23,
-  "page_label": "٢٣",
-  "matn": "الباب الأول: فَعَلَ يَفعُل\nبكسر العين في الماضي وضمها في المضارع...",
+  "record_type": "page",
+  "book_id": "jawahir",
+  "seq_index": 0,
+  "volume": 1,
+  "page_number_arabic": "٢٣",
+  "page_number_int": 23,
+  "content_type": "text",
+  "matn_text": "الباب الأول: فَعَلَ يَفعُل\nبكسر العين في الماضي وضمها في المضارع...",
   "footnotes": [
-    {"marker": "ن", "text": "هذا تقسيم أبي عمرو بن العلاء..."}
+    {"number": 1, "text": "هذا تقسيم أبي عمرو بن العلاء...", "raw_text": "(1) هذا تقسيم ..."}
   ],
-  "headings": [
-    {"text": "الباب الأول: فَعَلَ يَفعُل", "source": "title_span"}
-  ]
+  "footnote_ref_numbers": [1],
+  "footnote_preamble": "",
+  "has_verse": false,
+  "has_table": false,
+  "starts_with_zwnj_heading": false,
+  "warnings": []
 }
 ```
 
+**Field notes:**
+- `footnote_preamble`: Text appearing before the first `(N)` marker in the footnote
+  section. Common in scholarly editions — contains bibliographic references,
+  grammatical analysis, or editorial commentary. Empty string when absent.
+- `has_verse`: Signals verse presence via `* text *` markers or balanced hemistich
+  patterns. Asterisks are **preserved as-is** in `matn_text` (source data, not
+  Shamela artifacts). Stage 2 handles verse formatting with full context.
+- `starts_with_zwnj_heading`: True when matn begins with double U+200C — a Shamela
+  convention marking section headings.
+
 ### 4.2 `normalization_report.json`
 
-Statistics: page count, footnote count, heading count, warnings, hash.
+Statistics: page count, footnote count, preamble count, heading count, warnings, hash.
+
+Includes `pages_with_fn_preamble` — count of pages where footnote preamble text
+was captured (text before first numbered footnote marker).
 
 ### 4.3 `book_review.md`
 
@@ -72,9 +93,9 @@ Single Markdown file rendering the full book content for human review in VSCode.
 ## 5. Key Rules (from NORMALIZATION_SPEC_v0.2)
 
 - **Zero information loss:** Every character in the source is accounted for in the output (content, metadata, or explicitly discarded structural markup).
+- **Source text fidelity:** NEVER alter author's text. Asterisks (`*`), diacritics, tatweel, ZWNJ, and all Unicode content are preserved byte-identical. `clean_verse_markers()` exists as a utility but is NOT called during normalization — Stage 2 handles verse formatting with full book context.
 - **No spelling correction:** Errors in the source are preserved exactly.
-- **Footnote separation:** Footnotes are extracted into their own field, not mixed with matn.
-- **Heading preservation:** `<span class="title">` text is recorded in the `headings` array AND left in the matn text at its original position.
+- **Footnote separation:** Footnotes are extracted into their own field, not mixed with matn. Text before the first `(N)` marker (preamble) is captured in `footnote_preamble`, not silently dropped.
 - **Page alignment:** Each output object corresponds exactly to one source `PageText` div.
 - **Deterministic:** Same input always produces same output. No randomness, no LLM.
 
@@ -89,7 +110,7 @@ From the corpus survey:
 | Editorial footnotes marked "ن" | شذا العرف | Treated as footnotes; marker preserved |
 | Multi-paragraph footnotes | Rare | Concatenated into single footnote entry |
 | Quranic citations in brackets | Common | Preserved as-is in matn |
-| Poetry/verse blocks | Common | Preserved as-is; line breaks maintained |
+| Poetry/verse blocks | Common | Preserved as-is; asterisks and line breaks maintained. `has_verse` flag set for Stage 2 |
 | Empty pages | Occasional | Output with empty matn, flagged in report |
 | Pages with only footnotes | Rare | matn is empty, footnotes populated |
 
