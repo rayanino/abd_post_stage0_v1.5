@@ -281,13 +281,33 @@ def parse_footnotes(fn_html: str) -> list[FootnoteRecord]:
         # No structured footnotes found — treat whole block as one note
         return []
     
+    # First pass: split at all (N) boundaries
+    raw_records = []
     for i, m in enumerate(matches):
         num = int(m.group(1))
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(fn_text)
         text = fn_text[start:end].strip()
         raw = fn_text[m.start():end].strip()
-        records.append(FootnoteRecord(number=num, text=text, raw_text=raw))
+        raw_records.append(FootnoteRecord(number=num, text=text, raw_text=raw))
+    
+    # Second pass: merge sub-points that break monotonic numbering.
+    # Real footnotes are numbered sequentially (1, 2, 3, ...). If a (N)
+    # would break monotonic ordering (e.g., (1) after (2)), it's a
+    # sub-point within the previous footnote, not a new footnote.
+    for rec in raw_records:
+        if records and rec.number <= records[-1].number:
+            # Non-monotonic: merge into previous footnote
+            prev = records[-1]
+            merged_text = prev.text + "\n" + rec.raw_text
+            merged_raw = prev.raw_text + "\n" + rec.raw_text
+            records[-1] = FootnoteRecord(
+                number=prev.number,
+                text=merged_text,
+                raw_text=merged_raw,
+            )
+        else:
+            records.append(rec)
 
     return records
 

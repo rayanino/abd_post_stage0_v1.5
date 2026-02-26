@@ -389,6 +389,45 @@ class TestParseFootnotes:
         fns = parse_footnotes(html)
         assert len(fns) == 2
 
+    def test_subpoints_merged_into_parent(self):
+        """Sub-points that restart numbering are merged into parent footnote.
+        
+        Common in شروح: a footnote contains numbered sub-points (1), (2)
+        that look like footnote boundaries but should stay merged.
+        Monotonic merge: any (N) where N ≤ last footnote number gets merged.
+        """
+        fn_text = (
+            "(1) Main footnote one.\n"
+            "تنبيهات:\n"
+            "(1) Sub-point A within fn 1.\n"
+            "(2) Sub-point B within fn 1.\n"
+            "(2) Main footnote two.\n"
+            "(1) Sub-point within fn 2.\n"
+            "(2) Another sub-point.\n"
+        )
+        fns = parse_footnotes(fn_text)
+        # Monotonic merge produces 2 footnotes:
+        # FN(1): main + sub-point A (sub-point (1) ≤ 1, merged)
+        # FN(2): sub-point B + main fn 2 + remaining (all ≤ 2, merged)
+        assert len(fns) == 2
+        assert fns[0].number == 1
+        assert fns[1].number == 2
+        # Sub-point A merged into fn 1
+        assert "Sub-point A" in fns[0].text
+        # Main footnote two content preserved in fn 2
+        assert "Main footnote two" in fns[1].text
+        # All content preserved (no text lost)
+        full_text = fns[0].text + fns[1].text
+        assert "Sub-point B" in full_text
+        assert "Another sub-point" in full_text
+
+    def test_strictly_increasing_footnotes_unchanged(self):
+        """Normal sequential footnotes are not affected by merge logic."""
+        fn_text = "(1) First.\n(2) Second.\n(3) Third."
+        fns = parse_footnotes(fn_text)
+        assert len(fns) == 3
+        assert [fn.number for fn in fns] == [1, 2, 3]
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Unit Tests: table extraction (Rules TAB1–TAB3)
