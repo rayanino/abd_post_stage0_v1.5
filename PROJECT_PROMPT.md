@@ -78,8 +78,9 @@ Stages 2–6 have draft specs and survey documents but zero implementation:
 - `2_structure_discovery/MASTER_CORPUS_SURVEY.md` and per-science surveys
 - `1_normalization/SHAMELA_HTML_REFERENCE.md` — complete HTML structure documentation
 - `1_normalization/gold_samples/GOLD_SAMPLES.md` — what normalized pages look like
-- `00_SESSION_CONTEXT.md` — project-level context (somewhat outdated — predates pipeline approach)
-- `precision/project_glossary.md` — term definitions
+- `00_SESSION_CONTEXT.md` — project-level context
+- `project_glossary.md` — term definitions
+- `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` — binding rules
 
 ## Working principles established in Stages 0–1
 

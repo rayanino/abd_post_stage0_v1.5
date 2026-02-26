@@ -18,13 +18,13 @@ This stage's rules are already defined with high precision in the manual workflo
 
 | Rule set | Source document | Checklist IDs |
 |----------|----------------|---------------|
-| Atom boundary rules | `precision/00_BINDING_DECISIONS_v0.3.16.md` §7 | ATOM.A.1 – ATOM.A.5 |
-| Bonded cluster triggers | `precision/00_BINDING_DECISIONS_v0.3.16.md` §7 | ATOM.B.1 – ATOM.B.6 |
-| Heading recognition | `precision/00_BINDING_DECISIONS_v0.3.16.md` §5 | ATOM.H.1 – ATOM.H.3 |
-| Verse/quotation handling | `precision/checklists_v0.4.md` | ATOM.V.1 – ATOM.V.4 |
-| List item handling | `precision/checklists_v0.4.md` | ATOM.L.1 – ATOM.L.3 |
-| Exclusion rules | `precision/checklists_v0.4.md` | ATOM.E.1 – ATOM.E.3 |
-| Granularity rule | `precision/00_BINDING_DECISIONS_v0.3.16.md` §7 | — |
+| Atom boundary rules | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §7 | ATOM.A.1 – ATOM.A.5 |
+| Bonded cluster triggers | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §7 | ATOM.B.1 – ATOM.B.6 |
+| Heading recognition | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §5 | ATOM.H.1 – ATOM.H.3 |
+| Verse/quotation handling | `2_atoms_and_excerpts/checklists_v0.4.md` | ATOM.V.1 – ATOM.V.4 |
+| List item handling | `2_atoms_and_excerpts/checklists_v0.4.md` | ATOM.L.1 – ATOM.L.3 |
+| Exclusion rules | `2_atoms_and_excerpts/checklists_v0.4.md` | ATOM.E.1 – ATOM.E.3 |
+| Granularity rule | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §7 | — |
 
 **These rules are NOT restated here.** The canonical source is the checklist + binding decisions. This spec defines HOW the app executes those rules, not WHAT the rules are.
 

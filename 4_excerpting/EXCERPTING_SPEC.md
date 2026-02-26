@@ -20,21 +20,21 @@ This stage inherits the richest body of precision rules:
 
 | Rule set | Source document | Checklist IDs |
 |----------|----------------|---------------|
-| Core vs context assignment | `precision/00_BINDING_DECISIONS_v0.3.16.md` §8 | EXC.C.1 – EXC.C.4 |
-| Excerpt boundary rules | `precision/00_BINDING_DECISIONS_v0.3.16.md` §8 | EXC.B.1 – EXC.B.6 |
-| Layer isolation | `precision/00_BINDING_DECISIONS_v0.3.16.md` §8 | EXC.L.1 – EXC.L.3 |
-| Exercise structure | `precision/checklists_v0.4.md` | EXC.X.1 – EXC.X.4 |
-| Topic scope guard | `precision/00_BINDING_DECISIONS_v0.3.16.md` §8 | — |
-| Dependency test | `precision/00_BINDING_DECISIONS_v0.3.16.md` §8.2 | — |
-| Boundedness guardrail | `precision/00_BINDING_DECISIONS_v0.3.16.md` §8.3 | — |
-| Interwoven content | `precision/00_BINDING_DECISIONS_v0.3.16.md` §10 | — |
-| Shared evidence | `precision/00_BINDING_DECISIONS_v0.3.16.md` §10.2 | — |
-| Placement rules | `precision/checklists_v0.4.md` | PLACE.P.1 – PLACE.P.6 |
-| Cross-science flags | `precision/00_BINDING_DECISIONS_v0.3.16.md` §8.6 | PLACE.X.1 – PLACE.X.4 |
-| Relation rules | `precision/checklists_v0.4.md` | REL.R.1 – REL.R.6 |
-| Excerpt titles | `precision/00_BINDING_DECISIONS_v0.3.16.md` §4.2 | — |
-| Content anomalies | `precision/00_BINDING_DECISIONS_v0.3.16.md` §4.3 | — |
-| Excerpt self-containment | `precision/00_BINDING_DECISIONS_v0.3.16.md` §4 | — |
+| Core vs context assignment | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §8 | EXC.C.1 – EXC.C.4 |
+| Excerpt boundary rules | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §8 | EXC.B.1 – EXC.B.6 |
+| Layer isolation | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §8 | EXC.L.1 – EXC.L.3 |
+| Exercise structure | `2_atoms_and_excerpts/checklists_v0.4.md` | EXC.X.1 – EXC.X.4 |
+| Topic scope guard | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §8 | — |
+| Dependency test | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §8.2 | — |
+| Boundedness guardrail | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §8.3 | — |
+| Interwoven content | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §10 | — |
+| Shared evidence | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §10.2 | — |
+| Placement rules | `2_atoms_and_excerpts/checklists_v0.4.md` | PLACE.P.1 – PLACE.P.6 |
+| Cross-science flags | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §8.6 | PLACE.X.1 – PLACE.X.4 |
+| Relation rules | `2_atoms_and_excerpts/checklists_v0.4.md` | REL.R.1 – REL.R.6 |
+| Excerpt titles | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §4.2 | — |
+| Content anomalies | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §4.3 | — |
+| Excerpt self-containment | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §4 | — |
 
 **These rules are NOT restated here.** This spec defines how the app executes them.
 

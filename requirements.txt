@@ -1,0 +1,5 @@
+# ABD — Python dependencies
+# Install: pip install -r requirements.txt
+# See: spec/runtime_contract_v0.1.md
+
+PyYAML>=6.0

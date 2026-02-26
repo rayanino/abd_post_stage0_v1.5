@@ -45,10 +45,10 @@ The spec (§5, §4.2) describes an atom schema that **does not match** the actua
 - `schemas/gold_standard_schema_v0.3.3.json` — search for `"atom"` record type definition. **This is the truth.**
 - `gold_baselines/jawahir_al_balagha/passage1_v0.3.14/passage1_matn_atoms_v02.jsonl` — read 5–10 atom records to see what real atoms look like
 - `gold_baselines/jawahir_al_balagha/passage1_v0.3.14/passage1_fn_atoms_v02.jsonl` — footnote atoms
-- `precision/project_glossary.md` §3 (Atoms) — authoritative definitions
-- `precision/00_BINDING_DECISIONS_v0.3.16.md` §5 (headings), §7 (granularity) — binding rules
-- `precision/checklists_v0.4.md` — ATOM.* checklist items
-- `precision/extraction_protocol_v2.4.md` §2 (Atomization checkpoint)
+- `project_glossary.md` §3 (Atoms) — authoritative definitions
+- `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §5 (headings), §7 (granularity) — binding rules
+- `2_atoms_and_excerpts/checklists_v0.4.md` — ATOM.* checklist items
+- `2_atoms_and_excerpts/extraction_protocol_v2.4.md` §2 (Atomization checkpoint)
 
 ## Expected Deliverables
 

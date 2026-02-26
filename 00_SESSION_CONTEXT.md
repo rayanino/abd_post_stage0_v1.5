@@ -36,6 +36,8 @@ Active gold baselines (AUTHORITATIVE):
   - `2_atoms_and_excerpts/1_jawahir_al_balagha/ACTIVE_GOLD.md`
   - (and any other `*/ACTIVE_GOLD.md` under `2_atoms_and_excerpts/` if additional books/sciences are added)
 
+Gold baselines live in `gold_baselines/` (the ACTIVE_GOLD.md file indexes them).
+
 Next planned baseline:
 - Do **not** infer “what’s next” from this file.
 - Use the current session instruction (or a dedicated `passage*_starting_prompt.md` in `2_atoms_and_excerpts/`) to determine the next target slice.
@@ -80,13 +82,13 @@ A **science taxonomy** is a tree of topics for that science.
 
 ## 4) Binding precedence (source-of-truth order)
 When documents conflict, follow this order:
-1) `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` (BINDING)
-2) `schemas/gold_standard_schema_v0.3.3.json` (data contract)
-3) `project_glossary.md`
-4) `2_atoms_and_excerpts/checklists_v0.4.md`
-5) `2_atoms_and_excerpts/extraction_protocol_v2.4.md`
-6) Gold baselines (Passage packages)
-7) Anything in `_ARCHIVE/` — **non-binding**
+1) `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` (BINDING) ✅
+2) `schemas/gold_standard_schema_v0.3.3.json` (data contract) ✅
+3) `project_glossary.md` ✅
+4) `2_atoms_and_excerpts/checklists_v0.4.md` ✅
+5) `2_atoms_and_excerpts/extraction_protocol_v2.4.md` ✅
+6) Gold baselines (Passage packages) ✅
+7) Historical narrative drafts / `precision/` (older versions) / `_ARCHIVE/` — **non-binding**
 
 ---
 

@@ -16,11 +16,11 @@ Place each excerpt into the correct leaf node of the correct science's taxonomy 
 
 | Rule set | Source document | Checklist IDs |
 |----------|----------------|---------------|
-| Non-negotiable placement rules | `precision/checklists_v0.4.md` | PLACE.P.1 – PLACE.P.6 |
-| Solidifying indicators | `precision/checklists_v0.4.md` | PLACE.S.1 – PLACE.S.4 |
-| Cross-science handling | `precision/00_BINDING_DECISIONS_v0.3.16.md` §8.6 | PLACE.X.1 – PLACE.X.4 |
-| Taxonomy change log | `precision/00_BINDING_DECISIONS_v0.3.16.md` §11 | — |
-| Taxonomy strictness | `precision/00_BINDING_DECISIONS_v0.3.16.md` §12 | — |
+| Non-negotiable placement rules | `2_atoms_and_excerpts/checklists_v0.4.md` | PLACE.P.1 – PLACE.P.6 |
+| Solidifying indicators | `2_atoms_and_excerpts/checklists_v0.4.md` | PLACE.S.1 – PLACE.S.4 |
+| Cross-science handling | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §8.6 | PLACE.X.1 – PLACE.X.4 |
+| Taxonomy change log | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §11 | — |
+| Taxonomy strictness | `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §12 | — |
 
 ---
 

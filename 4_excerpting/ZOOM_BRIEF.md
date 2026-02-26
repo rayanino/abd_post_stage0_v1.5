@@ -63,10 +63,10 @@ The spec defines CP3 (Initial Excerpting), CP4 (Relations), CP5 (Validation), CP
 - `4_excerpting/edge_cases.md`
 - `schemas/gold_standard_schema_v0.3.3.json` — search for `"excerpt"` and `"exclusion"` record types. **This is the truth.**
 - `gold_baselines/jawahir_al_balagha/passage1_v0.3.14/passage1_excerpts_v02.jsonl` — read 3–5 excerpt records AND 2–3 exclusion records
-- `precision/project_glossary.md` §4 (Excerpts), §7 (Relations), §8 (Exercise Structure), §9 (Exclusions)
-- `precision/00_BINDING_DECISIONS_v0.3.16.md` §4 (self-containment, titles, anomalies), §7 (granularity), §8 (topic scope guard — the most complex section), §9 (split discussions), §10 (core duplication)
-- `precision/checklists_v0.4.md` — EXC.*, PLACE.*, REL.* checklist items
-- `precision/extraction_protocol_v2.4.md` §3–§6 (CPs 3–6)
+- `project_glossary.md` §4 (Excerpts), §7 (Relations), §8 (Exercise Structure), §9 (Exclusions)
+- `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §4 (self-containment, titles, anomalies), §7 (granularity), §8 (topic scope guard — the most complex section), §9 (split discussions), §10 (core duplication)
+- `2_atoms_and_excerpts/checklists_v0.4.md` — EXC.*, PLACE.*, REL.* checklist items
+- `2_atoms_and_excerpts/extraction_protocol_v2.4.md` §3–§6 (CPs 3–6)
 
 ## Expected Deliverables
 
