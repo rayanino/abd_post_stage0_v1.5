@@ -1042,6 +1042,49 @@ class TestRegressionExerciseClassification:
         assert ct == "teaching", f"Expected teaching, got {ct}"
 
 
+class TestRegressionDuplicatePageNumbers:
+    """Regression: headings on pages with duplicate page numbers must use positional mapping."""
+
+    def test_positional_mapping_handles_duplicate_page_numbers(self):
+        """When two HTML divs share the same page number, headings must map to correct seq_index."""
+        # Two pages with same page_number_int=131, but different seq_indices
+        pages_list = [
+            PageRecord(seq_index=0, page_number_int=130, volume=1, matn_text="page 130 content", page_hint="p0"),
+            PageRecord(seq_index=1, page_number_int=131, volume=1, matn_text="page 131a content", page_hint="p1"),
+            PageRecord(seq_index=2, page_number_int=131, volume=1, matn_text="page 131b content", page_hint="p2"),
+            PageRecord(seq_index=3, page_number_int=132, volume=1, matn_text="page 132 content", page_hint="p3"),
+        ]
+        idx = build_page_index(pages_list)
+
+        # HTML with heading on the SECOND div with page 131
+        html = """<html><body>
+        <div class='PageText'><p>metadata page</p></div>
+        <div class='PageText'><span class='PageNumber'>(ص: ١٣٠)</span><p>page 130</p></div>
+        <div class='PageText'><span class='PageNumber'>(ص: ١٣١)</span><p>page 131a</p></div>
+        <div class='PageText'><span class='PageNumber'>(ص: ١٣١)</span>
+            <span class="title">الفصل الثاني</span>
+            <p>page 131b heading here</p>
+        </div>
+        <div class='PageText'><span class='PageNumber'>(ص: ١٣٢)</span><p>page 132</p></div>
+        </body></html>"""
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".htm", delete=False, encoding="utf-8") as f:
+            f.write(html)
+            path = f.name
+        try:
+            headings, _, _ = pass1_extract_html_headings(
+                path, idx, pages_list=pages_list
+            )
+            assert len(headings) == 1
+            # With positional mapping, the heading should be on seq_index=2 (third content div)
+            # Without positional mapping, it would incorrectly be on seq_index=1 (first page 131)
+            assert headings[0].seq_index == 2, \
+                f"Expected seq_index=2 (second div with page 131), got {headings[0].seq_index}"
+            assert headings[0].page_mapped is True
+        finally:
+            os.unlink(path)
+
+
 class TestRegressionMergeCondition:
     """Regression: merge condition is intentionally inactive in flat tree."""
 

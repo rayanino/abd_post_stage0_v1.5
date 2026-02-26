@@ -264,6 +264,7 @@ def pass1_extract_html_headings(
     page_index: dict[tuple[int, int], PageRecord],
     volume_number: int = 1,
     multi_volume: bool = False,
+    pages_list: Optional[list[PageRecord]] = None,
 ) -> tuple[list[HeadingCandidate], list[int], int]:
     """Extract content headings from <span class="title"> in frozen HTML.
 
@@ -272,6 +273,7 @@ def pass1_extract_html_headings(
         page_index: mapping (volume, page_number_int) -> PageRecord
         volume_number: volume number for this HTML file
         multi_volume: whether the book has multiple volumes
+        pages_list: ordered list of PageRecord from JSONL (for positional mapping)
 
     Returns:
         (list of HeadingCandidate, list of TOC page seq_indices, HTML content page count)
@@ -292,17 +294,33 @@ def pass1_extract_html_headings(
     content_divs = page_divs[2:]  # Skip pre-HTML and metadata page
     html_page_count = len(content_divs)
 
+    # Build positional mapping: HTML div position → seq_index
+    # This handles duplicate page numbers correctly because it uses
+    # the same ordering as the normalization tool.
+    positional_map: dict[int, PageRecord] = {}  # div_position → PageRecord
+    if pages_list:
+        for pos, page in enumerate(pages_list):
+            positional_map[pos] = page
+
     current_page_number = 0
     current_seq_index = -1  # -1 means "not yet mapped"
     current_page_mapped = False
     heading_counter = 0  # global document-order counter
 
-    for div_text in content_divs:
+    for div_pos, div_text in enumerate(content_divs):
         # Update current page number from PageNumber span
         pn_match = re.search(r"<span class='PageNumber'>\(ص:\s*([٠-٩]+)\s*\)</span>", div_text)
         if pn_match:
             current_page_number = indic_to_int(pn_match.group(1))
-            # Look up seq_index
+
+        # Strategy: prefer positional mapping (handles duplicate page numbers);
+        # fall back to page_index lookup when positional map is unavailable.
+        if div_pos in positional_map:
+            pr = positional_map[div_pos]
+            current_seq_index = pr.seq_index
+            current_page_mapped = True
+        else:
+            # Fallback: lookup by (volume, page_number_int)
             key = (volume_number, current_page_number)
             if key in page_index:
                 current_seq_index = page_index[key].seq_index
@@ -1403,7 +1421,8 @@ def main():
 
         vol_num = vol_i if multi_volume else 1
         headings, toc_pages, html_page_count = pass1_extract_html_headings(
-            html_path, page_index, volume_number=vol_num, multi_volume=multi_volume
+            html_path, page_index, volume_number=vol_num, multi_volume=multi_volume,
+            pages_list=pages,
         )
         all_pass1_headings.extend(headings)
         all_toc_pages.extend(toc_pages)
