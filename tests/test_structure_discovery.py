@@ -229,7 +229,7 @@ class TestPass1:
         try:
             pages = make_pages([{"page": 10}, {"page": 11}])
             idx = build_page_index(pages)
-            headings, toc_pages = pass1_extract_html_headings(path, idx)
+            headings, toc_pages, _ = pass1_extract_html_headings(path, idx)
             assert len(headings) == 2
             assert headings[0].title == "الباب الأول"
             assert headings[0].detection_method == "html_tagged"
@@ -250,7 +250,7 @@ class TestPass1:
         try:
             pages = make_pages([{"page": 1}])
             idx = build_page_index(pages)
-            headings, _ = pass1_extract_html_headings(path, idx)
+            headings, _, _ = pass1_extract_html_headings(path, idx)
             # Only the content heading, not the metadata title
             assert all(h.title != "كتاب تجريبي" for h in headings)
         finally:
@@ -273,7 +273,7 @@ class TestPass1:
         try:
             pages = make_pages([{"page": 5}])
             idx = build_page_index(pages)
-            headings, _ = pass1_extract_html_headings(path, idx)
+            headings, _, _ = pass1_extract_html_headings(path, idx)
             assert len(headings) == 1
             assert headings[0].title == "الباب الأول"
             assert "font" not in headings[0].title
@@ -292,7 +292,7 @@ class TestPass1:
         try:
             pages = make_pages([{"page": 100}])
             idx = build_page_index(pages)
-            headings, toc_pages = pass1_extract_html_headings(path, idx)
+            headings, toc_pages, _ = pass1_extract_html_headings(path, idx)
             assert len(toc_pages) == 1
             # The heading IS still recorded (it's a valid heading for the TOC section)
             assert any("فهرس" in h.title for h in headings)
@@ -316,7 +316,7 @@ class TestPass1:
         try:
             pages = make_pages([{"page": 1}])
             idx = build_page_index(pages)
-            headings, _ = pass1_extract_html_headings(path, idx)
+            headings, _, _ = pass1_extract_html_headings(path, idx)
             assert len(headings) == 0
         finally:
             os.unlink(path)
@@ -501,7 +501,7 @@ class TestIntegration:
             idx = build_page_index(pages)
 
             # Pass 1
-            pass1_headings, toc_pages = pass1_extract_html_headings(html_path, idx)
+            pass1_headings, toc_pages, _ = pass1_extract_html_headings(html_path, idx)
             assert len(pass1_headings) == 2  # الباب and المبحث
 
             # Pass 2
@@ -748,6 +748,263 @@ class TestBuildPassages:
         ])
         passages = build_passages(divs, "test", science_id="balagha")
         assert passages[0].science_id == "balagha"
+
+    def test_same_page_cluster_not_separate_passages(self):
+        """Regression: same-page headings must not create overlapping passages."""
+        divs = self._make_divisions([
+            ("d1", "باب", "باب أ", 5, 9, "true", "teaching"),
+            ("d2", "المبحث", "المبحث الأول", 5, 5, "true", "teaching"),
+            ("d3", "المبحث", "المبحث الثاني", 5, 5, "true", "teaching"),
+        ])
+        # Simulate same_page_cluster flags (as build_division_tree would set them)
+        divs[1].review_flags = ["same_page_cluster"]
+        divs[2].review_flags = ["same_page_cluster"]
+
+        passages = build_passages(divs, "test")
+        # Only 1 passage (the page-owning division), not 3
+        assert len(passages) == 1
+        assert passages[0].title == "باب أ"
+        # Cluster siblings absorbed into division_ids
+        assert "d2" in passages[0].division_ids
+        assert "d3" in passages[0].division_ids
+
+    def test_no_passage_overlaps(self):
+        """Regression: passages must never have overlapping page ranges."""
+        divs = self._make_divisions([
+            ("d1", "باب", "باب أ", 0, 4, "true", "teaching"),
+            ("d2", "باب", "باب ب", 5, 9, "true", "teaching"),
+            ("d3", "باب", "باب ج", 10, 14, "true", "teaching"),
+        ])
+        passages = build_passages(divs, "test")
+        for i in range(len(passages) - 1):
+            assert passages[i].end_seq_index < passages[i + 1].start_seq_index, \
+                f"Overlap: P{i+1} end={passages[i].end_seq_index} >= P{i+2} start={passages[i+1].start_seq_index}"
+
+    def test_volume_derived_from_pages(self):
+        """Regression: volume field should be derived from pages, not None."""
+        divs = self._make_divisions([
+            ("d1", "باب", "باب أ", 0, 5, "true", "teaching"),
+        ])
+        pages = [PageRecord(seq_index=i, page_number_int=i+1, volume=2,
+                            matn_text="", page_hint=f"p{i}") for i in range(10)]
+        passages = build_passages(divs, "test", pages=pages)
+        assert passages[0].volume == 2
+
+
+# ---------------------------------------------------------------------------
+# Regression Tests: Critical Bug Fixes
+# ---------------------------------------------------------------------------
+
+class TestRegressionDocumentOrder:
+    """Regression tests for document-order preservation (was sort-by-title bug)."""
+
+    def test_same_page_headings_preserve_html_order(self, keywords):
+        """When multiple headings share a seq_index, document_position determines order."""
+        pages = [PageRecord(seq_index=i, page_number_int=i+1, volume=1,
+                            matn_text="", page_hint=f"p{i}") for i in range(10)]
+        headings = [
+            HeadingCandidate(title="المبحث الأول", seq_index=5, page_number_int=6, volume=1,
+                             page_hint="p5", detection_method="html_tagged", confidence="confirmed",
+                             document_position=0),
+            HeadingCandidate(title="الباب الأول", seq_index=5, page_number_int=6, volume=1,
+                             page_hint="p5", detection_method="html_tagged", confidence="confirmed",
+                             document_position=1),
+        ]
+        divs = build_division_tree(headings, pages, "test", keywords=keywords)
+        # المبحث should come first (doc_position=0), not الباب (which sorts earlier alphabetically)
+        assert divs[0].title == "المبحث الأول"
+        assert divs[1].title == "الباب الأول"
+
+
+class TestRegressionUnmappedHeadings:
+    """Regression tests for unmapped heading detection (was ghost-heading bug)."""
+
+    def test_unmapped_headings_dropped(self, keywords):
+        """Headings with page_mapped=False must be filtered out of the division tree."""
+        pages = [PageRecord(seq_index=i, page_number_int=i+1, volume=1,
+                            matn_text="", page_hint=f"p{i}") for i in range(5)]
+        headings = [
+            HeadingCandidate(title="باب أ", seq_index=0, page_number_int=1, volume=1,
+                             page_hint="p0", detection_method="html_tagged", confidence="confirmed",
+                             page_mapped=True, document_position=0),
+            HeadingCandidate(title="باب ب", seq_index=-1, page_number_int=999, volume=1,
+                             page_hint="p999", detection_method="html_tagged", confidence="confirmed",
+                             page_mapped=False, document_position=1),
+        ]
+        divs = build_division_tree(headings, pages, "test", keywords=keywords)
+        assert len(divs) == 1
+        assert divs[0].title == "باب أ"
+
+
+class TestRegressionSamePageCluster:
+    """Regression tests for same-page clustering (was overlapping passages bug)."""
+
+    def test_same_page_cluster_flagged(self, keywords):
+        """Multiple headings on same page: first is primary, rest get same_page_cluster flag."""
+        pages = [PageRecord(seq_index=i, page_number_int=i+1, volume=1,
+                            matn_text="", page_hint=f"p{i}") for i in range(10)]
+        headings = [
+            HeadingCandidate(title="باب أ", seq_index=5, page_number_int=6, volume=1,
+                             page_hint="p5", detection_method="html_tagged", confidence="confirmed",
+                             document_position=0),
+            HeadingCandidate(title="المبحث الأول", seq_index=5, page_number_int=6, volume=1,
+                             page_hint="p5", detection_method="html_tagged", confidence="confirmed",
+                             document_position=1),
+            HeadingCandidate(title="المبحث الثاني", seq_index=5, page_number_int=6, volume=1,
+                             page_hint="p5", detection_method="html_tagged", confidence="confirmed",
+                             document_position=2),
+        ]
+        divs = build_division_tree(headings, pages, "test", keywords=keywords)
+        assert len(divs) == 3
+        assert "same_page_cluster" not in divs[0].review_flags  # First on page
+        assert "same_page_cluster" in divs[1].review_flags
+        assert "same_page_cluster" in divs[2].review_flags
+
+    def test_passages_from_clustered_divisions_no_overlap(self, keywords):
+        """Same-page clusters must NOT produce overlapping passages."""
+        pages = [PageRecord(seq_index=i, page_number_int=i+1, volume=1,
+                            matn_text="", page_hint=f"p{i}") for i in range(10)]
+        headings = [
+            HeadingCandidate(title="باب أ", seq_index=5, page_number_int=6, volume=1,
+                             page_hint="p5", detection_method="html_tagged", confidence="confirmed",
+                             document_position=0),
+            HeadingCandidate(title="المبحث الأول", seq_index=5, page_number_int=6, volume=1,
+                             page_hint="p5", detection_method="html_tagged", confidence="confirmed",
+                             document_position=1),
+            HeadingCandidate(title="باب ب", seq_index=8, page_number_int=9, volume=1,
+                             page_hint="p8", detection_method="html_tagged", confidence="confirmed",
+                             document_position=2),
+        ]
+        divs = build_division_tree(headings, pages, "test", keywords=keywords)
+        passages = build_passages(divs, "test")
+        # Should be 2 passages (باب أ absorbs المبحث, and باب ب)
+        assert len(passages) == 2
+        # No overlaps
+        assert passages[0].end_seq_index < passages[1].start_seq_index
+
+
+class TestRegressionEllipsisFilter:
+    """Regression tests for C2 ellipsis filter (was false-positive rejection)."""
+
+    def test_legitimate_ellipsis_not_rejected(self, keywords, ordinals):
+        """Lines with ellipsis as text omission should NOT be rejected by C2."""
+        pages = [PageRecord(seq_index=0, page_number_int=1, volume=1,
+                            matn_text="تنبيه: قد علمت … أن الاسم", page_hint="p0")]
+        candidates = pass2_keyword_scan(pages, keywords, ordinals, [])
+        # Should match: "تنبيه" keyword with inline pattern
+        assert len(candidates) > 0
+        assert candidates[0].keyword_type == "تنبيه"
+
+    def test_toc_ellipsis_still_rejected(self, keywords, ordinals):
+        """Lines with ellipsis followed by page number (TOC pattern) should still be rejected."""
+        pages = [PageRecord(seq_index=0, page_number_int=1, volume=1,
+                            matn_text="باب الأول … ٧٧", page_hint="p0")]
+        candidates = pass2_keyword_scan(pages, keywords, ordinals, [])
+        assert len(candidates) == 0
+
+
+class TestRegressionTOCDetection:
+    """Regression tests for TOC detection (was substring false-positive)."""
+
+    def test_toc_heading_exact_match(self):
+        """TOC detection should use exact match, not substring."""
+        # "فهرس المصطلحات" contains "فهرس" but is NOT a TOC heading
+        html = """<html><body>
+        <div class='PageText'><p>metadata page</p></div>
+        <div class='PageText'>
+            <span class='PageNumber'>(ص: ١)</span>
+            <span class="title">فهرس المصطلحات اللغوية</span>
+        </div>
+        </body></html>"""
+        idx = {(1, 1): PageRecord(seq_index=0, page_number_int=1, volume=1,
+                                   matn_text="", page_hint="p0")}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".htm", delete=False, encoding="utf-8") as f:
+            f.write(html)
+            path = f.name
+        try:
+            headings, toc_pages, _ = pass1_extract_html_headings(path, idx)
+            # Should NOT be detected as TOC (it's a glossary heading, not a table of contents)
+            assert len(toc_pages) == 0
+            assert headings[0].notes is None  # Not marked as TOC
+        finally:
+            os.unlink(path)
+
+    def test_toc_heading_real_toc(self):
+        """Real TOC headings should still be detected."""
+        html = """<html><body>
+        <div class='PageText'><p>metadata page</p></div>
+        <div class='PageText'>
+            <span class='PageNumber'>(ص: ١)</span>
+            <span class="title">فهرس الموضوعات</span>
+        </div>
+        </body></html>"""
+        idx = {(1, 1): PageRecord(seq_index=0, page_number_int=1, volume=1,
+                                   matn_text="", page_hint="p0")}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".htm", delete=False, encoding="utf-8") as f:
+            f.write(html)
+            path = f.name
+        try:
+            headings, toc_pages, _ = pass1_extract_html_headings(path, idx)
+            assert len(toc_pages) == 1
+            assert headings[0].notes == "TOC heading"
+        finally:
+            os.unlink(path)
+
+
+class TestRegressionPass1HtmlCount:
+    """Regression tests for HTML page count return value."""
+
+    def test_html_page_count_returned(self):
+        """pass1 should return the total HTML content page count."""
+        html = """<html><body>
+        <div class='PageText'><p>metadata page</p></div>
+        <div class='PageText'><span class='PageNumber'>(ص: ١)</span><p>page 1</p></div>
+        <div class='PageText'><span class='PageNumber'>(ص: ٢)</span><p>page 2</p></div>
+        <div class='PageText'><span class='PageNumber'>(ص: ٣)</span><p>page 3</p></div>
+        </body></html>"""
+        idx = {(1, 1): PageRecord(seq_index=0, page_number_int=1, volume=1,
+                                   matn_text="", page_hint="p0"),
+               (1, 2): PageRecord(seq_index=1, page_number_int=2, volume=1,
+                                   matn_text="", page_hint="p1")}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".htm", delete=False, encoding="utf-8") as f:
+            f.write(html)
+            path = f.name
+        try:
+            headings, toc_pages, html_page_count = pass1_extract_html_headings(path, idx)
+            assert html_page_count == 3  # 3 content pages in HTML
+
+            # Page 3 is NOT in the idx, so headings on it would be unmapped
+            # This is the pre-flight check signal
+        finally:
+            os.unlink(path)
+
+    def test_unmapped_page_flagged(self):
+        """Headings on pages not in JSONL should have page_mapped=False."""
+        html = """<html><body>
+        <div class='PageText'><p>metadata page</p></div>
+        <div class='PageText'>
+            <span class='PageNumber'>(ص: ١)</span>
+            <span class="title">باب أ</span>
+        </div>
+        <div class='PageText'>
+            <span class='PageNumber'>(ص: ٩٩)</span>
+            <span class="title">باب ب</span>
+        </div>
+        </body></html>"""
+        idx = {(1, 1): PageRecord(seq_index=0, page_number_int=1, volume=1,
+                                   matn_text="", page_hint="p0")}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".htm", delete=False, encoding="utf-8") as f:
+            f.write(html)
+            path = f.name
+        try:
+            headings, _, _ = pass1_extract_html_headings(path, idx)
+            assert len(headings) == 2
+            assert headings[0].page_mapped is True
+            assert headings[0].title == "باب أ"
+            assert headings[1].page_mapped is False
+            assert headings[1].title == "باب ب"
+        finally:
+            os.unlink(path)
 
 
 if __name__ == "__main__":

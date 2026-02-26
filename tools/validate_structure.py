@@ -202,12 +202,24 @@ def validate_passages(
             if passages[i].get("predecessor_passage_id") != prev.get("passage_id"):
                 result.warn(f"Passage {pid}: predecessor_passage_id mismatch")
 
+    # CRITICAL: Check for passage page-range overlaps
+    sorted_passages = sorted(passages, key=lambda p: (p.get("start_seq_index", 0), p.get("passage_id", "")))
+    for i in range(len(sorted_passages) - 1):
+        p1 = sorted_passages[i]
+        p2 = sorted_passages[i + 1]
+        if p1.get("end_seq_index", 0) >= p2.get("start_seq_index", 0):
+            result.error(
+                f"Passage overlap: {p1.get('passage_id')} [{p1.get('start_seq_index')}-{p1.get('end_seq_index')}] "
+                f"overlaps with {p2.get('passage_id')} [{p2.get('start_seq_index')}-{p2.get('end_seq_index')}]"
+            )
+
     # Check passages cover all digestible leaves
     parent_ids = {d.get("parent_id") for d in divisions if d.get("parent_id")}
     leaf_ids = {d["id"] for d in divisions if d["id"] not in parent_ids}
     digestible_leaf_ids = {
         d["id"] for d in divisions
         if d["id"] in leaf_ids and d.get("digestible") != "false"
+        and "same_page_cluster" not in d.get("review_flags", [])
     }
     covered_ids = set()
     for p in passages:

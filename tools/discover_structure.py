@@ -19,7 +19,7 @@ Usage:
     [--skip-llm]  # Run only deterministic passes
     [--apply-overrides overrides.json]
 
-Version: v0.1
+Version: v0.2 (critical bug fixes — see git log)
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ import yaml
 # Constants
 # ---------------------------------------------------------------------------
 
-TOOL_VERSION = "v0.1"
+TOOL_VERSION = "v0.2"
 TOOL_NAME = "tools/discover_structure.py"
 
 # Arabic-Indic digit map
@@ -76,6 +76,8 @@ class HeadingCandidate:
     inline_heading: bool = False
     heading_text_boundary: Optional[int] = None
     notes: Optional[str] = None
+    document_position: int = 0  # counter preserving order within same page (0, 1, 2, ...)
+    page_mapped: bool = True     # False if heading's page was not found in the JSONL
 
 
 @dataclass
@@ -85,55 +87,6 @@ class TOCEntry:
     page_number: Optional[int]
     indent_level: int = 0
     line_index: int = 0
-
-
-@dataclass
-class Division:
-    """A node in the book's structural division tree."""
-    div_id: str
-    div_type: str                      # باب, فصل, مبحث, تنبيه, root, volume, etc.
-    title: str
-    level: int                         # 0=root, 1=volume, 2=top, 3=mid, 4=low, 5=supp
-    parent_id: Optional[str]
-    detection_method: str              # html_tagged, keyword_heuristic, llm_discovered, inferred
-    confidence: str                    # confirmed, high, medium, low
-    start_seq_index: int
-    end_seq_index: int                 # inclusive
-    start_page_hint: str
-    end_page_hint: str
-    digestible: bool = True
-    page_count: int = 1
-    children: list[str] = field(default_factory=list)
-    keyword_type: Optional[str] = None
-    ordinal: Optional[int] = None
-    content_type: str = "teaching"     # teaching, exercise, non_digestible, uncertain
-    review_flags: list[str] = field(default_factory=list)
-
-
-@dataclass
-class Passage:
-    """A work-unit for Stage 3+ processing."""
-    passage_id: str
-    book_id: str
-    division_ids: list[str]
-    title: str
-    heading_path: list[str]
-    start_seq_index: int
-    end_seq_index: int
-    page_hint_start: str
-    page_hint_end: str
-    page_count: int
-    volume: Optional[int]
-    digestible: bool = True
-    content_type: str = "teaching"
-    sizing_action: str = "none"
-    sizing_notes: Optional[str] = None
-    split_info: Optional[dict] = None
-    merge_info: Optional[dict] = None
-    review_flags: list[str] = field(default_factory=list)
-    science_id: Optional[str] = None
-    predecessor_passage_id: Optional[str] = None
-    successor_passage_id: Optional[str] = None
 
 
 @dataclass
@@ -311,7 +264,7 @@ def pass1_extract_html_headings(
     page_index: dict[tuple[int, int], PageRecord],
     volume_number: int = 1,
     multi_volume: bool = False,
-) -> tuple[list[HeadingCandidate], list[int]]:
+) -> tuple[list[HeadingCandidate], list[int], int]:
     """Extract content headings from <span class="title"> in frozen HTML.
 
     Args:
@@ -321,7 +274,7 @@ def pass1_extract_html_headings(
         multi_volume: whether the book has multiple volumes
 
     Returns:
-        (list of HeadingCandidate, list of TOC page seq_indices)
+        (list of HeadingCandidate, list of TOC page seq_indices, HTML content page count)
     """
     with open(html_path, encoding="utf-8") as f:
         html = f.read()
@@ -334,12 +287,17 @@ def pass1_extract_html_headings(
 
     # Skip index 0 (before first PageText) and index 1 (metadata page)
     if len(page_divs) < 3:
-        return headings, toc_pages
+        return headings, toc_pages, 0
+
+    content_divs = page_divs[2:]  # Skip pre-HTML and metadata page
+    html_page_count = len(content_divs)
 
     current_page_number = 0
-    current_seq_index = 0
+    current_seq_index = -1  # -1 means "not yet mapped"
+    current_page_mapped = False
+    heading_counter = 0  # global document-order counter
 
-    for div_text in page_divs[2:]:  # Skip pre-HTML and metadata page
+    for div_text in content_divs:
         # Update current page number from PageNumber span
         pn_match = re.search(r"<span class='PageNumber'>\(ص:\s*([٠-٩]+)\s*\)</span>", div_text)
         if pn_match:
@@ -348,12 +306,19 @@ def pass1_extract_html_headings(
             key = (volume_number, current_page_number)
             if key in page_index:
                 current_seq_index = page_index[key].seq_index
+                current_page_mapped = True
             else:
                 # Try to find by page_number_int alone (single-volume fallback)
+                found = False
                 for (v, p), rec in page_index.items():
                     if p == current_page_number and v == volume_number:
                         current_seq_index = rec.seq_index
+                        current_page_mapped = True
+                        found = True
                         break
+                if not found:
+                    current_page_mapped = False
+                    # Don't update current_seq_index — keep stale value
 
         # Find all double-quote title spans in this page div
         title_spans = re.finditer(r'<span class="title">(.*?)</span>', div_text)
@@ -370,24 +335,34 @@ def pass1_extract_html_headings(
 
             page_hint = make_page_hint(volume_number, current_page_number, multi_volume)
 
-            # R1.5: Detect TOC headings
-            toc_keywords = ["فهرس", "المحتويات", "فهرس الموضوعات"]
-            is_toc = any(kw in clean for kw in toc_keywords)
-            if is_toc:
+            # R1.5: Detect TOC headings — EXACT match only (not substring, not prefix)
+            # These are the specific heading texts that indicate a table of contents.
+            # Other headings starting with فهرس (like فهرس المصطلحات) are glossaries, not TOCs.
+            toc_exact_titles = {
+                "فهرس", "المحتويات", "فهرس الموضوعات",
+                "فهرس المحتويات", "الفهرس", "فهارس",
+                "فهرس الكتاب", "محتويات الكتاب",
+            }
+            clean_stripped = clean.strip()
+            is_toc = clean_stripped in toc_exact_titles
+            if is_toc and current_page_mapped:
                 toc_pages.append(current_seq_index)
 
             headings.append(HeadingCandidate(
                 title=clean,
-                seq_index=current_seq_index,
+                seq_index=current_seq_index if current_page_mapped else -1,
                 page_number_int=current_page_number,
                 volume=volume_number,
                 page_hint=page_hint,
                 detection_method="html_tagged",
                 confidence="confirmed",
                 notes="TOC heading" if is_toc else None,
+                document_position=heading_counter,
+                page_mapped=current_page_mapped,
             ))
+            heading_counter += 1
 
-    return headings, toc_pages
+    return headings, toc_pages, html_page_count
 
 
 # ---------------------------------------------------------------------------
@@ -418,14 +393,25 @@ def pass1_5_parse_toc(
     entries: list[TOCEntry] = []
     toc_set = set(toc_page_indices)
 
-    # Collect all pages from the first TOC page to the end of the book
-    # (TOC is typically at the end, may span multiple pages)
+    # Determine TOC page range: from first TOC heading to a bounded window after
+    # the last TOC heading. TOCs typically span a few consecutive pages.
+    # We scan the TOC heading pages plus up to 10 pages after the last TOC heading
+    # (to catch continuation pages that don't have their own heading).
     min_toc_idx = min(toc_set)
+    max_toc_idx = max(toc_set)
+    toc_scan_end = max_toc_idx + 10  # bounded window
+
+    # Track density: if we scan 3 consecutive pages with no TOC entries, stop
+    pages_without_entries = 0
+    MAX_EMPTY_PAGES = 3
 
     for page in pages:
         if page.seq_index < min_toc_idx:
             continue
+        if page.seq_index > toc_scan_end:
+            break
 
+        page_had_entries = False
         for line_i, line in enumerate(page.matn_text.split("\n")):
             line = line.strip()
             if not line:
@@ -451,6 +437,16 @@ def pass1_5_parse_toc(
                     indent_level=indent_level,
                     line_index=line_i,
                 ))
+                page_had_entries = True
+
+        # Density check: stop scanning if no entries for several consecutive pages
+        if page.seq_index > max_toc_idx:  # Only apply density check after last TOC heading
+            if page_had_entries:
+                pages_without_entries = 0
+            else:
+                pages_without_entries += 1
+                if pages_without_entries >= MAX_EMPTY_PAGES:
+                    break
 
     return entries
 
@@ -459,8 +455,7 @@ def pass1_5_parse_toc(
 # Pass 2: Keyword Heuristic Detection
 # ---------------------------------------------------------------------------
 
-# Pre-compiled ordinal pattern (filled at runtime after loading YAML)
-_ORDINAL_RE: Optional[re.Pattern] = None
+# Pre-compiled ordinal pattern — built locally per call to avoid global mutable state
 
 
 def _build_ordinal_regex(ordinals: dict[str, int]) -> re.Pattern:
@@ -477,6 +472,7 @@ def pass2_keyword_scan(
     ordinals: dict[str, int],
     pass1_headings: list[HeadingCandidate],
     multi_volume: bool = False,
+    next_doc_position: int = 0,
 ) -> list[HeadingCandidate]:
     """Scan normalized text for keyword-based heading candidates.
 
@@ -488,13 +484,12 @@ def pass2_keyword_scan(
         ordinals: ordinal dict
         pass1_headings: headings already found by Pass 1 (for dedup)
         multi_volume: whether book is multi-volume
+        next_doc_position: starting document_position counter (continue from Pass 1)
 
     Returns:
         New heading candidates not already found by Pass 1.
     """
-    global _ORDINAL_RE
-    if _ORDINAL_RE is None and ordinals:
-        _ORDINAL_RE = _build_ordinal_regex(ordinals)
+    ordinal_re = _build_ordinal_regex(ordinals) if ordinals else None
 
     # Build Pass 1 dedup index: (seq_index, normalized_title_prefix) -> True
     pass1_index: set[tuple[int, str]] = set()
@@ -503,6 +498,7 @@ def pass2_keyword_scan(
         pass1_index.add((h.seq_index, norm))
 
     candidates: list[HeadingCandidate] = []
+    doc_pos = next_doc_position
 
     # Sort keywords by length descending for matching priority
     sorted_keywords = sorted(keywords.keys(), key=len, reverse=True)
@@ -532,19 +528,20 @@ def pass2_keyword_scan(
             STRICT_INDEFINITE = {"كتاب"}
             if matched_keyword in STRICT_INDEFINITE:
                 has_ordinal = False
-                if _ORDINAL_RE:
+                if ordinal_re:
                     rest_stripped_check = rest_after_keyword.strip()
-                    if rest_stripped_check and _ORDINAL_RE.match(rest_stripped_check):
+                    if rest_stripped_check and ordinal_re.match(rest_stripped_check):
                         has_ordinal = True
                 if not has_ordinal and len(line) > 20:
                     continue  # Skip: indefinite كتاب without ordinal in a non-trivial line
 
             # C2: Not a TOC entry (dot-leader pattern)
-            # Catches: multiple dots/middots, single or multiple ellipsis chars,
-            # or any dot-like sequence followed by a page number at end of line
-            if re.search(r"[\.·]{3,}", line):
+            # Catches: multiple dots/middots followed by digits, ellipsis+digits at end of line.
+            # Only reject patterns that look like TOC entries (dots/ellipsis followed by page number).
+            # Do NOT reject lines that merely contain an ellipsis as text omission.
+            if re.search(r"[\.·]{3,}\s*[٠-٩0-9]+\s*$", line):
                 continue
-            if re.search(r"…", line):  # Single ellipsis character (U+2026)
+            if re.search(r"…+\s*[٠-٩0-9]+\s*$", line):  # Ellipsis character(s) then page number
                 continue
             if re.search(r"\.{2,}\s*[٠-٩0-9]+\s*$", line):  # dots then page number at end
                 continue
@@ -562,8 +559,8 @@ def pass2_keyword_scan(
             rest_stripped = rest_after_keyword.strip()
 
             # Try pattern: KEYWORD ORDINAL: TITLE (max 120 chars)
-            if _ORDINAL_RE and len(line) <= 120:
-                ord_match = _ORDINAL_RE.match(rest_stripped) if rest_stripped else None
+            if ordinal_re and len(line) <= 120:
+                ord_match = ordinal_re.match(rest_stripped) if rest_stripped else None
                 if ord_match:
                     ordinal_text = ord_match.group(0)
                     ordinal_value = ordinals.get(ordinal_text)
@@ -636,7 +633,9 @@ def pass2_keyword_scan(
                 ordinal=ordinal_value,
                 inline_heading=inline,
                 heading_text_boundary=heading_boundary,
+                document_position=doc_pos,
             ))
+            doc_pos += 1
 
     return candidates
 
@@ -754,13 +753,27 @@ def build_division_tree(
     - Digestibility from deterministic rules
     - A FLAT hierarchy (level=1 for all) — Pass 3 refines hierarchy
 
+    Same-page headings: when multiple headings share a seq_index, they are
+    flagged as "same_page_cluster". Only the first heading in each page
+    gets a full page range; subsequent same-page headings get end_seq = start_seq
+    to prevent overlapping passages.
+
     For --skip-llm mode, this produces a usable (if flat) tree.
     """
     if not headings:
         return []
 
-    # Sort headings by seq_index, then by position within page
-    sorted_headings = sorted(headings, key=lambda h: (h.seq_index, h.title))
+    # CRITICAL: Filter out unmapped headings (page_mapped=False)
+    mapped = [h for h in headings if h.page_mapped]
+    unmapped_count = len(headings) - len(mapped)
+    if unmapped_count > 0:
+        print(f"[Tree] WARNING: {unmapped_count} headings dropped (page not in JSONL)")
+
+    if not mapped:
+        return []
+
+    # Sort by (seq_index, document_position) — preserves document order
+    sorted_headings = sorted(mapped, key=lambda h: (h.seq_index, h.document_position))
 
     # Deduplicate exact same title on same page
     deduped: list[HeadingCandidate] = []
@@ -776,19 +789,42 @@ def build_division_tree(
     # Build page lookup for hints
     page_by_seq: dict[int, PageRecord] = {p.seq_index: p for p in pages}
 
+    # Identify same-page clusters: group consecutive headings by seq_index
+    # Within each cluster, the first heading "owns" the page range up to
+    # the next cluster; subsequent headings share start_seq == end_seq
+    # (zero-width) until Pass 3 resolves hierarchy.
     divisions: list[DivisionNode] = []
 
     for i, h in enumerate(deduped):
         div_id = f"div_{i:04d}"
 
-        # Page range: from this heading's page to just before the next heading's page
+        # Determine start_seq
         start_seq = h.seq_index
-        if i + 1 < len(deduped):
-            end_seq = deduped[i + 1].seq_index - 1
-            if end_seq < start_seq:
-                end_seq = start_seq  # Same-page consecutive headings
+
+        # Find the seq_index of the next heading that is on a DIFFERENT page
+        # (or the next heading overall if it's on a different page)
+        next_different_page_seq = None
+        for j in range(i + 1, len(deduped)):
+            if deduped[j].seq_index > h.seq_index:
+                next_different_page_seq = deduped[j].seq_index
+                break
+
+        # Is this heading first on its page?
+        is_first_on_page = (i == 0 or deduped[i - 1].seq_index < h.seq_index)
+        # Is there a next heading on the same page?
+        has_next_on_same_page = (i + 1 < len(deduped) and deduped[i + 1].seq_index == h.seq_index)
+
+        if is_first_on_page:
+            # First heading on this page: gets the full range up to next different page
+            if next_different_page_seq is not None:
+                end_seq = next_different_page_seq - 1
+                if end_seq < start_seq:
+                    end_seq = start_seq
+            else:
+                end_seq = max_seq
         else:
-            end_seq = max_seq
+            # Not first on page — zero-width until LLM resolves
+            end_seq = start_seq
 
         page_count = end_seq - start_seq + 1
 
@@ -815,6 +851,8 @@ def build_division_tree(
             flags.append("uncertain_digestibility")
         if page_count > 20:
             flags.append("long_division")
+        if not is_first_on_page:
+            flags.append("same_page_cluster")
 
         # Detect editor-inserted headings (bracket patterns)
         editor = bool(re.match(r"^\[.*\]$", h.title.strip()))
@@ -860,19 +898,38 @@ def build_passages(
     divisions: list[DivisionNode],
     book_id: str,
     science_id: Optional[str] = None,
+    pages: Optional[list[PageRecord]] = None,
 ) -> list[PassageRecord]:
     """Construct passages from leaf-level digestible divisions.
 
     In the flat tree (pre-LLM), every division is a leaf. In the hierarchical tree
     (post-LLM), only divisions with no children are leaves.
+
+    Same-page cluster divisions (flagged "same_page_cluster") are absorbed into
+    the first heading's passage on that page — they don't become separate passages.
     """
+    # Build page lookup for volume derivation
+    page_by_seq: dict[int, PageRecord] = {}
+    if pages:
+        page_by_seq = {p.seq_index: p for p in pages}
+
     # Identify leaf divisions (no children)
     all_ids = {d.id for d in divisions}
     parent_ids = {d.parent_id for d in divisions if d.parent_id}
     leaf_divisions = [d for d in divisions if d.id not in parent_ids]
 
-    # Filter to digestible leaves
-    digestible_leaves = [d for d in leaf_divisions if d.digestible != "false"]
+    # Filter to digestible leaves, EXCLUDING same-page cluster followers
+    # Same-page cluster divisions get absorbed into the first heading's passage
+    digestible_leaves = [
+        d for d in leaf_divisions
+        if d.digestible != "false" and "same_page_cluster" not in d.review_flags
+    ]
+
+    # Build a map: for each page-owning division, collect its same-page cluster siblings
+    cluster_siblings: dict[int, list[DivisionNode]] = {}  # start_seq -> list of cluster divs
+    for d in leaf_divisions:
+        if "same_page_cluster" in d.review_flags and d.digestible != "false":
+            cluster_siblings.setdefault(d.start_seq_index, []).append(d)
 
     # Sort by document order
     digestible_leaves.sort(key=lambda d: d.start_seq_index)
@@ -901,6 +958,13 @@ def build_passages(
         merge_info = None
         split_info = None
         merged_ids = [div.id]
+
+        # Absorb same-page cluster siblings into this passage's division_ids
+        cluster = cluster_siblings.get(div.start_seq_index, [])
+        if cluster:
+            for cd in cluster:
+                merged_ids.append(cd.id)
+            flags.append("has_same_page_subheadings")
 
         page_count = div.page_count
 
@@ -986,6 +1050,13 @@ def build_passages(
 
         actual_page_count = end_seq - div.start_seq_index + 1
 
+        # Derive volume from first page in range
+        volume = None
+        if page_by_seq:
+            start_page = page_by_seq.get(div.start_seq_index)
+            if start_page:
+                volume = start_page.volume
+
         passages.append(PassageRecord(
             passage_id=passage_id,
             book_id=book_id,
@@ -997,7 +1068,7 @@ def build_passages(
             page_hint_start=div.page_hint_start,
             page_hint_end=hint_end,
             page_count=actual_page_count,
-            volume=None,  # TODO: derive from pages
+            volume=volume,
             digestible=True,
             content_type=content_type,
             sizing_action=sizing_action,
@@ -1253,60 +1324,6 @@ def write_full_output(
         print(f"[Output] Overrides template: {overrides_path}")
 
 
-# ---------------------------------------------------------------------------
-# Structure Review Markdown generation (deterministic-only, pre-tree)
-# ---------------------------------------------------------------------------
-
-def generate_review_md(
-    book_id: str,
-    headings: list[HeadingCandidate],
-    toc_entries: list[TOCEntry],
-    pages: list[PageRecord],
-) -> str:
-    """Generate a human-readable structure review Markdown (pre-LLM, deterministic passes only)."""
-    lines = [
-        f"# Structure Review — {book_id}",
-        "",
-        f"Generated: {datetime.now(timezone.utc).isoformat()}",
-        f"Total pages: {len(pages)}",
-        f"Total headings found: {len(headings)}",
-        "",
-        "## Headings (document order)",
-        "",
-    ]
-
-    # Sort by seq_index
-    sorted_h = sorted(headings, key=lambda h: (h.seq_index, h.title))
-
-    for h in sorted_h:
-        tier = "T1" if h.detection_method == "html_tagged" else "T2"
-        conf = h.confidence
-        inline_mark = " [INLINE]" if h.inline_heading else ""
-        kw_mark = f" ({h.keyword_type})" if h.keyword_type else ""
-        ord_mark = f" #{h.ordinal}" if h.ordinal else ""
-        lines.append(
-            f"- [{tier}/{conf}] {h.page_hint} — **{h.title}**{kw_mark}{ord_mark}{inline_mark}"
-        )
-
-    if toc_entries:
-        lines.extend([
-            "",
-            "## TOC Entries",
-            "",
-        ])
-        for entry in toc_entries:
-            indent = "  " * entry.indent_level
-            lines.append(f"  {indent}- {entry.title} ... p.{entry.page_number}")
-
-    lines.extend([
-        "",
-        "---",
-        "",
-        "*Pass 3 (LLM) and passage construction not yet applied. Run without --skip-llm for full output.*",
-    ])
-
-    return "\n".join(lines)
-
 def main():
     parser = argparse.ArgumentParser(
         description="Stage 2: Structure Discovery — discover book divisions and passage boundaries.",
@@ -1365,19 +1382,41 @@ def main():
 
     all_pass1_headings: list[HeadingCandidate] = []
     all_toc_pages: list[int] = []
+    total_html_pages = 0
 
     for vol_i, html_path in enumerate(args.html, start=1):
         if args.verbose:
             print(f"[Pass 1] Processing {html_path} (volume {vol_i})")
 
         vol_num = vol_i if multi_volume else 1
-        headings, toc_pages = pass1_extract_html_headings(
+        headings, toc_pages, html_page_count = pass1_extract_html_headings(
             html_path, page_index, volume_number=vol_num, multi_volume=multi_volume
         )
         all_pass1_headings.extend(headings)
         all_toc_pages.extend(toc_pages)
+        total_html_pages += html_page_count
 
-    print(f"[Pass 1] Found {len(all_pass1_headings)} HTML-tagged headings")
+    # --- Pre-flight validation: HTML vs JSONL page count ---
+    unmapped_headings = [h for h in all_pass1_headings if not h.page_mapped]
+    mapped_headings = [h for h in all_pass1_headings if h.page_mapped]
+
+    if total_html_pages > 0 and len(pages) > 0:
+        ratio = len(pages) / total_html_pages
+        if ratio < 0.9:
+            print(f"[PREFLIGHT WARNING] JSONL has {len(pages)} pages but HTML has {total_html_pages} content pages (ratio={ratio:.2f})")
+            print(f"  → {len(unmapped_headings)} of {len(all_pass1_headings)} headings could not be mapped to JSONL pages")
+            if len(unmapped_headings) > 0:
+                print(f"  → Unmapped headings will be DROPPED. Run Stage 1 normalization on the full book first.")
+            if ratio < 0.5:
+                print(f"  [PREFLIGHT ERROR] Less than 50% of HTML pages are in the JSONL. Results will be unreliable.")
+                print(f"  → Normalize the full book before running Stage 2.")
+                return 1
+
+    print(f"[Pass 1] Found {len(all_pass1_headings)} HTML-tagged headings "
+          f"({len(mapped_headings)} mapped, {len(unmapped_headings)} unmapped)")
+
+    # Use only mapped headings for further processing
+    all_pass1_headings = mapped_headings
 
     # --- Pass 1.5: TOC parsing ---
 
@@ -1389,15 +1428,20 @@ def main():
 
     # --- Pass 2: Keyword heuristic scan ---
 
+    # Continue document_position counter from where Pass 1 left off
+    max_pass1_docpos = max((h.document_position for h in all_pass1_headings), default=-1) + 1
+
     pass2_headings = pass2_keyword_scan(
-        pages, keywords, ORDINALS, all_pass1_headings, multi_volume
+        pages, keywords, ORDINALS, all_pass1_headings, multi_volume,
+        next_doc_position=max_pass1_docpos,
     )
     print(f"[Pass 2] Found {len(pass2_headings)} new keyword-based candidates (after dedup with Pass 1)")
 
     # --- Combine results ---
 
     all_headings = all_pass1_headings + pass2_headings
-    all_headings.sort(key=lambda h: (h.seq_index, h.title))
+    # Sort by (seq_index, document_position) — preserves document order
+    all_headings.sort(key=lambda h: (h.seq_index, h.document_position))
 
     print(f"[Combined] Total headings: {len(all_headings)} (Pass 1: {len(all_pass1_headings)}, Pass 2: {len(pass2_headings)})")
 
@@ -1422,6 +1466,8 @@ def main():
             "pass2_count": len(pass2_headings),
             "toc_entry_count": len(toc_entries),
             "total_pages": len(pages),
+            "total_html_pages": total_html_pages,
+            "unmapped_heading_count": len(unmapped_headings),
             "headings": [
                 {
                     "title": h.title,
@@ -1435,6 +1481,8 @@ def main():
                     "ordinal": h.ordinal,
                     "inline_heading": h.inline_heading,
                     "heading_text_boundary": h.heading_text_boundary,
+                    "document_position": h.document_position,
+                    "page_mapped": h.page_mapped,
                     "notes": h.notes,
                 }
                 for h in all_headings
@@ -1467,8 +1515,16 @@ def main():
 
     # --- Build passages ---
 
-    passages = build_passages(divisions, book_id, science_id)
+    passages = build_passages(divisions, book_id, science_id, pages=pages)
     print(f"[Passages] Built {len(passages)} passages")
+
+    # Post-build sanity: check for passage overlaps
+    overlap_count = 0
+    for idx in range(len(passages) - 1):
+        if passages[idx].end_seq_index >= passages[idx + 1].start_seq_index:
+            overlap_count += 1
+    if overlap_count > 0:
+        print(f"[WARNING] {overlap_count} passage overlap(s) detected — review output carefully")
 
     # --- Write all output artifacts ---
 
