@@ -63,8 +63,15 @@ FONT_COLOR_RE = re.compile(r"<font\s+color=[^>]+>(.*?)</font>", re.DOTALL)
 
 # Footnote reference marker in matn text: (N) where N is one or more digits
 # Must handle: (1), (2), (12) — but NOT Quran references like (وأخي هارون...)
-# Strategy: match (digits) followed by optional whitespace + period/dash/end
-FN_REF_IN_MATN_RE = re.compile(r"\s*\((\d+)\)\s*(?=[.،؛\s]|$)")
+# Strategy: match (digits) followed by punctuation, whitespace, or end of text.
+# The known_fn_numbers guard in strip_fn_refs_from_matn() provides the primary
+# defense against stripping exercise numbers — this regex just needs to find
+# the (N) pattern. Corpus survey (51 books) shows these chars follow genuine
+# footnote refs: space (5181), . (2501), ، (1226), : (1094), ؛ (206),
+# ) (148, Quran quotation close), » (47), ؟ (16), } (8), ] (7), ! (4).
+# Also ( for consecutive refs like (5)(6) — safe because known_fn_numbers
+# guard ensures we only strip confirmed footnote ref numbers.
+FN_REF_IN_MATN_RE = re.compile(r"\s*\((\d+)\)\s*(?=[.،؛:؟!»\])}\s(]|$)")
 
 # Footnote number prefix in footnote text: (N) ـ at start of footnote
 FN_NUM_PREFIX_RE = re.compile(r"^\((\d+)\)\s*[ـ\-–]\s*")
@@ -180,13 +187,37 @@ def strip_fn_refs_from_matn(text: str, known_fn_numbers: set[int] | None = None)
     """
     refs_found = []
 
+    # Punctuation that "attaches" to the preceding word (no space before)
+    _ATTACHING_PUNCT = set(".،؛؟!)]}")
+
     def replace_ref(m):
         num = int(m.group(1))
         if known_fn_numbers is not None and num not in known_fn_numbers:
             return m.group(0)  # Keep it — not a real footnote ref
         refs_found.append(num)
-        # The regex captures optional surrounding whitespace.
-        # Replace with empty string to avoid leaving gaps.
+        # Determine correct spacing after removing the ref:
+        # 1. If ref was between word and attaching punctuation → consume all space
+        # 2. If ref had whitespace on both sides → preserve most significant char
+        #    (newline > space, to maintain paragraph structure)
+        # 3. Otherwise → consume all space
+        full = m.group(0)
+        has_leading_ws = full[0:1] in (' ', '\t', '\n')
+        has_trailing_ws = full[-1:] in (' ', '\t', '\n')
+        if has_leading_ws and has_trailing_ws:
+            # Check what character follows the match
+            end_pos = m.end()
+            if end_pos < len(text):
+                next_char = text[end_pos]
+                if next_char in _ATTACHING_PUNCT:
+                    return ""  # Consume all space (period attaches to word)
+                # If another footnote ref follows immediately, collapse to space
+                # (the newline was just formatting between dense refs, not a paragraph break)
+                if next_char == "(" and re.match(r"\(\d+\)", text[end_pos:]):
+                    return " "
+            # Preserve the most significant whitespace character from the match
+            if '\n' in full:
+                return "\n"
+            return " "
         return ""
 
     # Strip (N) markers — digits only
@@ -401,6 +432,10 @@ def normalize_page(page_html: str, volume: int = 1) -> Optional[PageRecord]:
     if orphan_fns:
         warnings.append(f"Footnotes with no matching ref in matn: {sorted(orphan_fns)}")
 
+    # Warn on empty content pages (non-image pages with no matn text)
+    if not matn_text:
+        warnings.append("EMPTY_PAGE: page has no extractable matn text")
+
     return PageRecord(
         volume=volume,
         page_number_arabic=page_arabic,
@@ -487,6 +522,7 @@ def page_to_jsonl_record(page: PageRecord, book_id: str) -> dict:
         "volume": page.volume,
         "page_number_arabic": page.page_number_arabic,
         "page_number_int": page.page_number_int,
+        "content_type": "image_only" if page.is_image_only else "text",
         "matn_text": page.matn_text,
         "footnotes": [
             {
@@ -497,98 +533,390 @@ def page_to_jsonl_record(page: PageRecord, book_id: str) -> dict:
         ],
         "footnote_ref_numbers": page.footnote_ref_numbers,
         "has_verse": page.has_verse,
-        "is_image_only": page.is_image_only,
-        "has_tables": page.has_tables,
+        "has_table": page.has_tables,
         "warnings": page.warnings,
     }
     return rec
 
 
+# ─── Multi-volume support ────────────────────────────────────────────────────
+
+def discover_volume_files(dir_path: str) -> list[tuple[int, str]]:
+    """Discover numbered .htm files in a multi-volume directory.
+
+    Returns list of (volume_number, file_path) sorted by volume number.
+    Non-numeric .htm files are skipped (Rule VOL3).
+    """
+    volumes = []
+    skipped = []
+    for fname in os.listdir(dir_path):
+        if not fname.lower().endswith(".htm"):
+            continue
+        stem = os.path.splitext(fname)[0]
+        try:
+            vol_num = int(stem)
+        except ValueError:
+            skipped.append(fname)
+            continue  # Skip non-numeric filenames (VOL3)
+        volumes.append((vol_num, os.path.join(dir_path, fname)))
+    volumes.sort(key=lambda x: x[0])  # VOL4: process in numeric order
+    if not volumes:
+        skipped_msg = f" (skipped non-numeric files: {skipped})" if skipped else ""
+        raise ValueError(
+            f"No numbered .htm files found in {dir_path}{skipped_msg}. "
+            f"Multi-volume directories must contain numbered files like 001.htm, 002.htm. "
+            f"For named files, use --html to process each file individually."
+        )
+    if skipped:
+        # Print a warning but continue
+        print(f"  ⚠ Skipped {len(skipped)} non-numeric file(s): {skipped}", file=sys.stderr)
+    return volumes
+
+
+def normalize_multivolume(
+    dir_path: str,
+    book_id: str,
+    page_start: int | None = None,
+    page_end: int | None = None,
+) -> tuple[list[PageRecord], list[NormalizationReport]]:
+    """Normalize all volume files in a multi-volume book directory."""
+    volumes = discover_volume_files(dir_path)
+    if not volumes:
+        raise ValueError(f"No numbered .htm files found in {dir_path}")
+
+    all_pages: list[PageRecord] = []
+    reports: list[NormalizationReport] = []
+
+    for vol_num, fpath in volumes:
+        with open(fpath, encoding="utf-8", errors="ignore") as f:
+            html_text = f.read()
+        pages, report = normalize_book(html_text, book_id, fpath, volume=vol_num)
+        if page_start is not None:
+            pages = [p for p in pages if p.page_number_int >= page_start]
+        if page_end is not None:
+            pages = [p for p in pages if p.page_number_int <= page_end]
+        all_pages.extend(pages)
+        reports.append(report)
+
+    return all_pages, reports
+
+
+def aggregate_reports(reports: list[NormalizationReport], book_id: str) -> dict:
+    """Aggregate per-volume reports into a single book-level report dict."""
+    agg = {
+        "book_id": book_id,
+        "volume_count": len(reports),
+        "total_pages": sum(r.total_pages for r in reports),
+        "pages_with_footnotes": sum(r.pages_with_footnotes for r in reports),
+        "total_footnotes": sum(r.total_footnotes for r in reports),
+        "pages_with_verse": sum(r.pages_with_verse for r in reports),
+        "pages_with_tables": sum(r.pages_with_tables for r in reports),
+        "pages_image_only": sum(r.pages_image_only for r in reports),
+        "orphan_footnote_refs": sum(r.orphan_footnote_refs for r in reports),
+        "orphan_footnotes": sum(r.orphan_footnotes for r in reports),
+        "warnings": [],
+        "pages_skipped": [],
+        "volumes": [],
+    }
+    for r in reports:
+        agg["warnings"].extend(r.warnings)
+        agg["pages_skipped"].extend(
+            [f"v{r.volume}: {s}" for s in r.pages_skipped]
+        )
+        agg["volumes"].append({
+            "volume": r.volume,
+            "source_file": r.source_file,
+            "source_sha256": r.source_sha256,
+            "total_pages": r.total_pages,
+            "pages_with_footnotes": r.pages_with_footnotes,
+            "total_footnotes": r.total_footnotes,
+            "pages_with_verse": r.pages_with_verse,
+            "pages_with_tables": r.pages_with_tables,
+            "pages_image_only": r.pages_image_only,
+        })
+    return agg
+
+
+# ─── Stage 0 integration ────────────────────────────────────────────────────
+
+def load_intake_metadata(book_id: str, books_dir: str = "books") -> dict:
+    """Load intake_metadata.json for a book."""
+    meta_path = os.path.join(books_dir, book_id, "intake_metadata.json")
+    if not os.path.exists(meta_path):
+        raise FileNotFoundError(
+            f"No intake_metadata.json found for book '{book_id}' at {meta_path}. "
+            f"Has Stage 0 (intake) been run for this book?"
+        )
+    with open(meta_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def resolve_source_paths(metadata: dict, repo_root: str = ".") -> list[tuple[int, str]]:
+    """Resolve source file paths from intake metadata.
+
+    Returns list of (volume_number, absolute_path) sorted by volume number.
+    """
+    sources = []
+    for sf in metadata.get("source_files", []):
+        relpath = sf["relpath"]
+        abspath = os.path.join(repo_root, relpath)
+        vol = sf.get("volume_number")
+        if vol is None:
+            vol = 1
+        sources.append((vol, abspath))
+    sources.sort(key=lambda x: x[0])
+    return sources
+
+
+def verify_source_integrity(source_path: str, expected_sha256: str) -> bool:
+    """Verify source file SHA-256 matches intake metadata."""
+    h = hashlib.sha256()
+    with open(source_path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest() == expected_sha256
+
+
+def normalize_book_by_id(
+    book_id: str,
+    books_dir: str = "books",
+    repo_root: str = ".",
+    page_start: int | None = None,
+    page_end: int | None = None,
+    verify_sha: bool = True,
+) -> tuple[list[PageRecord], list[NormalizationReport], dict]:
+    """Normalize a book using its Stage 0 intake metadata.
+
+    Returns (pages, per_volume_reports, intake_metadata).
+    """
+    metadata = load_intake_metadata(book_id, books_dir)
+    sources = resolve_source_paths(metadata, repo_root)
+
+    # Verify source integrity
+    sha_list = metadata.get("source_files", [])
+    if verify_sha:
+        for i, (vol, path) in enumerate(sources):
+            if not os.path.exists(path):
+                raise FileNotFoundError(
+                    f"Source file not found: {path}. "
+                    f"Source HTML files are gitignored and must be present locally."
+                )
+            expected_sha = sha_list[i].get("sha256", "")
+            if expected_sha and not verify_source_integrity(path, expected_sha):
+                raise ValueError(
+                    f"SHA-256 mismatch for {path}. "
+                    f"Expected {expected_sha}. Source file may have been modified."
+                )
+
+    all_pages: list[PageRecord] = []
+    reports: list[NormalizationReport] = []
+
+    for vol, path in sources:
+        with open(path, encoding="utf-8", errors="ignore") as f:
+            html_text = f.read()
+        pages, report = normalize_book(html_text, book_id, path, volume=vol)
+        if page_start is not None:
+            pages = [p for p in pages if p.page_number_int >= page_start]
+        if page_end is not None:
+            pages = [p for p in pages if p.page_number_int <= page_end]
+        all_pages.extend(pages)
+        reports.append(report)
+
+    return all_pages, reports, metadata
+
+
 # ─── CLI ─────────────────────────────────────────────────────────────────────
 
 def main():
-    ap = argparse.ArgumentParser(description="Normalize a Shamela HTML export into structured JSONL.")
-    ap.add_argument("--html", required=True, help="Path to Shamela HTML export")
-    ap.add_argument("--out-jsonl", required=True, help="Output JSONL file path")
-    ap.add_argument("--out-report", required=True, help="Output normalization report JSON path")
-    ap.add_argument("--book-id", default="", help="Book identifier (inferred from path if omitted)")
+    ap = argparse.ArgumentParser(
+        description="Normalize a Shamela HTML export into structured JSONL.",
+        epilog=(
+            "Modes:\n"
+            "  --book-id ID       Read from books/{ID}/source/ (Stage 0 integration)\n"
+            "  --html FILE        Process a single HTML file\n"
+            "  --html-dir DIR     Process a multi-volume directory\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    # Input modes (mutually exclusive)
+    input_group = ap.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
+        "--book-id", dest="book_id",
+        help="Book ID from Stage 0 intake (reads from books/{ID}/source/)",
+    )
+    input_group.add_argument(
+        "--html",
+        help="Path to a single Shamela HTML export file",
+    )
+    input_group.add_argument(
+        "--html-dir",
+        help="Path to a multi-volume book directory (numbered .htm files)",
+    )
+
+    # Output (optional — defaults depend on input mode)
+    ap.add_argument("--out-jsonl", help="Output JSONL file path")
+    ap.add_argument("--out-report", help="Output normalization report JSON path")
+    ap.add_argument("--id", dest="explicit_id", default="",
+                     help="Book identifier (for --html/--html-dir modes)")
+
+    # Options
     ap.add_argument("--volume", type=int, default=None,
-                     help="Volume number (inferred from filename if omitted, defaults to 1)")
+                     help="Volume number (for --html mode; inferred from filename if omitted)")
     ap.add_argument("--include-raw-html", action="store_true",
                      help="Include raw HTML in JSONL output (for debugging)")
     ap.add_argument("--page-start", type=int, default=None,
                      help="Only process pages from this number onward")
     ap.add_argument("--page-end", type=int, default=None,
                      help="Only process pages up to this number")
+    ap.add_argument("--no-verify-sha", action="store_true",
+                     help="Skip SHA-256 verification of source files (for --book-id mode)")
+    ap.add_argument("--books-dir", default="books",
+                     help="Path to books directory (default: books)")
     args = ap.parse_args()
 
-    # Infer book_id
+    # ── Dispatch by input mode ──
+
+    if args.book_id:
+        _run_book_id_mode(args)
+    elif args.html_dir:
+        _run_html_dir_mode(args)
+    else:
+        _run_single_html_mode(args)
+
+
+def _run_book_id_mode(args):
+    """Process a book by its Stage 0 book_id."""
     book_id = args.book_id
+    books_dir = args.books_dir
+    repo_root = os.path.dirname(os.path.abspath(books_dir)) if books_dir != "books" else "."
+
+    # Default output paths: books/{book_id}/pages.jsonl
+    out_jsonl = args.out_jsonl or os.path.join(books_dir, book_id, "pages.jsonl")
+    out_report = args.out_report or os.path.join(books_dir, book_id, "normalization_report.json")
+
+    print(f"Book ID: {book_id}")
+    print(f"Reading intake metadata from: {books_dir}/{book_id}/intake_metadata.json")
+
+    pages, reports, metadata = normalize_book_by_id(
+        book_id, books_dir, repo_root,
+        page_start=args.page_start,
+        page_end=args.page_end,
+        verify_sha=not args.no_verify_sha,
+    )
+
+    # Write outputs
+    _write_jsonl(pages, book_id, out_jsonl, args.include_raw_html)
+    agg_report = aggregate_reports(reports, book_id)
+    _write_report(agg_report, out_report)
+    _print_summary(agg_report, out_jsonl, out_report)
+
+
+def _run_html_dir_mode(args):
+    """Process a multi-volume book directory."""
+    dir_path = args.html_dir
+    book_id = args.explicit_id or os.path.basename(dir_path.rstrip("/\\")) or "unknown"
+
+    out_jsonl = args.out_jsonl or "pages.jsonl"
+    out_report = args.out_report or "normalization_report.json"
+
+    print(f"Multi-volume directory: {dir_path}")
+    print(f"Book ID: {book_id}")
+
+    pages, reports = normalize_multivolume(
+        dir_path, book_id,
+        page_start=args.page_start,
+        page_end=args.page_end,
+    )
+
+    _write_jsonl(pages, book_id, out_jsonl, args.include_raw_html)
+    agg_report = aggregate_reports(reports, book_id)
+    _write_report(agg_report, out_report)
+    _print_summary(agg_report, out_jsonl, out_report)
+
+
+def _run_single_html_mode(args):
+    """Process a single HTML file."""
+    html_path = args.html
+    book_id = args.explicit_id
     if not book_id:
-        m = re.search(r"/\d+_([a-z0-9]+)_", args.html.replace("\\", "/"), re.I)
+        m = re.search(r"/\d+_([a-z0-9]+)_", html_path.replace("\\", "/"), re.I)
         book_id = m.group(1) if m else "unknown"
 
-    # Infer volume from filename if not specified
     volume = args.volume
     if volume is None:
-        stem = os.path.splitext(os.path.basename(args.html))[0]
+        stem = os.path.splitext(os.path.basename(html_path))[0]
         try:
             volume = int(stem)
         except ValueError:
-            volume = 1  # Single-volume book
+            volume = 1
 
-    # Read source
-    with open(args.html, encoding="utf-8", errors="ignore") as f:
-        html_text = f.read()
+    out_jsonl = args.out_jsonl or "pages.jsonl"
+    out_report = args.out_report or "normalization_report.json"
 
-    print(f"Source: {args.html} ({len(html_text)} chars)")
+    print(f"Source: {html_path}")
     print(f"Book ID: {book_id}")
     print(f"Volume: {volume}")
 
-    # Normalize
-    pages, report = normalize_book(html_text, book_id, args.html, volume=volume)
+    with open(html_path, encoding="utf-8", errors="ignore") as f:
+        html_text = f.read()
 
-    # Filter page range if specified
+    pages, report = normalize_book(html_text, book_id, html_path, volume=volume)
+
     if args.page_start is not None:
         pages = [p for p in pages if p.page_number_int >= args.page_start]
     if args.page_end is not None:
         pages = [p for p in pages if p.page_number_int <= args.page_end]
 
-    # Write JSONL
-    os.makedirs(os.path.dirname(os.path.abspath(args.out_jsonl)) or ".", exist_ok=True)
-    with open(args.out_jsonl, "w", encoding="utf-8") as f:
+    _write_jsonl(pages, book_id, out_jsonl, args.include_raw_html)
+    agg_report = aggregate_reports([report], book_id)
+    _write_report(agg_report, out_report)
+    _print_summary(agg_report, out_jsonl, out_report)
+
+
+# ─── Output helpers ──────────────────────────────────────────────────────────
+
+def _write_jsonl(pages: list[PageRecord], book_id: str, path: str, include_raw: bool = False):
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         for page in pages:
             rec = page_to_jsonl_record(page, book_id)
-            if args.include_raw_html:
+            if include_raw:
                 rec["raw_matn_html"] = page.raw_matn_html
                 rec["raw_fn_html"] = page.raw_fn_html
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
-    # Write report
-    os.makedirs(os.path.dirname(os.path.abspath(args.out_report)) or ".", exist_ok=True)
-    with open(args.out_report, "w", encoding="utf-8") as f:
-        json.dump(asdict(report), f, ensure_ascii=False, indent=2)
 
-    # Print summary
-    print(f"\nNormalized {report.total_pages} pages (volume {volume})")
-    print(f"  Pages with footnotes: {report.pages_with_footnotes}")
-    print(f"  Total footnotes: {report.total_footnotes}")
-    print(f"  Pages with verse: {report.pages_with_verse}")
-    if report.pages_with_tables:
-        print(f"  Pages with tables: {report.pages_with_tables}")
-    if report.pages_image_only:
-        print(f"  ⚠ Image-only pages (no text): {report.pages_image_only}")
-    if report.orphan_footnote_refs:
-        print(f"  ⚠ Orphan footnote refs: {report.orphan_footnote_refs}")
-    if report.orphan_footnotes:
-        print(f"  ⚠ Orphan footnotes: {report.orphan_footnotes}")
-    if report.pages_skipped:
-        print(f"  Skipped pages: {report.pages_skipped}")
-    if report.warnings:
-        print(f"  Total warnings: {len(report.warnings)}")
+def _write_report(report_dict: dict, path: str):
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(report_dict, f, ensure_ascii=False, indent=2)
 
-    print(f"\nWrote: {args.out_jsonl}")
-    print(f"Wrote: {args.out_report}")
+
+def _print_summary(report: dict, jsonl_path: str, report_path: str):
+    vol_count = report.get("volume_count", 1)
+    total_pages = report["total_pages"]
+    vol_label = f" ({vol_count} volume{'s' if vol_count > 1 else ''})" if vol_count > 1 else ""
+
+    print(f"\nNormalized {total_pages} pages{vol_label}")
+    print(f"  Pages with footnotes: {report['pages_with_footnotes']}")
+    print(f"  Total footnotes: {report['total_footnotes']}")
+    print(f"  Pages with verse: {report['pages_with_verse']}")
+    if report["pages_with_tables"]:
+        print(f"  Pages with tables: {report['pages_with_tables']}")
+    if report["pages_image_only"]:
+        print(f"  ⚠ Image-only pages (no text): {report['pages_image_only']}")
+    if report["orphan_footnote_refs"]:
+        print(f"  ⚠ Orphan footnote refs: {report['orphan_footnote_refs']}")
+    if report["orphan_footnotes"]:
+        print(f"  ⚠ Orphan footnotes: {report['orphan_footnotes']}")
+    if report["pages_skipped"]:
+        print(f"  Skipped pages: {len(report['pages_skipped'])}")
+    if report["warnings"]:
+        print(f"  Total warnings: {len(report['warnings'])}")
+
+    print(f"\nWrote: {jsonl_path}")
+    print(f"Wrote: {report_path}")
 
 
 if __name__ == "__main__":
