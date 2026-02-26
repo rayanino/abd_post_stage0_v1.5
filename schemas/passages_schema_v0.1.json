@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abd:schemas:passage_list:v0.1",
+  "title": "ABD Passage Record Schema v0.1",
+  "description": "Schema for a single passage record in passages.jsonl. Each passage is a contiguous page range assigned as one unit of work for Stage 3 (Atomization) and Stage 4 (Excerpting). One record per line in the JSONL file.",
+  "type": "object",
+  "required": [
+    "record_type",
+    "passage_id",
+    "book_id",
+    "division_ids",
+    "title",
+    "start_seq_index",
+    "end_seq_index",
+    "page_hint_start",
+    "page_hint_end",
+    "page_count",
+    "digestible",
+    "content_type",
+    "sizing_action",
+    "review_flags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "record_type": {
+      "const": "passage",
+      "description": "Record type discriminator."
+    },
+    "passage_id": {
+      "type": "string",
+      "pattern": "^P[0-9]{3,}$",
+      "description": "Sequential passage identifier within the book. Format: P001, P002, etc."
+    },
+    "book_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical book identifier from books_registry.yaml."
+    },
+    "division_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "IDs of the leaf division(s) that this passage covers. Usually one division; multiple if tiny siblings were merged."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable title for the passage. Derived from the primary division's title."
+    },
+    "heading_path": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Ancestor division titles from root to this passage's division, for context. E.g. ['الباب الأول: في الفعل', 'التقسيم الأوَّل: إلى ماضٍ ومضارع وأمر', 'الباب الأول: فَعَلَ يَفعُل']."
+    },
+    "start_seq_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "seq_index of the first page (inclusive). Machine-authoritative page reference."
+    },
+    "end_seq_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "seq_index of the last page (inclusive)."
+    },
+    "page_hint_start": {
+      "type": "string",
+      "description": "Human-readable start page, e.g. 'ص:١٩'. Display only."
+    },
+    "page_hint_end": {
+      "type": "string",
+      "description": "Human-readable end page. Display only."
+    },
+    "page_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of pages: end_seq_index - start_seq_index + 1."
+    },
+    "volume": {
+      "type": ["integer", "null"],
+      "description": "Volume number if the book is multi-volume. null for single-volume books. If a passage spans volumes (should not happen), this is the starting volume."
+    },
+    "digestible": {
+      "type": "boolean",
+      "description": "Always true for passages (non-digestible divisions are skipped, not passaged)."
+    },
+    "content_type": {
+      "type": "string",
+      "enum": ["teaching", "exercise", "mixed"],
+      "description": "Content classification. 'teaching' = explanatory content. 'exercise' = practice problems. 'mixed' = both in merged passage."
+    },
+    "sizing_action": {
+      "type": "string",
+      "enum": ["none", "merged", "split", "flagged_long"],
+      "description": "'none' = standard-sized passage. 'merged' = multiple small divisions were merged. 'split' = a large division was split (see split_info). 'flagged_long' = passage is >20 pages but not split (human may review)."
+    },
+    "sizing_notes": {
+      "type": ["string", "null"],
+      "description": "Explanation of sizing action if any. null if sizing_action is 'none'."
+    },
+    "split_info": {
+      "type": ["object", "null"],
+      "description": "Present only if sizing_action is 'split'. Describes the split.",
+      "properties": {
+        "original_division_id": {
+          "type": "string",
+          "description": "The division that was split."
+        },
+        "split_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based index of this split segment."
+        },
+        "total_splits": {
+          "type": "integer",
+          "minimum": 2,
+          "description": "Total number of split segments."
+        },
+        "split_method": {
+          "type": "string",
+          "enum": ["llm_topic_boundary", "fixed_size"],
+          "description": "How the split point was determined."
+        }
+      }
+    },
+    "merge_info": {
+      "type": ["object", "null"],
+      "description": "Present only if sizing_action is 'merged'. Describes what was merged.",
+      "properties": {
+        "merged_division_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 2,
+          "description": "IDs of the divisions that were merged into this passage."
+        },
+        "merge_reason": {
+          "type": "string",
+          "description": "Why these divisions were merged (e.g. 'adjacent siblings under 1 page each')."
+        }
+      }
+    },
+    "review_flags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Flags for human review. Examples: 'long_passage', 'short_passage', 'low_confidence_boundary', 'uncertain_content_type', 'cross_volume'."
+    },
+    "science_id": {
+      "type": ["string", "null"],
+      "enum": ["balagha", "sarf", "nahw", "imlaa", null],
+      "description": "Science classification for this passage. Inherited from the book's primary_science unless the book is multi_science, in which case it is per-section."
+    },
+    "predecessor_passage_id": {
+      "type": ["string", "null"],
+      "description": "ID of the preceding passage in document order. null for the first passage."
+    },
+    "successor_passage_id": {
+      "type": ["string", "null"],
+      "description": "ID of the following passage in document order. null for the last passage."
+    }
+  }
+}

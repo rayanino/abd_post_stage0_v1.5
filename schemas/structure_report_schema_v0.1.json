@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abd:schemas:structure_report:v0.1",
+  "title": "ABD Structure Report Schema v0.1",
+  "description": "Schema for Stage 2 structure_report.json — summary statistics and flags for human review.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "book_id",
+    "generated_utc",
+    "pass_stats",
+    "division_stats",
+    "passage_stats",
+    "review_summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "structure_report_v0.1"
+    },
+    "book_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pass_stats": {
+      "type": "object",
+      "description": "Statistics from each pass of the three-pass algorithm.",
+      "properties": {
+        "pass1_html_tagged": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of divisions found by Pass 1 (HTML-tagged headings)."
+        },
+        "pass1_5_toc_entries": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of TOC entries parsed (0 if no TOC detected)."
+        },
+        "pass2_keyword_candidates": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of keyword candidates found by Pass 2 before dedup."
+        },
+        "pass2_after_dedup": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of new divisions from Pass 2 after deduplication with Pass 1."
+        },
+        "pass3_llm_discovered": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of new divisions discovered by Pass 3 (LLM)."
+        },
+        "pass3_confirmed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of Pass 1/2 candidates confirmed by Pass 3."
+        },
+        "pass3_rejected": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of Pass 1/2 candidates rejected by Pass 3 as false positives."
+        },
+        "pass3_llm_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total LLM API calls made during Pass 3."
+        }
+      }
+    },
+    "division_stats": {
+      "type": "object",
+      "description": "Statistics about the final division tree.",
+      "properties": {
+        "total_divisions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_depth": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum depth of the division tree."
+        },
+        "by_detection_method": {
+          "type": "object",
+          "description": "Count of divisions per detection method.",
+          "additionalProperties": { "type": "integer" }
+        },
+        "by_confidence": {
+          "type": "object",
+          "description": "Count of divisions per confidence level.",
+          "additionalProperties": { "type": "integer" }
+        },
+        "by_type": {
+          "type": "object",
+          "description": "Count of divisions per structural keyword type.",
+          "additionalProperties": { "type": "integer" }
+        },
+        "digestible_count": { "type": "integer", "minimum": 0 },
+        "non_digestible_count": { "type": "integer", "minimum": 0 },
+        "uncertain_digestible_count": { "type": "integer", "minimum": 0 },
+        "heading_density": {
+          "type": "number",
+          "description": "Total divisions / total pages. Gives a sense of structural richness."
+        }
+      }
+    },
+    "passage_stats": {
+      "type": "object",
+      "description": "Statistics about the generated passages.",
+      "properties": {
+        "total_passages": { "type": "integer", "minimum": 0 },
+        "total_pages_covered": { "type": "integer", "minimum": 0 },
+        "total_pages_skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Pages in non-digestible divisions (not passaged)."
+        },
+        "by_content_type": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "by_sizing_action": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "page_count_min": { "type": "integer" },
+        "page_count_max": { "type": "integer" },
+        "page_count_median": { "type": "number" },
+        "page_count_mean": { "type": "number" }
+      }
+    },
+    "review_summary": {
+      "type": "object",
+      "description": "Summary of items flagged for human review.",
+      "properties": {
+        "total_flags": { "type": "integer", "minimum": 0 },
+        "low_confidence_divisions": { "type": "integer", "minimum": 0 },
+        "uncertain_digestibility": { "type": "integer", "minimum": 0 },
+        "long_passages": { "type": "integer", "minimum": 0 },
+        "toc_mismatches": { "type": "integer", "minimum": 0 },
+        "flagged_items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item_type": { "type": "string", "enum": ["division", "passage"] },
+              "item_id": { "type": "string" },
+              "flags": { "type": "array", "items": { "type": "string" } },
+              "description": { "type": "string" }
+            }
+          },
+          "description": "List of all flagged items for the human reviewer."
+        }
+      }
+    },
+    "toc_cross_reference": {
+      "type": ["object", "null"],
+      "description": "Results of cross-referencing TOC entries against discovered divisions. null if no TOC detected.",
+      "properties": {
+        "toc_entries_total": { "type": "integer" },
+        "toc_entries_matched": { "type": "integer" },
+        "toc_entries_unmatched": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "TOC entries that could not be matched to any discovered division (possible missed headings)."
+        },
+        "divisions_not_in_toc": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Division IDs not found in the TOC (possible false positives or sub-sections not in TOC)."
+        }
+      }
+    }
+  }
+}
