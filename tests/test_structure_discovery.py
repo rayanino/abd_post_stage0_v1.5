@@ -1007,5 +1007,60 @@ class TestRegressionPass1HtmlCount:
             os.unlink(path)
 
 
+class TestRegressionExerciseClassification:
+    """Regression: exercises must be detected even when keyword_type is None (Pass 1 headings)."""
+
+    def test_exercise_detected_by_title_when_keyword_type_none(self):
+        """Pass 1 headings have keyword_type=None; exercise detection must use title."""
+        h = HeadingCandidate(
+            title="تطبيق على باب الفعل", seq_index=0, page_number_int=1, volume=1,
+            page_hint="p0", detection_method="html_tagged", confidence="confirmed",
+            keyword_type=None,  # Pass 1 doesn't set this
+        )
+        dig, ct = classify_digestibility(h)
+        assert ct == "exercise", f"Expected exercise, got {ct}"
+        assert dig == "true"
+
+    def test_exercise_detected_by_keyword_type(self):
+        """Pass 2 headings have keyword_type set; should also work."""
+        h = HeadingCandidate(
+            title="تطبيق على باب الفعل", seq_index=0, page_number_int=1, volume=1,
+            page_hint="p0", detection_method="keyword_heuristic", confidence="medium",
+            keyword_type="تطبيق",
+        )
+        dig, ct = classify_digestibility(h)
+        assert ct == "exercise"
+
+    def test_non_exercise_not_misclassified(self):
+        """A title starting with a non-exercise word should not be classified as exercise."""
+        h = HeadingCandidate(
+            title="باب التطبيقات", seq_index=0, page_number_int=1, volume=1,
+            page_hint="p0", detection_method="html_tagged", confidence="confirmed",
+            keyword_type=None,
+        )
+        dig, ct = classify_digestibility(h)
+        assert ct == "teaching", f"Expected teaching, got {ct}"
+
+
+class TestRegressionMergeCondition:
+    """Regression: merge condition is intentionally inactive in flat tree."""
+
+    def test_single_page_divisions_not_merged_in_flat_tree(self):
+        """In the flat tree (pre-LLM), 1-page divisions should NOT be merged."""
+        divs = []
+        for i in range(5):
+            divs.append(DivisionNode(
+                id=f"d{i}", type="مبحث", title=f"مبحث {i}", level=1,
+                detection_method="html_tagged", confidence="confirmed",
+                digestible="true", content_type="teaching",
+                start_seq_index=i, end_seq_index=i,
+                page_hint_start=f"p{i}", page_hint_end=f"p{i}",
+                parent_id=None, page_count=1,
+            ))
+        passages = build_passages(divs, "test")
+        # Each 1-page division should be its own passage — not merged
+        assert len(passages) == 5, f"Expected 5 passages, got {len(passages)}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

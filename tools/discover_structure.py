@@ -697,21 +697,28 @@ def classify_digestibility(heading: HeadingCandidate) -> tuple[str, Optional[str
     """Apply deterministic digestibility rules.
 
     Returns (digestible, content_type) where digestible is "true"/"false"/"uncertain".
+
+    Note: For Pass 1 headings, keyword_type may be None (resolved later by
+    detect_keyword_type_from_title). We check BOTH keyword_type and title text
+    to ensure correct classification regardless of call order.
     """
     kw = heading.keyword_type or ""
     title_clean = heading.title.strip()
 
-    # Non-digestible types
+    # Extract the first word of the title for title-based exercise/type detection
+    title_first_word = title_clean.split()[0] if title_clean else ""
+
+    # Non-digestible types (check both keyword and title)
     if kw in NON_DIGESTIBLE_TYPES or title_clean in NON_DIGESTIBLE_TYPES:
         return "false", "non_content"
 
-    # Non-digestible title patterns
+    # Non-digestible title patterns (substring match)
     for pat in NON_DIGESTIBLE_TITLE_PATTERNS:
         if pat in title_clean:
             return "false", "non_content"
 
-    # Exercise types
-    if kw in EXERCISE_TYPES:
+    # Exercise types (check keyword AND title first word)
+    if kw in EXERCISE_TYPES or title_first_word in EXERCISE_TYPES or title_clean in EXERCISE_TYPES:
         return "true", "exercise"
 
     # Uncertain (author's مقدمة)
@@ -968,7 +975,13 @@ def build_passages(
 
         page_count = div.page_count
 
-        # Sizing: merge short divisions
+        # Sizing: merge short divisions (sub-page size)
+        # In the flat tree (pre-LLM), page_count is always >= 1 (end_seq >= start_seq),
+        # so this condition never triggers. This is correct: the flat tree doesn't have
+        # sub-page divisions. Post-LLM, when the hierarchy is resolved, sub-page
+        # divisions become possible (e.g., a تنبيه that occupies 3 lines within a page),
+        # and this merge logic will activate. If page_count == 1, the division covers
+        # exactly one page — that's a legitimate standalone passage, not a merge candidate.
         if page_count < 1 and i + 1 < len(digestible_leaves):
             # Try merging with next sibling(s) under same parent
             combined = page_count
