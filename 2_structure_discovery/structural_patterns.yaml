@@ -1,0 +1,340 @@
+# Structural Patterns Library for Shamela HTML Exports
+# Version: 0.2
+# Sources validated against:
+#   - جواهر البلاغة (balagha, gold baseline book)
+#   - شذا العرف في فن الصرف (sarf, second data point)
+#   - كتب اللغة collection: 79 files, 18,981 pages
+#   - كتب البلاغة collection: 78 files, 20,204 pages
+#   Total: 157 files, 39,185 pages
+# Purpose: Data-driven patterns for Stage 2 (Structure Discovery).
+
+html_patterns:
+  quote_style_differentiator:
+    description: |
+      CRITICAL DISCOVERY (validated across 79 files, 100% reliable):
+      Shamela uses two distinct quote styles for title span attributes.
+    metadata_style: "class='title'"
+    metadata_notes: "Single quotes. Used ONLY in the first PageText div. Contains metadata labels (القسم, المؤلف, etc.)."
+    metadata_count: "685 across 79 files"
+    content_style: 'class="title"'
+    content_notes: "Double quotes. Used in all content pages. Contains structural headings (باب, فصل, etc.)."
+    content_count: "9,505 across 79 files"
+    reliability: "100% — zero exceptions across entire corpus"
+    action: |
+      Pass 1 MUST use double-quote spans ONLY for content heading extraction.
+      Stage 0 metadata parsing MUST use single-quote spans ONLY.
+
+  tagged_headings:
+    - selector: '<span class="title">TEXT</span>'
+      reliability: high
+      prevalence: "Universal across all surveyed books"
+      notes: |
+        Primary heading mechanism in Shamela desktop exports.
+        Often preceded by &#8204; (zero-width non-joiner).
+        May contain nested <font> tags (decorative, strip them).
+        The first PageText div's title spans are metadata labels (القسم, الكتاب, المؤلف),
+        NOT content headings — skip them.
+      examples:
+        - '<span class="title">&#8204;الباب الأول: في الفعل وفيه عدّة تقاسيم</span>'
+        - '<span class="title">&#8204;التقسيم الأوَّل: إلى ماضٍ ومضارع وأمر</span>'
+        - '<span class="title">علم المعاني</span>'
+
+    - selector: '<span data-type="title">TEXT</span>'
+      reliability: medium
+      prevalence: "1 book only (التبيان في قواعد النحو) per corpus survey"
+      notes: "Rare variant. Treat identically to class='title'."
+
+  metadata_page:
+    detection: "First PageText div contains title spans for القسم, الكتاب, المؤلف, etc."
+    action: "Parse for metadata (Stage 0). Not a content heading."
+
+  toc_page:
+    detection: "Page containing فهرس الموضوعات or فهرس or المحتويات as a heading"
+    typical_location: "End of book (last 3-10 pages)"
+    format: "Lines of: TOPIC_TITLE ...dots... PAGE_NUMBER"
+    action: "Parse as cross-reference for hierarchy inference."
+    examples:
+      - "مقدمة المحقق............................................................ 5"
+      - "الباب الأول: في الفعل وفيه عِدَّةُ تقاسيم..................................17"
+
+keyword_patterns:
+  # Hierarchy level 0: science/volume markers
+  volume_markers:
+    keywords: ["المجلد", "الجزء"]
+    variants: ["المجلد الاول", "المجلد الثاني", "الجزء الأول"]
+    notes: "Volume markers within multi-volume-in-single-file exports."
+
+  # Hierarchy level 1: top-level divisions
+  top_level:
+    - keyword: "باب"
+      definite_form: "الباب"
+      typical_patterns:
+        - "الباب {ORDINAL}: {TITLE}"
+        - "الباب {ORDINAL} في {TITLE}"
+        - "الباب {ORDINAL} فى {TITLE}"
+        - "باب {TITLE}"
+      observed_in:
+        jawahir: "Tagged (span.title). 9 instances. Pattern: الباب {ORDINAL} في {TITLE}"
+        shadha: "Tagged (span.title) for major ones. 3 tagged. But sub-أبواب (الباب الأول: فَعَلَ يَفعُل etc.) are UNTAGGED — bare text in </p> breaks."
+      notes: |
+        CRITICAL: In شذا العرف, the 6 morphological أبواب (verb paradigms) are
+        NOT tagged with span.title. They appear as plain text lines:
+          الباب الأول: فَعَلَ يَفعُل
+          الباب الثانى: فَعَلَ يَفْعِل
+          الباب الثالث: فعَل يَفْعَل
+          الباب الرابع: فَعِل يَفْعَل
+          الباب الخامس: فعُل يفعُل
+          الباب السادس: فعِل يَفْعِل
+        These are genuine structural divisions that must be detected by keyword Pass 2 or LLM Pass 3.
+
+    - keyword: "كتاب"
+      definite_form: "الكتاب"
+      typical_patterns:
+        - "كتاب {TITLE}"
+        - "الكتاب"
+      notes: "Used in large compilations for major divisions. Rare in single-topic books."
+
+  # Hierarchy level 2: mid-level divisions
+  mid_level:
+    - keyword: "فصل"
+      definite_form: "الفصل"
+      typical_patterns:
+        - "فصل في {TITLE}"
+        - "فصل فى {TITLE}"
+        - "الفصل {ORDINAL}"
+      observed_in:
+        jawahir: "Not used as a structural marker in this book."
+        shadha: "Tagged (span.title). 9 instances. Pattern: فصل فى {TITLE}"
+
+    - keyword: "مبحث"
+      definite_form: "المبحث"
+      typical_patterns:
+        - "المبحث {ORDINAL} في {TITLE}"
+        - "المبحث {ORDINAL} فى {TITLE}"
+      observed_in:
+        jawahir: "Tagged (span.title). 65+ instances. Primary mid-level division."
+        shadha: "Not used."
+      notes: "Can appear untagged. Jawahir has 3-4 untagged المبحث instances (e.g., المبحث الثاني عشر)."
+
+    - keyword: "مدخل"
+      definite_form: "المدخل"
+      typical_patterns:
+        - "مدخل"
+        - "المدخل"
+        - "مدخل: {TITLE}"
+      observed_in:
+        kutub_al_lugha: "895 untagged vs 60 tagged (94% untagged). Extremely common in this collection."
+      notes: |
+        One of the most frequently untagged keywords in كتب اللغة.
+        Can mean an entry/section in encyclopedic/dictionary-style books,
+        or an introduction in chapter-based books.
+        Context-dependent: in dictionary-like books (معجم, etc.), each مدخل is a
+        topical entry and may be very short. In textbook-like books, it's a chapter.
+
+    - keyword: "إعراب"
+      definite_form: "الإعراب"
+      typical_patterns:
+        - "إعراب {QUOTED_TEXT}"
+        - "الإعراب"
+        - "إعراب: {TITLE}"
+      observed_in:
+        kutub_sarf_nahw: "280 untagged vs 90 tagged (76% untagged). نحو-specific keyword."
+      notes: |
+        Marks syntactic parsing sections — the grammatical analysis of specific words,
+        verses, or sentences. Domain-specific to نحو (syntax) books.
+        Not found in بلاغة or general لغة books.
+        Can be a structural division (a section analyzing a verse) or an inline
+        marker (parsing embedded within a lesson). Context is critical.
+
+    - keyword: "تقسيم"
+      definite_form: "التقسيم"
+      typical_patterns:
+        - "التقسيم {ORDINAL}: {TITLE}"
+        - "التقسيم {ORDINAL} للفعل"
+        - "التقسيمُ {ORDINAL} للاسم"
+      observed_in:
+        jawahir: "Not used."
+        shadha: "Tagged (span.title). 12 instances. Primary mid-level division."
+
+  # Hierarchy level 3: low-level divisions
+  low_level:
+    - keyword: "تنبيه"
+      plural: "تنبيهات"
+      dual: "تنبيهان"
+      typical_patterns:
+        - "تنبيهات"
+        - "تنبيهان"
+        - "تنبيه"
+        - "تنبيه - {content}"  # Inline variant: keyword + immediate content
+      observed_in:
+        jawahir: "UNTAGGED. 3+ instances as standalone lines."
+        shadha: "UNTAGGED. 5+ instances. Sometimes 'تنبيهات' sometimes 'تنبيهان'."
+        kutub_al_lugha: "37 untagged vs 8 tagged (82% untagged)"
+      notes: |
+        Almost always untagged. This is one of the most common missed-by-HTML divisions.
+        Can be a standalone section OR a note within a section (must check content length).
+
+    - keyword: "فائدة"
+      plural: "فوائد"
+      typical_patterns:
+        - "فائدة"
+        - "فائدة: {content}"
+        - "فوائد"
+      observed_in:
+        kutub_al_lugha: "27 untagged vs 4 tagged (87% untagged)"
+      notes: "Almost always untagged. Typically a short supplementary note within a section."
+
+    - keyword: "قاعدة"
+      plural: "قواعد"
+      typical_patterns:
+        - "قاعدة"
+        - "قاعدة: {content}"
+        - "القاعدة {ORDINAL}"
+      observed_in:
+        kutub_al_lugha: "48 untagged vs 0 tagged (100% untagged)"
+      notes: "NEVER tagged in any surveyed book. Must be caught by Pass 2 keyword heuristics."
+
+    - keyword: "خاتمة"
+      typical_patterns:
+        - "خاتمة"
+        - "خاتمة تشمل على عدة أسئلة"
+        - "خاتمة {DESCRIPTION}"
+      observed_in:
+        jawahir: "UNTAGGED. 2 instances."
+        shadha: "Mixed: some tagged (span.title), some untagged. 3 instances."
+
+    - keyword: "تتمة"
+      typical_patterns:
+        - "تتمة"
+        - "تتمة: فى {TITLE}"
+      observed_in:
+        shadha: "Tagged (span.title). 1 instance."
+
+    - keyword: "مطلب"
+      definite_form: "المطلب"
+      notes: "Not observed in either book. Common in فقه and أصول books."
+
+    - keyword: "مسألة"
+      definite_form: "المسألة"
+      notes: "Not observed as structural division in either book. Common in فقه."
+
+    - keyword: "فرع"
+      definite_form: "الفرع"
+      notes: "Not observed as structural division in either book. Common in فقه."
+
+  # Supplementary sections
+  supplementary:
+    - keyword: "حاشية"
+      plural: "حواشي"
+      typical_patterns:
+        - "حاشية"
+        - "حاشية: {content}"
+        - "الحاشية"
+      observed_in:
+        kutub_al_balagha: "2,359 untagged vs 0 tagged (100% untagged). Massively common in commentary books."
+      notes: |
+        NEVER tagged in any surveyed book. The single most common untagged keyword
+        across the entire corpus. Genre-specific: appears in شروح (commentary) books
+        where it marks marginal notes on the original text.
+        NOT a structural division in the same sense as باب/فصل — it's a commentary
+        layer marker. May need special handling in atomization (marks commentary atoms
+        vs original-text atoms).
+
+    - keyword: "شرح"
+      typical_patterns:
+        - "شرح"
+        - "الشرح"
+        - "شرح: {content}"
+      observed_in:
+        kutub_al_balagha: "531 untagged vs 4 tagged (99% untagged)"
+      notes: |
+        Almost always untagged. Marks commentary/explanation sections.
+        In commentary books, distinguishes the commentator's text from the original.
+        May also appear in book titles (شرح تلخيص المفتاح) — false positive risk.
+
+    - keyword: "مقدمة"
+      typical_patterns:
+        - "مقدمة"
+        - "مقدمة المحقق"
+        - "مقدمة الكتاب"
+      digestible: "Depends on content. Editor introductions are usually non-digestible. Author مقدمات may be digestible."
+
+    - keyword: "خطبة"
+      typical_patterns:
+        - "خطبة الكتاب"
+      digestible: false
+      notes: "Author's rhetorical praise/dedication. Typically non-digestible."
+
+    - keyword: "تمارين"
+      variants: ["تطبيق", "مسائل التمرين", "أسئلة"]
+      digestible: true
+      notes: "Exercise sections. Digestible as exercise excerpts."
+
+    - keyword: "فهرس"
+      variants: ["فهرس الموضوعات", "المحتويات"]
+      digestible: false
+      notes: "Table of contents. Non-digestible but used as cross-reference for hierarchy."
+
+    - keyword: "تقاريظ"
+      variants: ["تقاريظ الكتاب"]
+      digestible: false
+      notes: "Reviews/endorsements. Non-digestible."
+
+ordinal_patterns:
+  arabic_ordinals:
+    - "الأوَّل|الأول"
+    - "الثاني|الثانى"
+    - "الثالث"
+    - "الرابع"
+    - "الخامس"
+    - "السادس"
+    - "السابع"
+    - "الثامن"
+    - "التاسع"
+    - "العاشر"
+    - "الحادي عشر|الحادى عشر"
+    - "الثاني عشر|الثانى عشر"
+    - "الثالث عشر"
+  notes: |
+    Ordinals may use old orthography (الثانى vs الثاني).
+    Both forms must be recognized.
+
+hierarchy_rules:
+  observed_hierarchies:
+    jawahir:
+      - "علم {SCIENCE} > الباب {N} > المبحث {N}"
+      - depth: 3
+    shadha:
+      - "الباب {N} > التقسيم {N} (or فصل)"
+      - "الباب الثانى > التقسيم {N} > standalone topics (اسم الفاعل, etc.)"
+      - depth: 2-3
+
+  general_hierarchy:
+    - "كتاب > باب > فصل > مبحث (most formal)"
+    - "باب > فصل > مسألة (فقه-style)"
+    - "باب > تقسيم (as in شذا العرف)"
+    - "باب > مبحث (as in جواهر البلاغة)"
+
+  warnings:
+    - "Not all books follow standard hierarchy — always verify from context"
+    - "The same keyword may be at different hierarchy levels in different books"
+    - "Some books use no keywords at all for sub-divisions (inline transitions)"
+
+inline_division_patterns:
+  description: |
+    Divisions that are embedded within continuous text, not as standalone lines.
+    These are the hardest to detect and require LLM Pass 3.
+
+  observed_examples:
+    shadha_page_23:
+      text: "تنبيه -قد عَلِمت مما تقدم أن الاسم المتمكن لا تقل حروفه الأصلية عن ثلاثة..."
+      analysis: "Keyword 'تنبيه' followed by dash and immediate content. The division marker is inline."
+
+    shadha_toc_entries:
+      text: "تنبيهان.............. ....................................................29"
+      analysis: "TOC line. Not a heading in the text itself, but references one."
+
+  detection_hints:
+    - "Line starts with a known keyword followed by punctuation (dash, colon, space+content)"
+    - "The keyword is short (1-3 words) and the rest of the line is clearly explanatory"
+    - "Context: the preceding content was about a different topic"

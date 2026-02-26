@@ -1,0 +1,25 @@
+{
+  "book_id": "jawahir",
+  "source_file": "2_atoms_and_excerpts/1_jawahir_al_balagha/shamela_export.htm",
+  "source_sha256": "bfc9b3606ddc367431047f237261ced5ab627ca2b05bbc7f32f252cb2aaf335d",
+  "total_pages": 308,
+  "pages_with_footnotes": 205,
+  "total_footnotes": 616,
+  "pages_with_verse": 54,
+  "orphan_footnote_refs": 0,
+  "orphan_footnotes": 6,
+  "warnings": [
+    "Page ١٧١: Footnotes with no matching ref in matn: [2]",
+    "Page ٢٠٩: Footnotes with no matching ref in matn: [1]",
+    "Page ٢٦٧: Footnotes with no matching ref in matn: [26, 28]",
+    "Page ٣٠٠: Footnotes with no matching ref in matn: [2, 3, 4]",
+    "Page ٣٠٨: Footnotes with no matching ref in matn: [1]",
+    "Page ٣٤٢: Footnotes with no matching ref in matn: [2]"
+  ],
+  "pages_skipped": [
+    "(no page number)",
+    "(no page number)",
+    "(no page number)",
+    "(no page number)"
+  ]
+}
