@@ -22,7 +22,7 @@ Create an immutable anchor for everything downstream. After intake, the source H
 | Source path | Positional CLI argument | Yes |
 | Book ID | `--book-id` | Yes |
 | Primary science | `--science` (`balagha`, `sarf`, `nahw`, `imlaa`, `adjacent`, `unrelated`, or `multi`) | Yes |
-| Science parts file | `--science-parts` (YAML file) | Only when `--science multi` |
+| Science parts file | `--science-parts` (YAML file) | Optional for `--science multi` (interactive fallback) |
 | Edition notes | `--notes` | No |
 | Shamela book ID | `--shamela-id` (integer) | No |
 | Force flag | `--force` | No |
@@ -38,7 +38,7 @@ Create an immutable anchor for everything downstream. After intake, the source H
 - `balagha`, `sarf`, `nahw`, `imlaa` — one of the four sciences
 - `adjacent` — book is about the Arabic language but not one of our four sciences (e.g., poetry/شعر, literary criticism/أدب, lexicography/فقه اللغة). These books are closely related and likely contain relevant شواهد and examples
 - `unrelated` — book is outside the Arabic language sciences entirely but may contain relevant passages (e.g., فقه, عقيدة, تاريخ)
-- `multi` — book covers multiple sciences (requires `--science-parts`)
+- `multi` — book covers multiple sciences. Sections can be provided via `--science-parts` YAML file, or entered interactively when no file is given
 
 **Book ID** — see §3.1 for validation rules.
 
@@ -80,6 +80,10 @@ python tools/intake.py books/sources/sharh_ibn_aqil/ \
 python tools/intake.py books/sources/miftah_al_ulum.htm \
   --book-id miftah --science multi --science-parts miftah_parts.yaml
 
+# Multi-science interactive (no YAML file — prompts for sections)
+python tools/intake.py books/sources/miftah_al_ulum.htm \
+  --book-id miftah --science multi
+
 # Book with supplementary file
 python tools/intake.py books/sources/dalail_al_ijaz/ \
   --book-id dalail --science balagha
@@ -100,9 +104,10 @@ Before any pipeline operations begin, validate CLI arguments and resolve paths:
 1. **Source path existence:** Verify that the positional source path argument exists on disk (file or directory). If not: abort with `"Source path '{path}' does not exist."`.
 
 2. **Flag consistency:**
-   - If `--science multi` without `--science-parts`: abort with `"--science-parts is required when --science is 'multi'."`
+   - If `--science multi` without `--science-parts` and `--non-interactive`: abort (cannot collect interactive input)
+   - If `--science multi` without `--science-parts` in interactive mode: prompt the user to define sections one by one (section name, science_id, description). Minimum 2 sections required. Invalid science IDs are rejected and re-prompted.
    - If `--science-parts` provided without `--science multi`: abort with `"--science-parts is only allowed when --science is 'multi'. You passed --science '{value}'."`
-   - Validate the `--science-parts` YAML file: must exist, must be valid YAML, must be a list, each item must have `section`, `science_id`, and `description`. If invalid: abort with specific error.
+   - Validate the `--science-parts` YAML file (if provided): must exist, must be valid YAML, must be a list, each item must have `section`, `science_id`, and `description`. If invalid: abort with specific error.
 
 3. **Resolve paths:** Normalize the source path to an absolute path. All subsequent operations use this resolved path.
 
@@ -374,7 +379,7 @@ Based on the science declaration:
 
 **Note on `adjacent_field`:** This category is for books about the Arabic language that don't fall into our four sciences — such as Arabic poetry (شعر), literary criticism (أدب), or lexicography (فقه اللغة). These books are closely related to our corpus and likely contain relevant شواهد and examples. The distinction from `tangentially_relevant` matters for downstream excerpt routing: adjacent books are much more likely to contain usable material.
 
-**Note on `multi_science`:** For books like مفتاح العلوم (صرف + نحو + بلاغة), the user provides `science_parts` via `--science-parts`. This is informational and helps orient downstream stages, but does not constrain excerpt routing.
+**Note on `multi_science`:** For books like مفتاح العلوم (صرف + نحو + بلاغة), the user provides `science_parts` either via `--science-parts` YAML file or interactively at the prompt. This is informational and helps orient downstream stages, but does not constrain excerpt routing.
 
 ### 3.7.1 Scholarly context extraction
 

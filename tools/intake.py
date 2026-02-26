@@ -386,6 +386,44 @@ def classify_directory(dir_path):
 
 # ─── Science Validation (§3.6) ─────────────────────────────────────────────
 
+def collect_science_parts_interactive():
+    """Interactively collect science parts for a multi-science book.
+
+    Prompts the user for section name, science ID, and description in a loop.
+    Requires at least 2 sections (otherwise it's not really multi-science).
+
+    Returns a list of dicts with keys: section, science_id, description.
+    """
+    info("\n── Interactive multi-science mapping ──")
+    info("  Define the sections of this multi-science book.")
+    info(f"  Valid sciences: {', '.join(SINGLE_SCIENCES)}")
+    info("  Add at least 2 sections. Press Enter on section name to finish.\n")
+    parts = []
+    while True:
+        idx = len(parts) + 1
+        section = prompt_text(f"Section {idx} name (e.g. القسم الأول) [Enter to finish]:")
+        if not section:
+            if len(parts) < 2:
+                warn("  A multi-science book must have at least 2 sections. Keep going.")
+                continue
+            break
+        # Science ID
+        while True:
+            sid = prompt_text(f"  Science for '{section}' ({'/'.join(SINGLE_SCIENCES)}):")
+            if sid in SINGLE_SCIENCES:
+                break
+            warn(f"  Invalid science '{sid}'. Must be one of: {', '.join(SINGLE_SCIENCES)}")
+        desc = prompt_text(f"  Description for '{section}' (e.g. علم الصرف والاشتقاق):")
+        parts.append({
+            "section": section,
+            "science_id": sid,
+            "description": desc,
+        })
+        info(f"  ✓ Added: {section} → {sid}")
+    info(f"  Total sections: {len(parts)}")
+    return parts
+
+
 def validate_science(declared_science, qism_value, non_interactive):
     """§3.6: Cross-reference user's science declaration against القسم field.
     Returns the confirmed primary_science value.
@@ -914,15 +952,18 @@ def main():
         abort(f"Source path '{args.source}' does not exist.")
 
     # Flag consistency
-    if args.science == "multi" and not args.science_parts:
-        abort("--science-parts is required when --science is 'multi'.")
+    if args.science == "multi" and not args.science_parts and args.non_interactive:
+        abort("--science-parts is required when --science is 'multi' in --non-interactive mode.")
     if args.science_parts and args.science != "multi":
         abort(f"--science-parts is only allowed when --science is 'multi'. "
               f"You passed --science '{args.science}'.")
 
-    # Validate science_parts YAML
+    # Validate or interactively build science_parts
     science_parts = None
-    if args.science_parts:
+    if args.science == "multi" and not args.science_parts:
+        # Interactive multi-science input
+        science_parts = collect_science_parts_interactive()
+    elif args.science_parts:
         parts_path = Path(args.science_parts)
         if not parts_path.exists():
             abort(f"Science parts file '{args.science_parts}' does not exist.")

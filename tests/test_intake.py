@@ -594,3 +594,72 @@ class TestScholarlyContextCorpus:
                     invalid.append((os.path.basename(path), ctx["fiqh_madhab"]))
 
         assert len(invalid) == 0, f"Invalid madhabs: {invalid[:5]}"
+
+
+# ─── Interactive multi-science input tests ────────────────────────────────
+
+class TestCollectSciencePartsInteractive:
+    """Test the interactive multi-science section collection."""
+
+    def test_two_sections_normal_flow(self):
+        """User adds two sections then presses Enter to finish."""
+        from intake import collect_science_parts_interactive
+
+        # Simulate: section1 name, science, desc, section2 name, science, desc, empty to finish
+        inputs = iter([
+            "القسم الأول", "nahw", "علم النحو",
+            "القسم الثاني", "balagha", "علم البلاغة",
+            "",  # finish
+        ])
+        with patch("builtins.input", lambda prompt: next(inputs)):
+            result = collect_science_parts_interactive()
+
+        assert len(result) == 2
+        assert result[0] == {"section": "القسم الأول", "science_id": "nahw", "description": "علم النحو"}
+        assert result[1] == {"section": "القسم الثاني", "science_id": "balagha", "description": "علم البلاغة"}
+
+    def test_three_sections(self):
+        """User adds three sections (like مفتاح العلوم)."""
+        from intake import collect_science_parts_interactive
+
+        inputs = iter([
+            "الصرف", "sarf", "علم الصرف",
+            "النحو", "nahw", "علم النحو",
+            "البلاغة", "balagha", "المعاني والبيان والبديع",
+            "",
+        ])
+        with patch("builtins.input", lambda prompt: next(inputs)):
+            result = collect_science_parts_interactive()
+
+        assert len(result) == 3
+        assert [p["science_id"] for p in result] == ["sarf", "nahw", "balagha"]
+
+    def test_rejects_finish_with_one_section(self):
+        """User tries to finish after one section — forced to continue."""
+        from intake import collect_science_parts_interactive
+
+        inputs = iter([
+            "القسم الأول", "nahw", "علم النحو",
+            "",       # try to finish → rejected (< 2 sections)
+            "القسم الثاني", "sarf", "علم الصرف",
+            "",       # finish → accepted (2 sections)
+        ])
+        with patch("builtins.input", lambda prompt: next(inputs)):
+            result = collect_science_parts_interactive()
+
+        assert len(result) == 2
+
+    def test_rejects_invalid_science_then_accepts_valid(self):
+        """User types invalid science, gets prompted again."""
+        from intake import collect_science_parts_interactive
+
+        inputs = iter([
+            "القسم الأول", "fiqh", "nahw", "علم النحو",  # fiqh rejected, nahw accepted
+            "القسم الثاني", "balagha", "علم البلاغة",
+            "",
+        ])
+        with patch("builtins.input", lambda prompt: next(inputs)):
+            result = collect_science_parts_interactive()
+
+        assert len(result) == 2
+        assert result[0]["science_id"] == "nahw"
