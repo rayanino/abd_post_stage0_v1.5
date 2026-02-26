@@ -1021,10 +1021,13 @@ def integrate_pass3_results(
             decision_map[ci] = d
 
     # Phase 1: Apply decisions to existing headings
+    # Tag each heading with its ORIGINAL index so parent_ref can resolve after sorting
     confirmed: list[tuple[HeadingCandidate, dict]] = []
     rejected_count = 0
 
     for i, h in enumerate(headings):
+        h._original_index = i  # stable reference for parent_ref resolution
+
         dec = decision_map.get(i)
         if not dec:
             # No decision from LLM — keep with defaults
@@ -1073,6 +1076,7 @@ def integrate_pass3_results(
             document_position=max_doc_pos,
             page_mapped=True,
         )
+        new_h._original_index = None  # New heading, no original index
         max_doc_pos += 1
         dec_for_new = {
             "level": nd.get("level", 1),
@@ -1087,12 +1091,30 @@ def integrate_pass3_results(
 
     # Phase 3: Add new sub-divisions from Pass 3b
     new_from_3b = []
+    # Build lookup for existing heading pages+titles to dedup Pass 3b discoveries
+    existing_keys = set()
+    for h, _ in confirmed + new_from_3a:
+        norm_title = normalize_arabic_for_match(h.title)[:40]
+        existing_keys.add((h.seq_index, norm_title))
+
     for parent_idx, result_3b in pass3b_results.items():
         if not result_3b:
             continue
+
+        # Find parent's level for sub-division level assignment
+        parent_dec = decision_map.get(parent_idx, {})
+        parent_level = parent_dec.get("level", 1) or 1
+
         for sd in result_3b.get("new_subdivisions", []):
             seq = sd.get("approximate_seq_index", 0)
             seq = max(0, min(seq, max_seq))
+
+            # Dedup: skip if heading already exists at same page with similar title
+            norm_title = normalize_arabic_for_match(sd.get("title", ""))[:40]
+            if (seq, norm_title) in existing_keys:
+                continue
+            existing_keys.add((seq, norm_title))
+
             page = page_by_seq.get(seq)
             pn = page.page_number_int if page else seq + 1
             vol = page.volume if page else 1
@@ -1110,11 +1132,16 @@ def integrate_pass3_results(
                 document_position=max_doc_pos,
                 page_mapped=True,
             )
+            new_h._original_index = None  # No original index for new headings
             max_doc_pos += 1
 
-            # Sub-division's parent is the macro division
+            # Sub-division's parent is the macro division; level = parent + 1
+            sub_level = sd.get("level", parent_level + 1)
+            if sub_level <= parent_level:
+                sub_level = parent_level + 1
+
             dec_for_sub = {
-                "level": None,  # Will be set relative to parent
+                "level": sub_level,
                 "parent_ref": parent_idx,
                 "digestible": sd.get("digestible", "true"),
                 "content_type": sd.get("content_type"),
@@ -1144,6 +1171,7 @@ def build_hierarchical_tree(
     book_id: str,
     multi_volume: bool = False,
     keywords: Optional[dict[str, dict]] = None,
+    verbose: bool = False,
 ) -> list[DivisionNode]:
     """Build a hierarchical division tree from Pass 3-enriched headings.
 
@@ -1183,10 +1211,15 @@ def build_hierarchical_tree(
     # Phase 1: Create all DivisionNode objects
     divisions: list[DivisionNode] = []
     heading_to_div: dict[int, str] = {}  # heading list index → div_id
+    original_idx_to_div: dict[int, str] = {}  # original heading index → div_id
 
     for i, h in enumerate(deduped):
         div_id = f"div_{i:04d}"
         heading_to_div[i] = div_id
+        # Track by original index for parent_ref resolution
+        orig_idx = getattr(h, '_original_index', None)
+        if orig_idx is not None:
+            original_idx_to_div[orig_idx] = div_id
 
         # Detect keyword type from title
         div_type = "implicit"
@@ -1235,18 +1268,38 @@ def build_hierarchical_tree(
         divisions.append(div)
 
     # Phase 2: Assign parent-child relationships from Pass 3 references
+    if verbose:
+        print(f"  [Tree] original_idx_to_div has {len(original_idx_to_div)} entries")
+        for oidx in sorted(original_idx_to_div.keys())[:10]:
+            div_id = original_idx_to_div[oidx]
+            div_obj = next((d for d in divisions if d.id == div_id), None)
+            title_preview = div_obj.title[:40] if div_obj else "?"
+            print(f"    orig[{oidx}] → {div_id} '{title_preview}'")
+
+    fallback_count = 0
     for i, h in enumerate(deduped):
         parent_ref = getattr(h, '_pass3_parent_ref', None)
         if parent_ref is None:
             continue
 
-        # parent_ref is the candidate index from the original heading list
-        # We need to find the corresponding division in our deduped list
-        if isinstance(parent_ref, int) and parent_ref in heading_to_div:
+        # parent_ref is the original candidate index (pre-sort, pre-dedup).
+        # Use original_idx_to_div to resolve to a div_id.
+        if isinstance(parent_ref, int) and parent_ref in original_idx_to_div:
+            divisions[i].parent_id = original_idx_to_div[parent_ref]
+        elif isinstance(parent_ref, int) and parent_ref in heading_to_div:
+            # Fallback: try deduped index (for headings without _original_index)
+            fallback_count += 1
+            if verbose:
+                target_div = heading_to_div.get(parent_ref, "?")
+                print(f"  [Tree] FALLBACK parent_ref={parent_ref} for {divisions[i].id} "
+                      f"'{divisions[i].title[:30]}' → {target_div}")
             divisions[i].parent_id = heading_to_div[parent_ref]
         elif isinstance(parent_ref, str) and parent_ref.startswith("new_"):
             # Reference to a new_division by position — resolve by scan
             pass  # Complex cross-referencing; logged and handled below
+
+    if fallback_count > 0 and verbose:
+        print(f"  [Tree] WARNING: {fallback_count} parent refs resolved via fallback (heading_to_div)")
 
     # Build child_ids from parent_ids
     for div in divisions:
@@ -1257,38 +1310,93 @@ def build_hierarchical_tree(
             if parent:
                 parent.child_ids.append(div.id)
 
-    # Phase 3: Assign page ranges
-    # Strategy: process in document order, assigning each division a range
-    # from its start to just before the next same-level-or-higher division.
-    # Then constrain children within parent ranges.
+    # Phase 3: Tree-aware range computation.
+    # Uses iterative top-down approach: compute root ranges, then children
+    # within parent bounds. Detach children that fall outside parent range,
+    # then repeat until stable (no more detachments).
 
-    for i, div in enumerate(divisions):
-        # End seq: find the next division at the same or higher level
-        # that is NOT a child of this division
-        end_seq = max_seq  # default: rest of book
-        for j in range(i + 1, len(divisions)):
-            other = divisions[j]
-            other_level = other.level
-            # Stop at next sibling or higher-level division
-            if other_level <= div.level and other.parent_id == div.parent_id:
-                end_seq = other.start_seq_index - 1
-                break
-            # Also stop at a division at a higher (smaller number) level
-            if other_level < div.level and other.parent_id != div.id:
-                end_seq = other.start_seq_index - 1
-                break
-
-        div.end_seq_index = max(div.start_seq_index, end_seq)
-
-    # Phase 3b: Constrain children within parent ranges
     div_by_id = {d.id: d for d in divisions}
+    total_detached = 0
+
+    def _compute_sibling_ranges(sibling_ids: list[str], group_end: int):
+        """Assign sequential ranges to a group of siblings.
+
+        Each sibling's range runs from its start to just before the next
+        sibling's start, with the last sibling extending to group_end.
+        """
+        siblings = [div_by_id[sid] for sid in sibling_ids if sid in div_by_id]
+        siblings.sort(key=lambda d: (d.start_seq_index, divisions.index(d)))
+
+        for idx, sib in enumerate(siblings):
+            if idx + 1 < len(siblings):
+                next_start = siblings[idx + 1].start_seq_index
+                sib.end_seq_index = max(sib.start_seq_index, next_start - 1)
+            else:
+                sib.end_seq_index = group_end
+            # Clamp to group boundary
+            sib.end_seq_index = min(sib.end_seq_index, group_end)
+            # Hard invariant: end >= start
+            sib.end_seq_index = max(sib.end_seq_index, sib.start_seq_index)
+
+    def _full_range_pass() -> int:
+        """One full top-down pass: roots → children by level. Returns detach count."""
+        detached_this_pass = 0
+
+        # Compute root ranges
+        root_ids = [d.id for d in divisions if d.parent_id is None]
+        _compute_sibling_ranges(root_ids, max_seq)
+
+        # Process children level by level (top-down)
+        max_depth = max((d.level for d in divisions), default=1)
+        for level in range(1, max_depth + 1):
+            parents_at_level = [d for d in divisions
+                                if d.level == level and d.child_ids]
+            for parent in parents_at_level:
+                valid_children = []
+                for cid in list(parent.child_ids):
+                    child = div_by_id.get(cid)
+                    if not child:
+                        parent.child_ids.remove(cid)
+                        continue
+                    # Check containment: child must start within parent range
+                    if child.start_seq_index < parent.start_seq_index or \
+                       child.start_seq_index > parent.end_seq_index:
+                        if verbose:
+                            print(f"  [Tree] Detaching {child.id} from {parent.id}: "
+                                  f"child starts at {child.start_seq_index}, "
+                                  f"parent range [{parent.start_seq_index}-"
+                                  f"{parent.end_seq_index}]")
+                        parent.child_ids.remove(cid)
+                        child.parent_id = None
+                        # Also detach grandchildren (they become orphans)
+                        # They'll be re-parented as roots in the next iteration
+                        detached_this_pass += 1
+                    else:
+                        valid_children.append(cid)
+
+                # Compute ranges for valid children within parent bounds
+                if valid_children:
+                    _compute_sibling_ranges(valid_children, parent.end_seq_index)
+
+        return detached_this_pass
+
+    # Iterate until stable (max 5 iterations to prevent infinite loops)
+    for iteration in range(5):
+        detached = _full_range_pass()
+        total_detached += detached
+        if detached == 0:
+            break
+        if verbose:
+            print(f"  [Tree] Iteration {iteration + 1}: detached {detached} — "
+                  f"recomputing ranges")
+
+    if total_detached > 0 and verbose:
+        print(f"  [Tree] Total detached: {total_detached} divisions")
+
+    # Final safety: enforce end >= start for ALL divisions
     for div in divisions:
-        if div.parent_id and div.parent_id in div_by_id:
-            parent = div_by_id[div.parent_id]
-            # Child cannot extend beyond parent
-            div.end_seq_index = min(div.end_seq_index, parent.end_seq_index)
-            # Child cannot start before parent
-            div.start_seq_index = max(div.start_seq_index, parent.start_seq_index)
+        if div.end_seq_index < div.start_seq_index:
+            div.end_seq_index = div.start_seq_index
 
     # Phase 4: Set page counts and hints
     for div in divisions:
@@ -2193,8 +2301,19 @@ def generate_full_review_md(
         "",
     ]
 
+    # Build actual depth from parent-child relationships (not LLM-assigned level)
+    div_by_id = {d.id: d for d in divisions}
+    actual_depth: dict[str, int] = {}
+    for d in divisions:
+        depth = 0
+        pid = d.parent_id
+        while pid and pid in div_by_id and depth < 10:
+            depth += 1
+            pid = div_by_id[pid].parent_id
+        actual_depth[d.id] = depth
+
     for d in sorted(divisions, key=lambda x: x.start_seq_index):
-        indent = "  " * (d.level - 1)
+        indent = "  " * actual_depth.get(d.id, 0)
         tier = {"html_tagged": "T1", "keyword_heuristic": "T2", "llm_discovered": "T3",
                 "toc_inferred": "TOC", "human_override": "HO"}.get(d.detection_method, "??")
         conf = d.confidence[:3]
@@ -2645,6 +2764,7 @@ def main():
                 science_id = metadata.get("science_id") or metadata.get("primary_science")
                 divisions = build_hierarchical_tree(
                     enriched_headings, pages, book_id, multi_volume, keywords,
+                    verbose=args.verbose,
                 )
                 print(f"[Tree] Built {len(divisions)} divisions (hierarchical)")
                 max_depth = max((d.level for d in divisions), default=0)
@@ -2692,12 +2812,23 @@ def main():
     print(f"[Passages] Built {len(passages)} passages")
 
     # Post-build sanity: check for passage overlaps
-    overlap_count = 0
+    # Same-page siblings (both start on same page, each covers ≤1 page) are tolerated
+    # as they represent multiple headings sharing one page.
+    true_overlap_count = 0
+    same_page_count = 0
     for idx in range(len(passages) - 1):
-        if passages[idx].end_seq_index >= passages[idx + 1].start_seq_index:
-            overlap_count += 1
-    if overlap_count > 0:
-        print(f"[WARNING] {overlap_count} passage overlap(s) detected — review output carefully")
+        p1, p2 = passages[idx], passages[idx + 1]
+        if p1.end_seq_index >= p2.start_seq_index:
+            if p1.start_seq_index == p2.start_seq_index and \
+               p1.start_seq_index == p1.end_seq_index and \
+               p2.start_seq_index == p2.end_seq_index:
+                same_page_count += 1
+            else:
+                true_overlap_count += 1
+    if true_overlap_count > 0:
+        print(f"[WARNING] {true_overlap_count} passage overlap(s) detected — review output carefully")
+    if same_page_count > 0:
+        print(f"[INFO] {same_page_count} same-page passage pair(s) (multiple headings on one page)")
 
     # --- Write all output artifacts ---
 
