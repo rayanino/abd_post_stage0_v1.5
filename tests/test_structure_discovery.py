@@ -26,11 +26,13 @@ from discover_structure import (
     PassageRecord,
     TOCEntry,
     build_division_tree,
+    build_hierarchical_tree,
     build_page_index,
     build_passages,
     classify_digestibility,
     detect_keyword_type_from_title,
     indic_to_int,
+    integrate_pass3_results,
     int_to_indic,
     load_keywords,
     load_ordinals,
@@ -1040,6 +1042,193 @@ class TestRegressionExerciseClassification:
         )
         dig, ct = classify_digestibility(h)
         assert ct == "teaching", f"Expected teaching, got {ct}"
+
+
+class TestPass3Integration:
+    """Test Pass 3 integration logic with simulated LLM responses."""
+
+    def _make_pages(self, n=20):
+        return [PageRecord(seq_index=i, page_number_int=i+1, volume=1,
+                           matn_text=f"content page {i}", page_hint=f"p{i}")
+                for i in range(n)]
+
+    def _make_headings(self, specs):
+        """specs: list of (title, seq_index, method, confidence, keyword_type)"""
+        headings = []
+        for i, (title, seq, method, conf, kw) in enumerate(specs):
+            headings.append(HeadingCandidate(
+                title=title, seq_index=seq, page_number_int=seq+1, volume=1,
+                page_hint=f"p{seq}", detection_method=method, confidence=conf,
+                keyword_type=kw, document_position=i, page_mapped=True,
+            ))
+        return headings
+
+    def test_integration_confirm_reject(self):
+        """Pass 3a confirms some, rejects others. Rejected headings disappear."""
+        pages = self._make_pages(20)
+        headings = self._make_headings([
+            ("الباب الأول", 0, "html_tagged", "confirmed", "الباب"),
+            ("not a real heading", 5, "keyword_heuristic", "medium", "الباب"),
+            ("الباب الثاني", 10, "html_tagged", "confirmed", "الباب"),
+        ])
+
+        result_3a = {
+            "decisions": [
+                {"candidate_index": 0, "action": "confirm", "level": 1, "parent_ref": None,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 1, "action": "reject"},
+                {"candidate_index": 2, "action": "confirm", "level": 1, "parent_ref": None,
+                 "digestible": "true", "content_type": "teaching"},
+            ],
+            "new_divisions": [],
+        }
+
+        enriched = integrate_pass3_results(headings, result_3a, {}, pages)
+        assert len(enriched) == 2  # one rejected
+        assert enriched[0].title == "الباب الأول"
+        assert enriched[1].title == "الباب الثاني"
+
+    def test_integration_hierarchy(self):
+        """Pass 3a assigns hierarchy levels. Tree builder respects them."""
+        pages = self._make_pages(20)
+        headings = self._make_headings([
+            ("الباب الأول", 0, "html_tagged", "confirmed", "الباب"),
+            ("فصل في الأسماء", 2, "html_tagged", "confirmed", "فصل"),
+            ("فصل في الأفعال", 8, "html_tagged", "confirmed", "فصل"),
+            ("الباب الثاني", 12, "html_tagged", "confirmed", "الباب"),
+        ])
+
+        result_3a = {
+            "decisions": [
+                {"candidate_index": 0, "action": "confirm", "level": 1, "parent_ref": None,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 1, "action": "confirm", "level": 2, "parent_ref": 0,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 2, "action": "confirm", "level": 2, "parent_ref": 0,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 3, "action": "confirm", "level": 1, "parent_ref": None,
+                 "digestible": "true", "content_type": "teaching"},
+            ],
+            "new_divisions": [],
+        }
+
+        enriched = integrate_pass3_results(headings, result_3a, {}, pages)
+        assert len(enriched) == 4
+
+        import yaml
+        with open("2_structure_discovery/structural_patterns.yaml") as f:
+            patterns = yaml.safe_load(f)
+        keywords = load_keywords(patterns)
+
+        divs = build_hierarchical_tree(enriched, pages, "test", keywords=keywords)
+        assert len(divs) == 4
+
+        # Check hierarchy: فصل divs should have parent = باب الأول
+        bab1 = divs[0]
+        fasl1 = divs[1]
+        fasl2 = divs[2]
+        bab2 = divs[3]
+
+        assert bab1.level == 1
+        assert fasl1.level == 2
+        assert fasl1.parent_id == bab1.id
+        assert fasl2.parent_id == bab1.id
+        assert bab2.level == 1
+        assert bab2.parent_id is None
+
+        # Check page ranges: children within parent
+        assert fasl1.start_seq_index >= bab1.start_seq_index
+        assert fasl1.end_seq_index <= bab1.end_seq_index
+        assert fasl2.start_seq_index >= bab1.start_seq_index
+        assert fasl2.end_seq_index <= bab1.end_seq_index
+
+        # Passages should come from LEAF divisions only
+        # bab1 has children (fasl1, fasl2) so it's NOT a leaf — but its preamble IS
+        # fasl1, fasl2, bab2 are leaves, plus bab1's preamble (pages 0-1)
+        passages = build_passages(divs, "test", pages=pages)
+        assert len(passages) == 4
+        passage_titles = [p.title for p in passages]
+        assert "الباب الأول" not in passage_titles  # parent, not a passage
+        assert any("مقدمة" in t for t in passage_titles)  # preamble passage
+        assert "فصل في الأسماء" in passage_titles
+        assert "فصل في الأفعال" in passage_titles
+        assert "الباب الثاني" in passage_titles
+
+    def test_integration_new_divisions(self):
+        """Pass 3a discovers new divisions not found by Passes 1-2."""
+        pages = self._make_pages(20)
+        headings = self._make_headings([
+            ("الباب الأول", 0, "html_tagged", "confirmed", "الباب"),
+            ("الباب الثاني", 10, "html_tagged", "confirmed", "الباب"),
+        ])
+
+        result_3a = {
+            "decisions": [
+                {"candidate_index": 0, "action": "confirm", "level": 1, "parent_ref": None,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 1, "action": "confirm", "level": 1, "parent_ref": None,
+                 "digestible": "true", "content_type": "teaching"},
+            ],
+            "new_divisions": [
+                {"title": "مقدمة المؤلف", "type": "مقدمة", "approximate_seq_index": 0,
+                 "level": 1, "parent_ref": None, "digestible": "uncertain",
+                 "content_type": None, "confidence": "medium"},
+            ],
+        }
+
+        enriched = integrate_pass3_results(headings, result_3a, {}, pages)
+        # 2 original + 1 new = 3
+        assert len(enriched) == 3
+        llm_discovered = [h for h in enriched if h.detection_method == "llm_discovered"]
+        assert len(llm_discovered) == 1
+        assert llm_discovered[0].title == "مقدمة المؤلف"
+
+    def test_integration_no_overlapping_passages(self):
+        """Hierarchical tree must never produce overlapping passages."""
+        pages = self._make_pages(30)
+        headings = self._make_headings([
+            ("الباب الأول", 0, "html_tagged", "confirmed", "الباب"),
+            ("الفصل الأول", 2, "html_tagged", "confirmed", "الفصل"),
+            ("الفصل الثاني", 10, "html_tagged", "confirmed", "الفصل"),
+            ("الباب الثاني", 15, "html_tagged", "confirmed", "الباب"),
+            ("الفصل الأول", 17, "html_tagged", "confirmed", "الفصل"),
+            ("الخاتمة", 25, "html_tagged", "confirmed", "خاتمة"),
+        ])
+
+        result_3a = {
+            "decisions": [
+                {"candidate_index": 0, "action": "confirm", "level": 1, "parent_ref": None,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 1, "action": "confirm", "level": 2, "parent_ref": 0,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 2, "action": "confirm", "level": 2, "parent_ref": 0,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 3, "action": "confirm", "level": 1, "parent_ref": None,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 4, "action": "confirm", "level": 2, "parent_ref": 3,
+                 "digestible": "true", "content_type": "teaching"},
+                {"candidate_index": 5, "action": "confirm", "level": 1, "parent_ref": None,
+                 "digestible": "true", "content_type": "teaching"},
+            ],
+            "new_divisions": [],
+        }
+
+        enriched = integrate_pass3_results(headings, result_3a, {}, pages)
+
+        import yaml
+        with open("2_structure_discovery/structural_patterns.yaml") as f:
+            patterns = yaml.safe_load(f)
+        keywords = load_keywords(patterns)
+
+        divs = build_hierarchical_tree(enriched, pages, "test", keywords=keywords)
+        passages = build_passages(divs, "test", pages=pages)
+
+        # Verify NO overlaps
+        sorted_p = sorted(passages, key=lambda p: p.start_seq_index)
+        for i in range(len(sorted_p) - 1):
+            assert sorted_p[i].end_seq_index < sorted_p[i+1].start_seq_index, \
+                f"Overlap: {sorted_p[i].passage_id}[{sorted_p[i].start_seq_index}-{sorted_p[i].end_seq_index}] " \
+                f"vs {sorted_p[i+1].passage_id}[{sorted_p[i+1].start_seq_index}-{sorted_p[i+1].end_seq_index}]"
 
 
 class TestRegressionDuplicatePageNumbers:

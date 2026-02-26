@@ -40,7 +40,7 @@ import yaml
 # Constants
 # ---------------------------------------------------------------------------
 
-TOOL_VERSION = "v0.2"
+TOOL_VERSION = "v0.3"
 TOOL_NAME = "tools/discover_structure.py"
 
 # Arabic-Indic digit map
@@ -698,6 +698,623 @@ def build_page_index(pages: list[PageRecord]) -> dict[tuple[int, int], PageRecor
 
 
 # ---------------------------------------------------------------------------
+# Pass 3: LLM-Assisted Discovery (Tier 3)
+# ---------------------------------------------------------------------------
+
+LLM_DEFAULT_MODEL = "claude-sonnet-4-20250514"
+LLM_MAX_RETRIES = 3
+
+
+def _init_llm_client():
+    """Initialize Anthropic client. Returns (client, error_message)."""
+    try:
+        import anthropic
+    except ImportError:
+        return None, "anthropic package not installed. Install with: pip install anthropic --break-system-packages"
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None, "ANTHROPIC_API_KEY environment variable not set."
+
+    return anthropic.Anthropic(api_key=api_key), None
+
+
+def call_llm(client, prompt: str, *, max_tokens: int = 4096, model: str = LLM_DEFAULT_MODEL) -> Optional[dict]:
+    """Call LLM and parse JSON response. Returns parsed dict or None on failure.
+
+    Handles markdown fence stripping, retry on JSON parse failure (up to LLM_MAX_RETRIES).
+    """
+    last_raw = ""
+    for attempt in range(LLM_MAX_RETRIES):
+        try:
+            messages = [{"role": "user", "content": prompt}]
+            if attempt > 0:
+                # On retry, append error feedback
+                messages.append({"role": "assistant", "content": last_raw})
+                messages.append({
+                    "role": "user",
+                    "content": f"Your response was not valid JSON. Error: {last_error}. "
+                               "Please respond with ONLY a valid JSON object, no markdown fences or preamble."
+                })
+
+            response = client.messages.create(
+                model=model, max_tokens=max_tokens, messages=messages,
+            )
+            raw_text = response.content[0].text.strip()
+            last_raw = raw_text
+
+            # Strip markdown fences if present
+            clean = re.sub(r"^```(?:json)?\s*", "", raw_text)
+            clean = re.sub(r"\s*```\s*$", "", clean).strip()
+
+            result = json.loads(clean)
+            return result
+
+        except json.JSONDecodeError as e:
+            last_error = str(e)
+            print(f"  [LLM] JSON parse error (attempt {attempt + 1}/{LLM_MAX_RETRIES}): {e}")
+            if attempt < LLM_MAX_RETRIES - 1:
+                print(f"  [LLM] Retrying...")
+            continue
+        except Exception as e:
+            print(f"  [LLM] API error: {e}", file=sys.stderr)
+            return None
+
+    print(f"  [LLM] Failed after {LLM_MAX_RETRIES} retries. Raw response: {last_raw[:200]}", file=sys.stderr)
+    return None
+
+
+def _build_context_samples(
+    headings: list[HeadingCandidate],
+    pages: list[PageRecord],
+) -> list[str]:
+    """Build context samples: first ~200 chars of content after each heading."""
+    page_by_seq = {p.seq_index: p for p in pages}
+    samples = []
+    for h in headings:
+        page = page_by_seq.get(h.seq_index)
+        if not page:
+            samples.append("")
+            continue
+
+        text = page.matn_text
+        # If inline heading, start after the heading boundary
+        if h.heading_text_boundary and h.heading_text_boundary < len(text):
+            text = text[h.heading_text_boundary:]
+        else:
+            # Skip lines that ARE the heading
+            lines = text.split("\n")
+            content_lines = []
+            title_norm = normalize_arabic_for_match(h.title)[:30]
+            past_heading = False
+            for line in lines:
+                if not past_heading and title_norm and title_norm in normalize_arabic_for_match(line):
+                    past_heading = True
+                    continue
+                if past_heading or not title_norm:
+                    content_lines.append(line)
+            text = "\n".join(content_lines) if content_lines else text
+
+        # Take first 200 chars
+        sample = text.strip()[:200].replace("\n", " ")
+        samples.append(sample)
+    return samples
+
+
+def _format_candidates_for_prompt(headings: list[HeadingCandidate]) -> str:
+    """Format heading candidates as JSON for the LLM prompt."""
+    items = []
+    for i, h in enumerate(headings):
+        items.append({
+            "index": i,
+            "title": h.title,
+            "seq_index": h.seq_index,
+            "page_hint": h.page_hint,
+            "detection_method": h.detection_method,
+            "confidence": h.confidence,
+            "keyword_type": h.keyword_type,
+        })
+    return json.dumps(items, ensure_ascii=False, indent=2)
+
+
+def _load_prompt_template(prompt_path: str) -> str:
+    """Load a prompt template from disk."""
+    with open(prompt_path, encoding="utf-8") as f:
+        return f.read()
+
+
+def pass3a_macro_structure(
+    client,
+    headings: list[HeadingCandidate],
+    pages: list[PageRecord],
+    toc_entries: list[TOCEntry],
+    metadata: dict,
+    prompt_dir: str,
+) -> Optional[dict]:
+    """Pass 3a — Macro Structure Discovery.
+
+    Sends all heading candidates + context to LLM for:
+    - Confirm/reject/modify each candidate
+    - Hierarchy assignment (levels + parent refs)
+    - Digestibility classification
+    - Gap detection (new divisions)
+
+    Returns parsed LLM response dict or None on failure.
+    """
+    # Load prompt template
+    template_path = os.path.join(prompt_dir, "pass3a_macro_v0.1.md")
+    if not os.path.exists(template_path):
+        print(f"  [Pass 3a] ERROR: prompt template not found: {template_path}", file=sys.stderr)
+        return None
+
+    template = _load_prompt_template(template_path)
+
+    # Build context samples
+    context_samples = _build_context_samples(headings, pages)
+    context_text = ""
+    for i, (h, sample) in enumerate(zip(headings, context_samples)):
+        if sample:
+            context_text += f"\n[{i}] {h.title}\n  → {sample}\n"
+        else:
+            context_text += f"\n[{i}] {h.title}\n  → (no content sample available)\n"
+
+    # Format TOC entries
+    toc_json = ""
+    if toc_entries:
+        toc_items = [{"title": t.title, "page_number": t.page_number, "indent_level": t.indent_level}
+                     for t in toc_entries]
+        toc_json = json.dumps(toc_items, ensure_ascii=False, indent=2)
+
+    # Fill template
+    prompt = template
+    prompt = prompt.replace("{{book_title}}", metadata.get("title", "Unknown"))
+    prompt = prompt.replace("{{book_author}}", metadata.get("author", "Unknown"))
+    prompt = prompt.replace("{{book_science}}", metadata.get("primary_science", "Unknown"))
+    prompt = prompt.replace("{{total_pages}}", str(len(pages)))
+    prompt = prompt.replace("{{candidate_count}}", str(len(headings)))
+    prompt = prompt.replace("{{candidates_json}}", _format_candidates_for_prompt(headings))
+    prompt = prompt.replace("{{context_samples}}", context_text)
+
+    # Handle TOC conditional block
+    if toc_entries:
+        prompt = prompt.replace("{{#if toc_entries}}", "")
+        prompt = prompt.replace("{{/if}}", "")
+        prompt = prompt.replace("{{toc_entries_json}}", toc_json)
+    else:
+        # Remove entire TOC block
+        prompt = re.sub(r"\{\{#if toc_entries\}\}.*?\{\{/if\}\}", "", prompt, flags=re.DOTALL)
+
+    # Estimate tokens: ~4 chars per token for Arabic
+    est_input_tokens = len(prompt) // 4
+    print(f"  [Pass 3a] Prompt size: ~{est_input_tokens} tokens ({len(headings)} candidates)")
+
+    # Call LLM
+    result = call_llm(client, prompt, max_tokens=8192)
+    if not result:
+        return None
+
+    # Validate response structure
+    if "decisions" not in result:
+        print("  [Pass 3a] ERROR: response missing 'decisions' field", file=sys.stderr)
+        return None
+
+    decisions = result["decisions"]
+    if len(decisions) != len(headings):
+        print(f"  [Pass 3a] WARNING: got {len(decisions)} decisions for {len(headings)} candidates")
+
+    # Validate each decision
+    valid_actions = {"confirm", "reject", "modify"}
+    max_seq = max(p.seq_index for p in pages)
+    for d in decisions:
+        if d.get("action") not in valid_actions:
+            print(f"  [Pass 3a] WARNING: invalid action '{d.get('action')}' for candidate {d.get('candidate_index')}")
+
+    # Validate new divisions
+    for nd in result.get("new_divisions", []):
+        seq = nd.get("approximate_seq_index", -1)
+        if seq < 0 or seq > max_seq:
+            print(f"  [Pass 3a] WARNING: new division seq_index {seq} out of range [0, {max_seq}]")
+
+    return result
+
+
+def pass3b_deep_scan(
+    client,
+    section_title: str,
+    section_type: str,
+    start_seq: int,
+    end_seq: int,
+    known_subheadings: list[HeadingCandidate],
+    pages: list[PageRecord],
+    metadata: dict,
+    prompt_dir: str,
+) -> Optional[dict]:
+    """Pass 3b — Deep Division Scan for a single macro division.
+
+    Sends the full text of one section to find missed sub-divisions.
+    Only called for confirmed macro divisions > 5 pages.
+
+    Returns parsed LLM response dict or None on failure.
+    """
+    template_path = os.path.join(prompt_dir, "pass3b_deep_v0.1.md")
+    if not os.path.exists(template_path):
+        print(f"  [Pass 3b] ERROR: prompt template not found: {template_path}", file=sys.stderr)
+        return None
+
+    template = _load_prompt_template(template_path)
+
+    page_by_seq = {p.seq_index: p for p in pages}
+    page_count = end_seq - start_seq + 1
+
+    # Build full text of the section
+    section_lines = []
+    for seq in range(start_seq, end_seq + 1):
+        page = page_by_seq.get(seq)
+        if page:
+            section_lines.append(f"[seq={seq}]")
+            section_lines.append(page.matn_text)
+            section_lines.append("")
+    section_text = "\n".join(section_lines)
+
+    # Truncate if too long (aim for ~100K chars ≈ 25K tokens)
+    if len(section_text) > 100_000:
+        section_text = section_text[:100_000] + "\n\n[... text truncated for length ...]"
+
+    # Format known sub-headings
+    sub_items = []
+    for i, h in enumerate(known_subheadings):
+        sub_items.append({
+            "index": i,
+            "title": h.title,
+            "seq_index": h.seq_index,
+            "detection_method": h.detection_method,
+        })
+    known_json = json.dumps(sub_items, ensure_ascii=False, indent=2)
+
+    # Fill template
+    page_range = f"seq [{start_seq}–{end_seq}]"
+    prompt = template
+    prompt = prompt.replace("{{book_title}}", metadata.get("title", "Unknown"))
+    prompt = prompt.replace("{{book_science}}", metadata.get("primary_science", "Unknown"))
+    prompt = prompt.replace("{{section_title}}", section_title)
+    prompt = prompt.replace("{{section_type}}", section_type)
+    prompt = prompt.replace("{{page_range}}", page_range)
+    prompt = prompt.replace("{{page_count}}", str(page_count))
+    prompt = prompt.replace("{{known_subheadings_count}}", str(len(known_subheadings)))
+    prompt = prompt.replace("{{known_subheadings_json}}", known_json)
+    prompt = prompt.replace("{{section_text}}", section_text)
+
+    est_input_tokens = len(prompt) // 4
+    print(f"    [Pass 3b] '{section_title[:40]}' ({page_count}p, ~{est_input_tokens} tokens)")
+
+    result = call_llm(client, prompt, max_tokens=4096)
+    return result
+
+
+def integrate_pass3_results(
+    headings: list[HeadingCandidate],
+    pass3a_result: dict,
+    pass3b_results: dict[int, dict],  # keyed by candidate_index of the macro division
+    pages: list[PageRecord],
+) -> list[HeadingCandidate]:
+    """Integrate Pass 3 LLM results back into the heading list.
+
+    - Applies confirm/reject/modify decisions from Pass 3a
+    - Enriches headings with hierarchy (level, parent_ref)
+    - Adds new divisions discovered by Pass 3a and Pass 3b
+    - Returns the final enriched heading list (rejected headings removed)
+
+    Each heading gets new attributes stored in _pass3_* fields:
+    - _pass3_level: int
+    - _pass3_parent_ref: Optional[int] (index into final list)
+    - _pass3_digestible: str
+    - _pass3_content_type: Optional[str]
+    """
+    decisions = pass3a_result.get("decisions", [])
+    new_divs_3a = pass3a_result.get("new_divisions", [])
+
+    # Build decision lookup
+    decision_map: dict[int, dict] = {}
+    for d in decisions:
+        ci = d.get("candidate_index")
+        if ci is not None:
+            decision_map[ci] = d
+
+    # Phase 1: Apply decisions to existing headings
+    confirmed: list[tuple[HeadingCandidate, dict]] = []
+    rejected_count = 0
+
+    for i, h in enumerate(headings):
+        dec = decision_map.get(i)
+        if not dec:
+            # No decision from LLM — keep with defaults
+            confirmed.append((h, {"level": 1, "parent_ref": None,
+                                  "digestible": "true", "content_type": "teaching"}))
+            continue
+
+        action = dec.get("action", "confirm")
+        if action == "reject":
+            rejected_count += 1
+            continue
+
+        if action == "modify":
+            # Update title if provided
+            new_title = dec.get("new_title")
+            if new_title:
+                h.title = new_title
+
+        confirmed.append((h, dec))
+
+    print(f"  [Pass 3] {len(confirmed)} confirmed, {rejected_count} rejected")
+
+    # Phase 2: Add new divisions from Pass 3a
+    max_seq = max(p.seq_index for p in pages)
+    page_by_seq = {p.seq_index: p for p in pages}
+    # Track next document_position for new headings
+    max_doc_pos = max((h.document_position for h in headings), default=0) + 1
+
+    new_from_3a = []
+    for nd in new_divs_3a:
+        seq = nd.get("approximate_seq_index", 0)
+        seq = max(0, min(seq, max_seq))
+        page = page_by_seq.get(seq)
+        pn = page.page_number_int if page else seq + 1
+        vol = page.volume if page else 1
+
+        new_h = HeadingCandidate(
+            title=nd.get("title", ""),
+            seq_index=seq,
+            page_number_int=pn,
+            volume=vol,
+            page_hint=page.page_hint if page else f"seq:{seq}",
+            detection_method="llm_discovered",
+            confidence=nd.get("confidence", "medium"),
+            keyword_type=nd.get("type"),
+            document_position=max_doc_pos,
+            page_mapped=True,
+        )
+        max_doc_pos += 1
+        dec_for_new = {
+            "level": nd.get("level", 1),
+            "parent_ref": nd.get("parent_ref"),
+            "digestible": nd.get("digestible", "true"),
+            "content_type": nd.get("content_type"),
+        }
+        new_from_3a.append((new_h, dec_for_new))
+
+    if new_from_3a:
+        print(f"  [Pass 3a] Discovered {len(new_from_3a)} new divisions")
+
+    # Phase 3: Add new sub-divisions from Pass 3b
+    new_from_3b = []
+    for parent_idx, result_3b in pass3b_results.items():
+        if not result_3b:
+            continue
+        for sd in result_3b.get("new_subdivisions", []):
+            seq = sd.get("approximate_seq_index", 0)
+            seq = max(0, min(seq, max_seq))
+            page = page_by_seq.get(seq)
+            pn = page.page_number_int if page else seq + 1
+            vol = page.volume if page else 1
+
+            new_h = HeadingCandidate(
+                title=sd.get("title", ""),
+                seq_index=seq,
+                page_number_int=pn,
+                volume=vol,
+                page_hint=page.page_hint if page else f"seq:{seq}",
+                detection_method="llm_discovered",
+                confidence=sd.get("confidence", "medium"),
+                keyword_type=sd.get("type"),
+                inline_heading=sd.get("inline_heading", False),
+                document_position=max_doc_pos,
+                page_mapped=True,
+            )
+            max_doc_pos += 1
+
+            # Sub-division's parent is the macro division
+            dec_for_sub = {
+                "level": None,  # Will be set relative to parent
+                "parent_ref": parent_idx,
+                "digestible": sd.get("digestible", "true"),
+                "content_type": sd.get("content_type"),
+            }
+            new_from_3b.append((new_h, dec_for_sub))
+
+    if new_from_3b:
+        print(f"  [Pass 3b] Discovered {len(new_from_3b)} new sub-divisions")
+
+    # Phase 4: Merge all into a single list sorted by (seq_index, document_position)
+    all_entries = confirmed + new_from_3a + new_from_3b
+    all_entries.sort(key=lambda x: (x[0].seq_index, x[0].document_position))
+
+    # Enrich headings with Pass 3 attributes
+    for h, dec in all_entries:
+        h._pass3_level = dec.get("level", 1)
+        h._pass3_parent_ref = dec.get("parent_ref")
+        h._pass3_digestible = dec.get("digestible", "true")
+        h._pass3_content_type = dec.get("content_type")
+
+    return [h for h, _ in all_entries]
+
+
+def build_hierarchical_tree(
+    headings: list[HeadingCandidate],
+    pages: list[PageRecord],
+    book_id: str,
+    multi_volume: bool = False,
+    keywords: Optional[dict[str, dict]] = None,
+) -> list[DivisionNode]:
+    """Build a hierarchical division tree from Pass 3-enriched headings.
+
+    Unlike build_division_tree (flat), this produces a proper parent-child tree
+    using the LLM-assigned levels and parent references.
+
+    Page ranges respect hierarchy: a parent's range contains all children.
+    Leaf-level digestible divisions become passages in the next step.
+    """
+    if not headings:
+        return []
+
+    # Filter unmapped headings
+    mapped = [h for h in headings if h.page_mapped]
+    unmapped_count = len(headings) - len(mapped)
+    if unmapped_count > 0:
+        print(f"[Tree] WARNING: {unmapped_count} headings dropped (page not in JSONL)")
+
+    if not mapped:
+        return []
+
+    # Sort by (seq_index, document_position)
+    sorted_headings = sorted(mapped, key=lambda h: (h.seq_index, h.document_position))
+
+    # Deduplicate exact same title on same page
+    deduped: list[HeadingCandidate] = []
+    seen: set[tuple[int, str]] = set()
+    for h in sorted_headings:
+        key = (h.seq_index, normalize_arabic_for_match(h.title)[:40])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(h)
+
+    max_seq = max(p.seq_index for p in pages)
+    page_by_seq = {p.seq_index: p for p in pages}
+
+    # Phase 1: Create all DivisionNode objects
+    divisions: list[DivisionNode] = []
+    heading_to_div: dict[int, str] = {}  # heading list index → div_id
+
+    for i, h in enumerate(deduped):
+        div_id = f"div_{i:04d}"
+        heading_to_div[i] = div_id
+
+        # Detect keyword type from title
+        div_type = "implicit"
+        if keywords:
+            div_type = detect_keyword_type_from_title(h.title, keywords)
+        if h.keyword_type:
+            div_type = h.keyword_type
+
+        # Use Pass 3 digestibility if available, else deterministic
+        if hasattr(h, '_pass3_digestible') and h._pass3_digestible:
+            digestible = h._pass3_digestible
+            content_type = getattr(h, '_pass3_content_type', None) or "teaching"
+        else:
+            digestible, content_type = classify_digestibility(h)
+
+        level = getattr(h, '_pass3_level', 1) or 1
+
+        # Determine editor_inserted
+        editor_inserted = False
+        if h.title and (h.title.startswith("[") or h.title.startswith("[")):
+            editor_inserted = True
+
+        # Placeholder page range — will be refined
+        start_seq = h.seq_index
+
+        div = DivisionNode(
+            id=div_id,
+            type=div_type,
+            title=h.title,
+            level=level,
+            detection_method=h.detection_method,
+            confidence=h.confidence,
+            digestible=digestible,
+            content_type=content_type,
+            start_seq_index=start_seq,
+            end_seq_index=start_seq,  # placeholder
+            page_hint_start=h.page_hint,
+            page_hint_end=h.page_hint,  # placeholder
+            parent_id=None,  # set in phase 2
+            page_count=1,
+            editor_inserted=editor_inserted,
+            inline_heading=h.inline_heading,
+            heading_text_boundary=h.heading_text_boundary,
+            heading_in_html=(h.detection_method == "html_tagged"),
+        )
+        divisions.append(div)
+
+    # Phase 2: Assign parent-child relationships from Pass 3 references
+    for i, h in enumerate(deduped):
+        parent_ref = getattr(h, '_pass3_parent_ref', None)
+        if parent_ref is None:
+            continue
+
+        # parent_ref is the candidate index from the original heading list
+        # We need to find the corresponding division in our deduped list
+        if isinstance(parent_ref, int) and parent_ref in heading_to_div:
+            divisions[i].parent_id = heading_to_div[parent_ref]
+        elif isinstance(parent_ref, str) and parent_ref.startswith("new_"):
+            # Reference to a new_division by position — resolve by scan
+            pass  # Complex cross-referencing; logged and handled below
+
+    # Build child_ids from parent_ids
+    for div in divisions:
+        div.child_ids = []
+    for div in divisions:
+        if div.parent_id:
+            parent = next((d for d in divisions if d.id == div.parent_id), None)
+            if parent:
+                parent.child_ids.append(div.id)
+
+    # Phase 3: Assign page ranges
+    # Strategy: process in document order, assigning each division a range
+    # from its start to just before the next same-level-or-higher division.
+    # Then constrain children within parent ranges.
+
+    for i, div in enumerate(divisions):
+        # End seq: find the next division at the same or higher level
+        # that is NOT a child of this division
+        end_seq = max_seq  # default: rest of book
+        for j in range(i + 1, len(divisions)):
+            other = divisions[j]
+            other_level = other.level
+            # Stop at next sibling or higher-level division
+            if other_level <= div.level and other.parent_id == div.parent_id:
+                end_seq = other.start_seq_index - 1
+                break
+            # Also stop at a division at a higher (smaller number) level
+            if other_level < div.level and other.parent_id != div.id:
+                end_seq = other.start_seq_index - 1
+                break
+
+        div.end_seq_index = max(div.start_seq_index, end_seq)
+
+    # Phase 3b: Constrain children within parent ranges
+    div_by_id = {d.id: d for d in divisions}
+    for div in divisions:
+        if div.parent_id and div.parent_id in div_by_id:
+            parent = div_by_id[div.parent_id]
+            # Child cannot extend beyond parent
+            div.end_seq_index = min(div.end_seq_index, parent.end_seq_index)
+            # Child cannot start before parent
+            div.start_seq_index = max(div.start_seq_index, parent.start_seq_index)
+
+    # Phase 4: Set page counts and hints
+    for div in divisions:
+        div.page_count = div.end_seq_index - div.start_seq_index + 1
+        end_page = page_by_seq.get(div.end_seq_index)
+        if end_page:
+            if multi_volume:
+                div.page_hint_end = f"ج{end_page.volume}:ص:{int_to_indic(end_page.page_number_int)}"
+            else:
+                div.page_hint_end = f"ص:{int_to_indic(end_page.page_number_int)}"
+
+    # Phase 5: Add review flags
+    for div in divisions:
+        flags = []
+        if div.digestible == "uncertain":
+            flags.append("needs_human_review")
+        if div.confidence == "low":
+            flags.append("low_confidence")
+        if div.page_count > 30:
+            flags.append("long_passage")
+        div.review_flags = flags
+
+    return divisions
+
+
+# ---------------------------------------------------------------------------
 # Division Tree Builder
 # ---------------------------------------------------------------------------
 
@@ -943,6 +1560,44 @@ def build_passages(
     parent_ids = {d.parent_id for d in divisions if d.parent_id}
     leaf_divisions = [d for d in divisions if d.id not in parent_ids]
 
+    # Create preamble pseudo-divisions for parent content before first child.
+    # When a parent division (e.g., باب الأول at pages 0-14) has children
+    # (e.g., فصل الأول at pages 2-9), pages 0-1 are the parent's preamble.
+    # Without a preamble division, these pages have no passage.
+    preamble_divs: list[DivisionNode] = []
+    parent_divs = [d for d in divisions if d.id in parent_ids]
+    div_by_id = {d.id: d for d in divisions}
+
+    for parent in parent_divs:
+        if parent.digestible == "false":
+            continue
+        children = [div_by_id[cid] for cid in parent.child_ids if cid in div_by_id]
+        if not children:
+            continue
+        first_child_start = min(c.start_seq_index for c in children)
+        if parent.start_seq_index < first_child_start:
+            # There's a preamble gap
+            preamble = DivisionNode(
+                id=f"{parent.id}_preamble",
+                type="preamble",
+                title=f"{parent.title} — مقدمة",
+                level=parent.level + 1,
+                detection_method=parent.detection_method,
+                confidence=parent.confidence,
+                digestible=parent.digestible,
+                content_type=parent.content_type,
+                start_seq_index=parent.start_seq_index,
+                end_seq_index=first_child_start - 1,
+                page_hint_start=parent.page_hint_start,
+                page_hint_end=parent.page_hint_start,  # approximate
+                parent_id=parent.id,
+                page_count=first_child_start - parent.start_seq_index,
+            )
+            preamble_divs.append(preamble)
+
+    # Add preambles to leaf set
+    leaf_divisions = leaf_divisions + preamble_divs
+
     # Filter to digestible leaves, EXCLUDING same-page cluster followers
     # Same-page cluster divisions get absorbed into the first heading's passage
     digestible_leaves = [
@@ -1151,6 +1806,7 @@ def generate_structure_report(
     pass2_count: int,
     toc_count: int,
     total_pages: int,
+    pass3_stats: Optional[dict] = None,
 ) -> dict:
     """Generate the structure_report.json content."""
     from collections import Counter
@@ -1183,6 +1839,8 @@ def generate_structure_report(
                 "description": f"{p.title[:60]} ({p.page_count} pages)",
             })
 
+    p3 = pass3_stats or {}
+
     return {
         "schema_version": "structure_report_v0.1",
         "book_id": book_id,
@@ -1192,10 +1850,10 @@ def generate_structure_report(
             "pass1_5_toc_entries": toc_count,
             "pass2_keyword_candidates": pass2_count,
             "pass2_after_dedup": pass2_count,
-            "pass3_llm_discovered": 0,
-            "pass3_confirmed": 0,
-            "pass3_rejected": 0,
-            "pass3_llm_calls": 0,
+            "pass3_llm_discovered": p3.get("new_discovered", 0),
+            "pass3_confirmed": p3.get("confirmed", 0),
+            "pass3_rejected": p3.get("rejected", 0),
+            "pass3_llm_calls": p3.get("llm_calls", 0),
         },
         "division_stats": {
             "total_divisions": len(divisions),
@@ -1297,6 +1955,7 @@ def write_full_output(
     pages_sha: str,
     pass1_count: int,
     pass2_count: int,
+    pass3_stats: Optional[dict] = None,
 ):
     """Write all Stage 2 output artifacts."""
     os.makedirs(outdir, exist_ok=True)
@@ -1333,7 +1992,7 @@ def write_full_output(
     # 3. structure_report.json
     report = generate_structure_report(
         book_id, divisions, passages, pass1_count, pass2_count,
-        len(toc_entries), len(pages),
+        len(toc_entries), len(pages), pass3_stats=pass3_stats,
     )
     report_path = os.path.join(outdir, f"{book_id}_structure_report.json")
     with open(report_path, "w", encoding="utf-8") as f:
@@ -1532,18 +2191,138 @@ def main():
     if args.verbose:
         print(f"[Output] Candidates written to {candidates_path}")
 
+    # --- Pass 3: LLM-Assisted Discovery ---
+
+    pass3_stats = {"llm_calls": 0, "confirmed": 0, "rejected": 0, "new_discovered": 0}
+    prompt_dir = os.path.join(os.path.dirname(__file__), "..", "2_structure_discovery", "prompts")
+    prompt_dir = os.path.normpath(prompt_dir)
+
     if args.skip_llm:
         print("[Pass 3] Skipped (--skip-llm). Building tree from deterministic passes only.")
+        # Use flat tree builder
+        science_id = metadata.get("science_id") or metadata.get("primary_science")
+        divisions = build_division_tree(all_headings, pages, book_id, multi_volume, keywords)
+        print(f"[Tree] Built {len(divisions)} divisions (flat — no hierarchy)")
     else:
-        # TODO: Implement Pass 3 (LLM-assisted discovery)
-        print("[Pass 3] LLM pass not yet implemented. Building tree from deterministic passes only.")
+        # Initialize LLM client
+        client, err = _init_llm_client()
+        if not client:
+            print(f"[Pass 3] ERROR: {err}", file=sys.stderr)
+            print("[Pass 3] Falling back to deterministic passes only.")
+            science_id = metadata.get("science_id") or metadata.get("primary_science")
+            divisions = build_division_tree(all_headings, pages, book_id, multi_volume, keywords)
+            print(f"[Tree] Built {len(divisions)} divisions (flat — no hierarchy)")
+        else:
+            # Step 3a: Macro structure
+            print("[Pass 3a] Macro structure discovery...")
+            pass3_stats["llm_calls"] += 1
+            result_3a = pass3a_macro_structure(
+                client, all_headings, pages, toc_entries, metadata, prompt_dir,
+            )
 
-    # --- Build division tree ---
+            if not result_3a:
+                print("[Pass 3a] FAILED — falling back to deterministic tree.")
+                science_id = metadata.get("science_id") or metadata.get("primary_science")
+                divisions = build_division_tree(all_headings, pages, book_id, multi_volume, keywords)
+                print(f"[Tree] Built {len(divisions)} divisions (flat — fallback)")
+            else:
+                # Count stats
+                for d in result_3a.get("decisions", []):
+                    if d.get("action") == "confirm":
+                        pass3_stats["confirmed"] += 1
+                    elif d.get("action") == "reject":
+                        pass3_stats["rejected"] += 1
+                pass3_stats["new_discovered"] += len(result_3a.get("new_divisions", []))
 
-    science_id = metadata.get("science_id") or metadata.get("primary_science")
+                if result_3a.get("structure_notes"):
+                    print(f"  [Pass 3a] LLM notes: {result_3a['structure_notes'][:120]}")
 
-    divisions = build_division_tree(all_headings, pages, book_id, multi_volume, keywords)
-    print(f"[Tree] Built {len(divisions)} divisions")
+                # Step 3b: Deep scan for large divisions
+                pass3b_results: dict[int, dict] = {}
+
+                # Identify confirmed macro divisions > 5 pages for deep scan
+                decisions = result_3a.get("decisions", [])
+                decision_map = {d["candidate_index"]: d for d in decisions if "candidate_index" in d}
+
+                # Build preliminary page ranges to identify large divisions
+                confirmed_headings = []
+                for i, h in enumerate(all_headings):
+                    dec = decision_map.get(i)
+                    if dec and dec.get("action") == "reject":
+                        continue
+                    confirmed_headings.append((i, h))
+
+                # Compute approximate page ranges for deep scan eligibility
+                max_seq = max(p.seq_index for p in pages)
+                deep_scan_targets = []
+                for idx_in_list, (orig_idx, h) in enumerate(confirmed_headings):
+                    dec = decision_map.get(orig_idx, {})
+                    level = dec.get("level", 1)
+                    # Only scan top-level or second-level divisions
+                    if level > 2:
+                        continue
+
+                    # Estimate end page: next heading at same or higher level
+                    end_est = max_seq
+                    for j in range(idx_in_list + 1, len(confirmed_headings)):
+                        other_orig_idx, other_h = confirmed_headings[j]
+                        other_dec = decision_map.get(other_orig_idx, {})
+                        other_level = other_dec.get("level", 1)
+                        if other_level <= level:
+                            end_est = other_h.seq_index - 1
+                            break
+
+                    page_count_est = end_est - h.seq_index + 1
+                    if page_count_est > 5:
+                        # Find known sub-headings within this range
+                        sub_headings = []
+                        for _, (sub_orig_idx, sub_h) in enumerate(confirmed_headings):
+                            sub_dec = decision_map.get(sub_orig_idx, {})
+                            sub_level = sub_dec.get("level", 1)
+                            if (sub_h.seq_index >= h.seq_index and
+                                sub_h.seq_index <= end_est and
+                                sub_level > level and
+                                sub_orig_idx != orig_idx):
+                                sub_headings.append(sub_h)
+
+                        deep_scan_targets.append((orig_idx, h, end_est, sub_headings))
+
+                if deep_scan_targets:
+                    print(f"[Pass 3b] Deep scanning {len(deep_scan_targets)} macro divisions...")
+                    for orig_idx, h, end_est, sub_headings in deep_scan_targets:
+                        pass3_stats["llm_calls"] += 1
+                        result_3b = pass3b_deep_scan(
+                            client,
+                            section_title=h.title,
+                            section_type=h.keyword_type or "implicit",
+                            start_seq=h.seq_index,
+                            end_seq=end_est,
+                            known_subheadings=sub_headings,
+                            pages=pages,
+                            metadata=metadata,
+                            prompt_dir=prompt_dir,
+                        )
+                        if result_3b:
+                            pass3b_results[orig_idx] = result_3b
+                            new_subs = len(result_3b.get("new_subdivisions", []))
+                            if new_subs > 0:
+                                pass3_stats["new_discovered"] += new_subs
+                else:
+                    print("[Pass 3b] No divisions > 5 pages — skipping deep scan.")
+
+                # Integrate all Pass 3 results
+                enriched_headings = integrate_pass3_results(
+                    all_headings, result_3a, pass3b_results, pages,
+                )
+
+                # Build hierarchical tree
+                science_id = metadata.get("science_id") or metadata.get("primary_science")
+                divisions = build_hierarchical_tree(
+                    enriched_headings, pages, book_id, multi_volume, keywords,
+                )
+                print(f"[Tree] Built {len(divisions)} divisions (hierarchical)")
+                max_depth = max((d.level for d in divisions), default=0)
+                print(f"  Max depth: {max_depth}, LLM calls: {pass3_stats['llm_calls']}")
 
     # --- Build passages ---
 
@@ -1571,6 +2350,7 @@ def main():
         pages_sha=pages_sha,
         pass1_count=len(all_pass1_headings),
         pass2_count=len(pass2_headings),
+        pass3_stats=pass3_stats,
     )
 
     print(f"[Stage 2] Complete. Review: {os.path.join(args.outdir, f'{book_id}_structure_review.md')}")
