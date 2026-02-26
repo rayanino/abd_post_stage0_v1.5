@@ -1,6 +1,7 @@
 {
-  "schema_version": "intake_metadata_v0.1",
+  "schema_version": "intake_metadata_v0.2",
   "book_id": "jawahir",
+  "shamela_book_id": 8532,
   "title": "جواهر البلاغة في المعاني والبيان والبديع",
   "title_formal": "جواهر البلاغة في المعاني والبيان والبديع",
   "shamela_author_short": "أحمد الهاشمي",
@@ -16,6 +17,15 @@
   "primary_science": "balagha",
   "book_category": "single_science",
   "science_parts": null,
+  "scholarly_context": {
+    "author_death_hijri": 1362,
+    "author_birth_hijri": null,
+    "fiqh_madhab": null,
+    "grammatical_school": null,
+    "geographic_origin": "الهاشمي",
+    "book_type": null,
+    "extraction_source": "auto"
+  },
   "volume_count": 1,
   "total_actual_pages": 308,
   "source_files": [

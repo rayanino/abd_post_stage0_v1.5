@@ -1,6 +1,7 @@
 {
-  "schema_version": "intake_metadata_v0.1",
+  "schema_version": "intake_metadata_v0.2",
   "book_id": "qatr",
+  "shamela_book_id": 10273,
   "title": "شرح قطر الندى وبل الصدى",
   "title_formal": "شرح قطر الندى وبل الصدى",
   "shamela_author_short": "ابن هشام النحوي",
@@ -16,6 +17,15 @@
   "primary_science": "nahw",
   "book_category": "single_science",
   "science_parts": null,
+  "scholarly_context": {
+    "author_death_hijri": 761,
+    "author_birth_hijri": null,
+    "fiqh_madhab": null,
+    "grammatical_school": null,
+    "geographic_origin": "الأنصاري",
+    "book_type": "sharh",
+    "extraction_source": "auto"
+  },
   "volume_count": 1,
   "total_actual_pages": 309,
   "source_files": [

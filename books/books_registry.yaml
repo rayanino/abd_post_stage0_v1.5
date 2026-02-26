@@ -6,6 +6,7 @@ notes: 'Canonical registry of all input books known to the Arabic Book Digester 
   '
 books:
 - book_id: jawahir
+  shamela_book_id: 8532
   title: جواهر البلاغة في المعاني والبيان والبديع
   title_formal: جواهر البلاغة في المعاني والبيان والبديع
   author: أحمد بن إبراهيم بن مصطفى الهاشمي (ت 1362هـ)
@@ -24,6 +25,7 @@ books:
     exist for pp. 19-40.
   status: active
 - book_id: shadha
+  shamela_book_id: 10127
   title: شذا العرف في فن الصرف
   title_formal: شذا العرف في فن الصرف
   author: أحمد بن محمد الحملاوي (ت 1351هـ)
@@ -41,6 +43,7 @@ books:
   edition_notes: Shamela desktop HTML export. Modern textbook (صرف).
   status: active
 - book_id: qatr
+  shamela_book_id: 10273
   title: شرح قطر الندى وبل الصدى
   title_formal: شرح قطر الندى وبل الصدى
   author: أبو محمد، عبد الله، جمال الدين بن هشام الأنصاري (ت 761 هـ)
@@ -58,6 +61,7 @@ books:
   edition_notes: Shamela desktop HTML export. Classical نحو textbook, single volume.
   status: active
 - book_id: imla
+  shamela_book_id: 8868
   title: قواعد الإملاء
   title_formal: قواعد الإملاء
   author: عبد السلام محمد هارون (ت 1408هـ)
@@ -74,6 +78,7 @@ books:
   edition_notes: Shamela desktop HTML export. Smallest book in corpus (77 pp).
   status: active
 - book_id: ibn_aqil
+  shamela_book_id: 10258
   title: شرح ابن عقيل على ألفية ابن مالك
   title_formal: شرح ابن عقيل على ألفية ابن مالك
   author: 'ابن عقيل، عبد الله بن عبد الرحمن العقيلي الهمداني المصري (المتوفى: 769
@@ -106,6 +111,7 @@ books:
     3-4 do not.
   status: active
 - book_id: dalail
+  shamela_book_id: 21643
   title: دلائل الإعجاز ت شاكر
   title_formal: دلائل الإعجاز في علم المعاني
   author: أبو بكر عبد القاهر بن عبد الرحمن بن محمد الفارسي الأصل، الجرجاني الدار (ت
@@ -127,6 +133,7 @@ books:
   edition_notes: Shamela desktop export (ت شاكر edition). Classical prose treatise.
   status: active
 - book_id: miftah
+  shamela_book_id: 7444
   title: مفتاح العلوم
   title_formal: مفتاح العلوم
   author: يوسف بن أبي بكر بن محمد بن علي السكاكي الخوارزمي الحنفي أبو يعقوب (ت 626هـ)

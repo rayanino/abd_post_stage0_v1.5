@@ -1,6 +1,7 @@
 {
-  "schema_version": "intake_metadata_v0.1",
+  "schema_version": "intake_metadata_v0.2",
   "book_id": "imla",
+  "shamela_book_id": 8868,
   "title": "قواعد الإملاء",
   "title_formal": "قواعد الإملاء",
   "shamela_author_short": "عبد السلام هارون",
@@ -16,6 +17,15 @@
   "primary_science": "imlaa",
   "book_category": "single_science",
   "science_parts": null,
+  "scholarly_context": {
+    "author_death_hijri": 1408,
+    "author_birth_hijri": null,
+    "fiqh_madhab": null,
+    "grammatical_school": null,
+    "geographic_origin": null,
+    "book_type": null,
+    "extraction_source": "auto"
+  },
   "volume_count": 1,
   "total_actual_pages": 77,
   "source_files": [

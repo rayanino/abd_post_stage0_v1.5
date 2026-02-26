@@ -1,6 +1,7 @@
 {
-  "schema_version": "intake_metadata_v0.1",
+  "schema_version": "intake_metadata_v0.2",
   "book_id": "miftah",
+  "shamela_book_id": 7444,
   "title": "مفتاح العلوم",
   "title_formal": "مفتاح العلوم",
   "shamela_author_short": "السكاكي",
@@ -32,6 +33,15 @@
       "description": "علم المعاني والبيان والبديع"
     }
   ],
+  "scholarly_context": {
+    "author_death_hijri": 626,
+    "author_birth_hijri": null,
+    "fiqh_madhab": "hanafi",
+    "grammatical_school": null,
+    "geographic_origin": "الخوارزمي",
+    "book_type": null,
+    "extraction_source": "auto"
+  },
   "volume_count": 1,
   "total_actual_pages": 592,
   "source_files": [

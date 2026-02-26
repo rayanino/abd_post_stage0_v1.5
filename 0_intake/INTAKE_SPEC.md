@@ -1,7 +1,8 @@
 # Stage 0: Book Intake — Specification
 
-**Status:** Finalized (seventh review pass — muhaqiq keep-first/exclusions, truncation bilateral check, volume cross-check, verify mode, test suite, edge_cases.md)
-**Version:** 1.5
+**Status:** Finalized (eighth review pass — scholarly context, shamela ID, adjacent science, volume normalization, enrichment tool)
+**Version:** 1.6
+**Schema version:** intake_metadata_v0.2
 **Precision level:** High
 
 ---
@@ -20,9 +21,10 @@ Create an immutable anchor for everything downstream. After intake, the source H
 |-------|--------|----------|
 | Source path | Positional CLI argument | Yes |
 | Book ID | `--book-id` | Yes |
-| Primary science | `--science` (`balagha`, `sarf`, `nahw`, `imlaa`, `unrelated`, or `multi`) | Yes |
+| Primary science | `--science` (`balagha`, `sarf`, `nahw`, `imlaa`, `adjacent`, `unrelated`, or `multi`) | Yes |
 | Science parts file | `--science-parts` (YAML file) | Only when `--science multi` |
 | Edition notes | `--notes` | No |
+| Shamela book ID | `--shamela-id` (integer) | No |
 | Force flag | `--force` | No |
 | Non-interactive | `--non-interactive` | No |
 | Dry run | `--dry-run` | No |
@@ -34,7 +36,8 @@ Create an immutable anchor for everything downstream. After intake, the source H
 **Primary science** is the user's expectation of the book's primary science. This is an **informational prior, not a routing constraint.** Any excerpt from any book can land in any science's taxonomy tree — excerpt science is determined by content at Stage 4, not by the book's declared science at Stage 0.
 
 - `balagha`, `sarf`, `nahw`, `imlaa` — one of the four sciences
-- `unrelated` — book is outside our four sciences but may contain relevant passages
+- `adjacent` — book is about the Arabic language but not one of our four sciences (e.g., poetry/شعر, literary criticism/أدب, lexicography/فقه اللغة). These books are closely related and likely contain relevant شواهد and examples
+- `unrelated` — book is outside the Arabic language sciences entirely but may contain relevant passages (e.g., فقه, عقيدة, تاريخ)
 - `multi` — book covers multiple sciences (requires `--science-parts`)
 
 **Book ID** — see §3.1 for validation rules.
@@ -53,6 +56,8 @@ Must be a YAML array of objects, each with `section` (string), `science_id` (one
 **Edition notes** — optional free-text describing the edition, genre, or any relevant context (e.g., `"ت شاكر edition"`, `"modern textbook"`, `"classical prose treatise"`). Stored in metadata for traceability.
 
 **`--force`** — bypasses the duplicate SHA-256 check (EC-I.5). Use when intentionally re-ingesting the same source file under a different book ID.
+
+**`--shamela-id`** — the Shamela Library numeric book ID. Enables a stable external reference: `shamela.ws/book/{id}`. The user knows this from the Shamela desktop app or website. Optional but strongly recommended — it's the foreign key for any future cross-referencing with the Shamela ecosystem.
 
 **`--non-interactive`** — skips all confirmation prompts. Soft confirmations (low/medium-reliability القسم, `unrelated`/`multi` acknowledgment, truncation warnings) auto-accept the user's declaration. Hard confirmations (high-reliability القسم mismatch, supplementary file decisions) cause the tool to exit with a non-zero error code. See §3.6 for the classification of each confirmation.
 
@@ -113,6 +118,8 @@ Before any pipeline operations begin, validate CLI arguments and resolve paths:
 
 No auto-generation is attempted. The user knows their books and picks meaningful short names.
 
+**Convention hint:** At intake, the tool suggests a book ID based on the title's distinctive words and author short name (e.g., `"consider transliterating 'الإيضاح (القزويني)'"`). This is a non-binding hint to encourage self-documenting IDs like `iidah_qazwini` rather than opaque ones like `book_seven`. The book ID propagates into every excerpt reference downstream, so meaningfulness matters.
+
 **Validation:** If the provided `--book-id` fails any rule, the tool **aborts with a specific error message**. It never silently truncates, transforms, or overwrites.
 
 Error messages:
@@ -169,9 +176,10 @@ If an inter-book match is found:
 ### 3.4 Source freezing
 
 1. Create directory `books/{book_id}/source/`.
-2. Copy the source file(s), **preserving original filenames**.
-   - Single-file input: the `.htm` file is copied as-is.
+2. Copy the source file(s):
+   - Single-file input: the `.htm` file is copied as-is, preserving the original filename.
    - Directory input: numbered files and any accepted supplementary files are copied. No wrapping subdirectory — files go directly into `source/`.
+   - **Volume filename normalization:** Volume files are zero-padded to 3-digit format before freezing: `1.htm` → `001.htm`, `02.htm` → `002.htm`, `001.htm` → unchanged. This ensures unambiguous sort order regardless of filesystem behavior. Supplementary file names are preserved as-is.
 3. Set the `source/` directory to read-only.
 
 **Immutability rule:** Once frozen, the source is NEVER modified. If the user provides a corrected file, a new book intake is required (new `book_id` or versioned source).
@@ -361,9 +369,32 @@ Based on the science declaration:
 |----------|-----------|------------------------|
 | `single_science` | User declares one of our 4 sciences | The declared science |
 | `multi_science` | User declares `multi` | `null` (no single primary science) |
+| `adjacent_field` | User declares `adjacent` | `null` (about Arabic language, not our 4) |
 | `tangentially_relevant` | User declares `unrelated` | `null` (not about our sciences) |
 
+**Note on `adjacent_field`:** This category is for books about the Arabic language that don't fall into our four sciences — such as Arabic poetry (شعر), literary criticism (أدب), or lexicography (فقه اللغة). These books are closely related to our corpus and likely contain relevant شواهد and examples. The distinction from `tangentially_relevant` matters for downstream excerpt routing: adjacent books are much more likely to contain usable material.
+
 **Note on `multi_science`:** For books like مفتاح العلوم (صرف + نحو + بلاغة), the user provides `science_parts` via `--science-parts`. This is informational and helps orient downstream stages, but does not constrain excerpt routing.
+
+### 3.7.1 Scholarly context extraction
+
+After determining the book category, the tool auto-extracts structured scholarly metadata from the existing metadata fields using regex patterns. This produces the `scholarly_context` object with six data fields plus a provenance field:
+
+| Field | Source | Extraction method |
+|-------|--------|-------------------|
+| `author_death_hijri` | Author field | Regex: `(ت Xهـ)`, Arabic-Indic + Western numerals |
+| `author_birth_hijri` | Author field | Regex: `(X - Y هـ)` range patterns |
+| `fiqh_madhab` | Author field | Nisba lookup: الشافعي→shafii, الحنفي→hanafi, etc. |
+| `grammatical_school` | Author field | Geographic nisba: البصري→basri, الكوفي→kufi, etc. |
+| `geographic_origin` | Author field | Last geographic nisba extracted, non-geographic filtered |
+| `book_type` | Title / title_formal | Keyword detection: شرح→sharh, حاشية→hashiya, etc. |
+| `extraction_source` | (provenance) | Always `"auto"` at intake |
+
+**Corpus results (788 files):** Death dates 45%, geographic origin 68%, book type 53%, fiqh madhab 5%, grammatical school 9%.
+
+**scholarly_context is the one documented exception to metadata immutability.** The core fields (title, author, hashes, source files) are frozen forever, but scholarly_context can be iteratively improved via `tools/enrich.py` (see §7). The `extraction_source` field tracks provenance: `"auto"` (regex at intake), `"user_provided"` (interactive input), or `"enriched"` (from ترجمة text or LLM).
+
+If no structured data is extracted (all fields null), `scholarly_context` is set to `null` rather than an object of nulls.
 
 ### 3.8 Taxonomy snapshot
 
@@ -717,3 +748,43 @@ When the intake tool is built, it generates registry entries using the new field
 - Does not normalize text (that's Stage 1)
 - Does not detect structural divisions, volume markers, or section boundaries within content (that's Stage 2)
 - Does not determine which specific excerpts belong to which science (that's Stage 4) — the book's declared science is an informational prior, not a routing constraint
+- Does not scrape the web for additional metadata (that's `tools/enrich.py`, see §7)
+
+---
+
+## 7. Post-Intake Enrichment (`tools/enrich.py`)
+
+A companion tool that enriches the `scholarly_context` field after intake. This is **not** part of the intake pipeline — it runs separately and can be re-run as better information becomes available.
+
+**Three enrichment strategies:**
+
+| Strategy | Flag | Dependencies | Use case |
+|----------|------|-------------|----------|
+| Interactive | (default) | None | User types values for each missing field |
+| From ترجمة | `--from-text FILE` | None | Regex extraction from biographical text |
+| Anthropic API | `--api` | `ANTHROPIC_API_KEY` | LLM fills gaps from training knowledge |
+
+**Usage:**
+```bash
+# Inspect current state
+python tools/enrich.py jawahir --show
+
+# Interactive (prompts for each missing field)
+python tools/enrich.py jawahir
+
+# Extract from a ترجمة text file
+python tools/enrich.py jawahir --from-text tarjama_hashimi.txt
+
+# LLM enrichment (most powerful)
+python tools/enrich.py jawahir --api
+
+# Batch: non-interactive API mode
+python tools/enrich.py jawahir --api --batch
+
+# Re-enrich all fields (not just gaps)
+python tools/enrich.py jawahir --api --all-fields
+```
+
+**Provenance tracking:** Each enrichment updates `scholarly_context.extraction_source` so downstream stages always know how each field was obtained.
+
+**Immutability exception:** `scholarly_context` is the only field in `intake_metadata.json` that can be updated after intake. All other fields (title, author, hashes, source files, etc.) are permanently frozen.

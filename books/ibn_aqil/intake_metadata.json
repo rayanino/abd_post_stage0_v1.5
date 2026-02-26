@@ -1,6 +1,7 @@
 {
-  "schema_version": "intake_metadata_v0.1",
+  "schema_version": "intake_metadata_v0.2",
   "book_id": "ibn_aqil",
+  "shamela_book_id": 10258,
   "title": "شرح ابن عقيل على ألفية ابن مالك",
   "title_formal": "شرح ابن عقيل على ألفية ابن مالك",
   "shamela_author_short": "ابن عقيل",
@@ -16,6 +17,15 @@
   "primary_science": "nahw",
   "book_category": "single_science",
   "science_parts": null,
+  "scholarly_context": {
+    "author_death_hijri": null,
+    "author_birth_hijri": null,
+    "fiqh_madhab": null,
+    "grammatical_school": "misri",
+    "geographic_origin": "المصري",
+    "book_type": "sharh",
+    "extraction_source": "auto"
+  },
   "volume_count": 4,
   "total_actual_pages": 1328,
   "source_files": [
