@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abd:schemas:decision_log:v0.1",
+  "title": "ABD Decision Log Schema v0.1",
+  "type": "object",
+  "required": ["record_type", "excerpt_id", "checklist_version", "placement_checklist"],
+  "properties": {
+    "record_type": {"type": "string", "enum": ["excerpt_decision"]},
+    "excerpt_id": {"type": "string", "pattern": "^[^:\\s]+:exc:\\d{6}$"},
+    "checklist_version": {"type": "string"},
+    "placement_checklist": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["pass", "note"],
+        "properties": {
+          "pass": {"type": "boolean"},
+          "note": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "solidifying_indicators": {"type": "array"},
+    "alternatives_considered": {"type": "array"},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,47 @@
+{
+  "passage_id": "passage3",
+  "book_id": "jawahir",
+  "book_title": "جواهر البلاغة في المعاني والبيان والبديع",
+  "author": "أحمد الهاشمي",
+  "page_range": "ص ٣٣–٤٠",
+  "topic": "عيوب فصاحة الكلام (ضعف التأليف، التعقيد اللفظي، التعقيد المعنوي، كثرة التكرار، تتابع الإضافات) + تطبيقات + فصاحة المتكلم + بدء البلاغة",
+  "taxonomy_version": "balagha_v0_4",
+  "schema_version": "gold_standard_v0.3.3",
+  "offset_unit": "unicode_codepoint",
+  "canonical_derivation": "joined_from_atoms_with_newline_separators",
+  "canonical_files": {
+    "matn": {
+      "filename": "passage3_matn_canonical.txt",
+      "sha256": "e5bdd006dda0b842fc559a31ea2d9a53f9b56dfe8ca84a54217a527f5aa09e03",
+      "char_count": 5569,
+      "byte_count_utf8": 10095,
+      "atom_count": 75
+    },
+    "footnote": {
+      "filename": "passage3_fn_canonical.txt",
+      "sha256": "eb4a38179bf04f95f2c8cb48dfdb393ddc313c097ade0db2abb017b572eb2fd5",
+      "char_count": 8729,
+      "byte_count_utf8": 15595,
+      "atom_count": 41
+    }
+  },
+  "validation": {
+    "validator": "validate_gold.py",
+    "validator_version": "v0.3.13",
+    "validated_utc": "2026-02-24T10:06:11Z",
+    "command": "python ../../../tools/validate_gold.py --atoms passage3_matn_atoms_v02.jsonl passage3_fn_atoms_v02.jsonl --excerpts passage3_excerpts_v02.jsonl --schema ../../../schemas/gold_standard_schema_v0.3.3.json --canonical matn:passage3_matn_canonical.txt footnote:passage3_fn_canonical.txt --taxonomy balagha_v0_4.yaml --taxonomy-changes taxonomy_changes.jsonl --decisions passage3_decisions.jsonl --checklists ../../checklists_v0.4.md --metadata passage3_metadata.json --manifest baseline_manifest.json --support-schemas ../../../schemas --taxonomy-registry ../../../taxonomy/taxonomy_registry.yaml --resolve-external-from-active-gold",
+    "warnings": 0,
+    "errors": 0,
+    "result": "PASS"
+  },
+  "checkpoint1": {
+    "clean_matn_input": "passage3_clean_matn_input.txt",
+    "clean_fn_input": "passage3_clean_fn_input.txt",
+    "source_slice": "passage3_source_slice.json",
+    "tool": "tools/extract_clean_input.py",
+    "tool_version": "v0.2",
+    "command": "python ../../../tools/extract_clean_input.py --html ../shamela_export.htm --page-start 33 --page-end 40 --out-matn passage3_clean_matn_input.txt --out-fn passage3_clean_fn_input.txt --out-slice passage3_source_slice.json",
+    "generated_utc": "2026-02-22T12:04:48Z"
+  },
+  "baseline_version": "v0.3.14"
+}

@@ -1,0 +1,127 @@
+ABD deterministic checkpoint index (checkpoint_outputs_index_v0.1)
+DO NOT EDIT BY HAND. Regenerate via: python tools/generate_checkpoint_index.py --baseline-dir <baseline_dir>
+
+=== Identity ===
+baseline_id: 0.3.13
+passage_id: passage1
+book_id: jawahir
+pipeline_version: gold_pipeline_v0.3
+checkpoint_last_completed: 6
+
+=== Stable fingerprint ===
+algorithm: sha256(concat(relpath:sha256)) over inventory excluding volatile/cyclic paths
+excludes:
+  - baseline_manifest.json
+  - checkpoint_outputs/index.txt
+  - checkpoint_state.json
+  - validation_report.txt
+  - excerpts_rendered/**
+  - checkpoint_outputs/cp6_*.stdout.txt
+  - checkpoint_outputs/cp6_*.stderr.txt
+value: a62ab4227986331efdfe4aa72638c5cf7f1e16ea43f8ad0fb6bb000589609f27
+
+=== Checkpoints (from checkpoint_state.json) ===
+-- CP1: done --
+command: python ../../../tools/extract_clean_input.py --html ../shamela_export.htm --page-start 19 --page-end 25 --out-matn passage1_clean_matn_input.txt --out-fn passage1_clean_fn_input.txt --out-slice passage1_source_slice.json
+artifacts:
+  - OK  passage1_clean_matn_input.txt
+  - OK  passage1_clean_fn_input.txt
+  - OK  passage1_source_slice.json
+  - OK  checkpoint_outputs/cp1_extract_clean_input.stdout.txt
+  - OK  checkpoint_outputs/cp1_extract_clean_input.stderr.txt
+  - OK  checkpoint_outputs/index.txt
+
+-- CP2: done --
+command: (missing)
+artifacts:
+  - OK  passage1_matn_atoms_v02.jsonl
+  - OK  passage1_fn_atoms_v02.jsonl
+  - OK  passage1_matn_canonical.txt
+  - OK  passage1_fn_canonical.txt
+
+-- CP3: done --
+command: (missing)
+artifacts:
+  - OK  passage1_decisions.jsonl
+
+-- CP4: done --
+command: (missing)
+artifacts:
+  - OK  passage1_excerpts_v02.jsonl
+
+-- CP5: done --
+command: (missing)
+artifacts:
+  - OK  taxonomy_changes.jsonl
+  - OK  balagha_v0_2.yaml
+
+-- CP6: done --
+command: python ../../../tools/validate_gold.py --atoms passage1_matn_atoms_v02.jsonl passage1_fn_atoms_v02.jsonl --excerpts passage1_excerpts_v02.jsonl --schema ../../../schemas/gold_standard_schema_v0.3.3.json --canonical matn:passage1_matn_canonical.txt footnote:passage1_fn_canonical.txt --taxonomy balagha_v0_2.yaml --taxonomy-changes taxonomy_changes.jsonl --decisions passage1_decisions.jsonl --checklists ../../checklists_v0.4.md --metadata passage1_metadata.json --manifest baseline_manifest.json --support-schemas ../../../schemas --taxonomy-registry ../../../taxonomy/taxonomy_registry.yaml
+artifacts:
+  - OK  validation_report.txt
+  - OK  baseline_manifest.json
+  - OK  excerpts_rendered/INDEX.md
+  - OK  checkpoint_outputs/index.txt
+  - OK  checkpoint_outputs/cp6_validate.stdout.txt
+  - OK  checkpoint_outputs/cp6_validate.stderr.txt
+  - OK  checkpoint_outputs/cp6_render_md.stdout.txt
+  - OK  checkpoint_outputs/cp6_render_md.stderr.txt
+  - OK  checkpoint_outputs/cp6_tool_fingerprint.json
+  - OK  checkpoint_state.json
+
+=== Inventory (relpaths) ===
+total_files: 53
+  - AUDIT_LOG.md
+  - README.md
+  - balagha_v0_2.yaml
+  - baseline_manifest.json
+  - checkpoint_outputs/cp1_extract_clean_input.stderr.txt
+  - checkpoint_outputs/cp1_extract_clean_input.stdout.txt
+  - checkpoint_outputs/cp6_render_md.stderr.txt
+  - checkpoint_outputs/cp6_render_md.stdout.txt
+  - checkpoint_outputs/cp6_tool_fingerprint.json
+  - checkpoint_outputs/cp6_validate.stderr.txt
+  - checkpoint_outputs/cp6_validate.stdout.txt
+  - checkpoint_outputs/index.txt
+  - checkpoint_state.json
+  - decision_log_format_v0.1.md
+  - decision_log_format_v0.2.md
+  - excerpts_rendered/INDEX.md
+  - excerpts_rendered/jawahir__exc__000001.md
+  - excerpts_rendered/jawahir__exc__000002.md
+  - excerpts_rendered/jawahir__exc__000003.md
+  - excerpts_rendered/jawahir__exc__000004.md
+  - excerpts_rendered/jawahir__exc__000005.md
+  - excerpts_rendered/jawahir__exc__000006.md
+  - excerpts_rendered/jawahir__exc__000007.md
+  - excerpts_rendered/jawahir__exc__000008.md
+  - excerpts_rendered/jawahir__exc__000009.md
+  - excerpts_rendered/jawahir__exc__000010.md
+  - excerpts_rendered/jawahir__exc__000011.md
+  - excerpts_rendered/jawahir__exc__000012.md
+  - excerpts_rendered/jawahir__exc__000013.md
+  - excerpts_rendered/jawahir__exc__000014.md
+  - excerpts_rendered/jawahir__exc__000015.md
+  - excerpts_rendered/jawahir__exc__000016.md
+  - excerpts_rendered/jawahir__exc__000017.md
+  - excerpts_rendered/jawahir__exc__000018.md
+  - excerpts_rendered/jawahir__exc__000019.md
+  - excerpts_rendered/jawahir__exc__000020.md
+  - excerpts_rendered/jawahir__exc__000021.md
+  - generate_report.py
+  - passage1_clean_fn_input.txt
+  - passage1_clean_matn_input.txt
+  - passage1_decisions.jsonl
+  - passage1_deep_qa_report.md
+  - passage1_excerpting_report.txt
+  - passage1_excerpts_v02.jsonl
+  - passage1_fn_atoms_v02.jsonl
+  - passage1_fn_canonical.txt
+  - passage1_lessons_learned.md
+  - passage1_matn_atoms_v02.jsonl
+  - passage1_matn_canonical.txt
+  - passage1_metadata.json
+  - passage1_source_slice.json
+  - taxonomy_changes.jsonl
+  - validation_report.txt
+

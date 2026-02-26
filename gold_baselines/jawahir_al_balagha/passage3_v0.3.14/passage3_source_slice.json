@@ -1,0 +1,44 @@
+{
+  "record_type": "source_locator",
+  "locator_version": "0.1",
+  "locator_id": "passage3:cp1_source_locator",
+  "book_id": "jawahir",
+  "passage_id": "passage3",
+  "source_artifact": {
+    "artifact_kind": "shamela_html_export",
+    "baseline_relpath": "../shamela_export.htm",
+    "project_relpath": "2_atoms_and_excerpts/1_jawahir_al_balagha/shamela_export.htm",
+    "sha256": "a4bb8979d8428daf61f88021d6548ad38dc827916aef28589aae6ef9dd6d1ec7",
+    "notes": "Full-file sha256 for immutability; selectors identify the slice."
+  },
+  "selectors": [
+    {
+      "kind": "shamela_page_marker_range",
+      "page_start": 33,
+      "page_end": 40,
+      "marker_pattern": "(ص: N) with Arabic-Indic digits"
+    },
+    {
+      "kind": "html_char_range",
+      "char_start": 36532,
+      "char_end": 54457
+    }
+  ],
+  "normalization_contract": {
+    "contract_relpath": "../../../spec/normalization_contract_v0.1.md",
+    "contract_version": "0.1",
+    "notes": "ABD-root-relative path preferred; baseline-relative fallback allowed."
+  },
+  "extraction_tool": {
+    "tool_name": "extract_clean_input.py",
+    "tool_version": "0.2",
+    "tool_relpath": "tools/extract_clean_input.py",
+    "command": "python tools/extract_clean_input.py --html ../shamela_export.htm --page-start 33 --page-end 40 --out-matn passage3_clean_matn_input.txt --out-fn passage3_clean_fn_input.txt --out-slice passage3_source_slice.json",
+    "notes": "CP1 reference extractor; footnote separation intentionally left downstream."
+  },
+  "outputs": {
+    "clean_matn_input": "passage3_clean_matn_input.txt",
+    "clean_fn_input": "passage3_clean_fn_input.txt"
+  },
+  "notes": "CP1 locator: v0.2 emits source_locator schema; older v0.1 format superseded."
+}

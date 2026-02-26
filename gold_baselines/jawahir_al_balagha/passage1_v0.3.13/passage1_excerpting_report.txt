@@ -1,0 +1,1006 @@
+==========================================================================================
+PASSAGE1 — COMPLETE EXCERPTING REPORT (FINAL BASELINE)
+Gold Standard gold_standard_v0.3.3 | جواهر البلاغة في المعاني والبيان والبديع — (ص ١٩–٢٥)
+==========================================================================================
+
+--------------------------------------------------
+SUMMARY
+--------------------------------------------------
+  Total atoms:             95 (36 footnote + 59 matn)
+  Teaching excerpts:       13 (8 matn + 5 footnote)
+  Exercise excerpts:       8 (1 set + 5 items + 2 answers)
+  Exclusion records:       26
+  Taxonomy version:        balagha_v0_2
+  Atoms as core:           69
+    - author_prose: 47
+    - evidence: 13
+    - exercise_answer_content: 3
+    - exercise_content: 6
+  Atoms as context:        4
+  Atoms excluded:          26
+
+--------------------------------------------------
+DATA INTEGRITY
+--------------------------------------------------
+  Book ID:                 jawahir
+  Offset unit:             unicode_codepoint
+  Canonical derivation:    joined_from_atoms_with_newline_separators
+  matn canonical SHA-256:  46ecae6c9b458fdc39037aa35f91269138bbe1840bf029c37bac6851d630a9c4
+  footnote canonical SHA-256:  c668f5c00f13adb7fda8c4de71ccc3c7ad4790a2b5fa274c3475ffc87fe69318
+  Core atom model:         structured (atom_id + role)
+  Context atom scope:      external orientation only (no evidence)
+
+--------------------------------------------------
+TAXONOMY NODES COVERED
+--------------------------------------------------
+  ta3rif_alfasaha_lugha
+    +-- jawahir:exc:000001 — تعريف الفصاحة لغة (ص ١٩؛ matn 000004–000008) [teaching] core=5, ctx=0, layer=matn
+  ta3rif_alfasaha_istilah
+    +-- jawahir:exc:000002 — تعريف الفصاحة اصطلاحا (ص ١٩؛ matn 000009–000010) [teaching] core=2, ctx=0, layer=matn
+  shuroot_fasahat_alfard__overview
+    +-- jawahir:exc:000003 — شروط فصاحة المفرد إجمالا: تعداد الشروط (ص ٢٠؛ matn 000012–000015) [teaching] core=4, ctx=0, layer=matn
+    +-- jawahir:exc:000008 — شروط فصاحة المفرد: تعريف جامع في الحاشية (ص ٢٠؛ footnote 000003) [teaching] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000021 — شروط فصاحة المفرد إجمالا: ملخص القول (ص ٢٥؛ matn 000051–000052) [teaching] core=2, ctx=0, layer=matn
+  3uyub_alfard_tanafur
+    +-- jawahir:exc:000004 — عيوب المفرد: تنافر الحروف (ص ٢٠–٢١؛ matn 000016–000021) [teaching] core=6, ctx=1, layer=matn
+    +-- jawahir:exc:000009 — تنافر الحروف: تنبيه الحاشية على عدم انحصار سببه (ص ٢٠؛ footnote 000004) [teaching] core=1, ctx=0, layer=footnote
+  3uyub_alfard_gharaba
+    +-- jawahir:exc:000005 — عيوب المفرد: الغرابة (ص ٢٠–٢٣؛ matn 000022–000040) [teaching] core=19, ctx=1, layer=matn
+    +-- jawahir:exc:000010 — الغرابة: نقل المثل السائر في تقسيم الألفاظ (ص ٢٠–٢١؛ footnote 000006–000010) [teaching] core=5, ctx=0, layer=footnote
+    +-- jawahir:exc:000011 — الغرابة: تعليل «مسرج» من جهة صيغة فعّل (ص ٢٢؛ footnote 000012) [teaching] core=1, ctx=0, layer=footnote
+  3uyub_alfard_mukhalafat_qiyas
+    +-- jawahir:exc:000006 — عيوب المفرد: مخالفة القياس (ص ٢٠–٢٤؛ matn 000041–000047) [teaching] core=7, ctx=1, layer=matn
+    +-- jawahir:exc:000012 — مخالفة القياس: تقرير أن ما ثبت عن الواضع فصيح (ص ٢٣؛ footnote 000018–000021) [teaching] core=4, ctx=0, layer=footnote
+  3uyub_alfard_karahat_sam3
+    +-- jawahir:exc:000007 — عيوب المفرد: الكراهة في السمع (ص ٢٠–٢٤؛ matn 000048–000050) [teaching] core=3, ctx=1, layer=matn
+  tatbiq_fasahat_alfard
+    +-- jawahir:exc:000013 — تطبيقات فصاحة المفرد: صيغة السؤال (ص ٢٥؛ matn 000054) [exercise set] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000014 — تطبيق 1: غرابة ألفاظ «شكر/ثبر/تطلها/تصهلها» (ص ٢٥؛ matn 000055) [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000015 — تطبيق 2: غرابة ألفاظ كتاب الأمير (ص ٢٥؛ matn 000056) [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000016 — تطبيق 3: تنافر «جعجعة» وغرابة «الاسفنط/الخنشليل/الفدوكس» (ص ٢٥؛ matn 000057) [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000017 — تطبيق 4: غرابة «عصبصب/هلوف/السجسج/طلا» (ص ٢٥؛ matn 000058) [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000018 — تطبيق 5: غرابة استعمال «اصطراع» (ص ٢٥؛ matn 000059) [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000019 — جواب تطبيق 3: تعيين التنافر والغرابة (ص ٢٥؛ footnote 000029+000032) [exercise answer] core=2, ctx=0, layer=footnote
+    +-- jawahir:exc:000020 — جواب تطبيق 5: الحكم على «اصطراع» (ص ٢٥؛ footnote 000036) [exercise answer] core=1, ctx=0, layer=footnote
+
+==========================================================================================
+DETAILED EXCERPT RECORDS
+==========================================================================================
+
+=== jawahir:exc:000001 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          ta3rif_alfasaha_lugha
+  Path:          مقدمات > الفصاحة > تعريف الفصاحة > تعريف الفصاحة لغة
+  Cases:         A1_pure_definition, C4_embedded_verse_evidence, B1_clean_boundary
+  Source:        passage1_matn_canonical.txt — core[40..403]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة
+
+  Core atoms (5):
+    000004 [prose_sentence] role=author_prose
+        الفصاحة: تطلق في اللغة على معان كثيرة ـ منها البيان والظهور قال الله
+        تعالى: (وأخي هارون هو أفصح مِنِّي لساناً) أي أبين منِّي منطقاً وأظهر منَّي
+        قولاً.
+    000005 [bonded_cluster] role=author_prose
+        ويقال: أفصح الصبي في منطقه. إذا بان وظهر كلامه.
+    000006 [bonded_cluster] role=author_prose
+        وقالت العرب: أفصح الصبح. إذا أضاء، وفصح أيضا.
+    000007 [bonded_cluster] role=author_prose
+        وأفصح الأعجمي: إذا أبان بعد أن لم يكن يُفصح ويُبين.
+    000008 [bonded_cluster] role=author_prose
+        وفصح اللحان. إذا عبر عما في نفسه. وأظهره على وجه الصواب دون الخطأ.
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `ta3rif_alfasaha_lugha`.
+    Cases=A1_pure_definition, C4_embedded_verse_evidence, B1_clean_boundary. BOUNDARY:
+    Opens at atom 004 (first substantive atom after heading 003 'الفصاحة'). Atoms
+    005-008 are bonded-cluster T1 examples illustrating the linguistic usage of
+    فصح/أفصح — they elaborate the same لغة definition. Ends before atom 009 which
+    begins 'والفصاحة: في اصطلاح أهل المعاني' — a clean topical transition from لغة to
+    اصطلاح. ROLES: Roles are authoritative as encoded in `core_atoms` and
+    `context_atoms` (validator enforces: evidence is core; no evidence in context).
+    PLACEMENT: taxonomy_node_id=`ta3rif_alfasaha_lugha`; taxonomy_path=مقدمات >
+    الفصاحة > تعريف الفصاحة > تعريف الفصاحة لغة. Leaf must be true in the referenced
+    taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage
+    decisions log (one record per excerpt). ALTS: (legacy) Alternatives not recorded;
+    if a future reviewer disagrees, propose a taxonomy_change or boundary split and
+    re-validate.
+
+=== jawahir:exc:000002 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          ta3rif_alfasaha_istilah
+  Path:          مقدمات > الفصاحة > تعريف الفصاحة > تعريف الفصاحة اصطلاحا
+  Cases:         A1_pure_definition, A2_division_classification, B1_clean_boundary
+  Source:        passage1_matn_canonical.txt — core[404..640]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة
+
+  Core atoms (2):
+    000009 [prose_sentence] role=author_prose
+        والفصاحة: في اصطلاح أهل المعاني، عبارة عن الألفاظ البينة الظاهرة،
+        المتبادرة إلى الفهم، والمأنوسة الاستعمال بين الكتاب والشّعراء لمكان حسنها.
+    000010 [bonded_cluster] role=author_prose
+        وهي تقع وصفا للكلمة، والكلام، والمتكلّم، حسبما يعتبر الكاتب اللفظة وحدها.
+        أو مسبوكة مع أخواتها.
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf
+    `ta3rif_alfasaha_istilah`. Cases=A1_pure_definition, A2_division_classification,
+    B1_clean_boundary. BOUNDARY: Atom 009 begins with 'والفصاحة: في اصطلاح أهل
+    المعاني' — clear اصطلاح marker. Atom 010 elaborates scope (كلمة/كلام/متكلم), which
+    is part of the technical definition. Ends before heading 011 'فصاحة الكلمة' which
+    begins the detailed treatment of word-level فصاحة. ROLES: Roles are authoritative
+    as encoded in `core_atoms` and `context_atoms` (validator enforces: evidence is
+    core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`ta3rif_alfasaha_istilah`; taxonomy_path=مقدمات > الفصاحة > تعريف
+    الفصاحة > تعريف الفصاحة اصطلاحا. Leaf must be true in the referenced taxonomy
+    YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage decisions log
+    (one record per excerpt). ALTS: (legacy) Alternatives not recorded; if a future
+    reviewer disagrees, propose a taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000003 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          shuroot_fasahat_alfard__overview
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > شروط فصاحة المفرد إجمالا
+  Cases:         A2_division_classification, C5_inline_list_in_prose, B1_clean_boundary, D5_parent_level_content
+  Source:        passage1_matn_canonical.txt — core[654..896]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة
+
+  Core atoms (4):
+    000012 [list_item] role=author_prose
+        1. خلوصها من تنافر الحروف: لتكون رقيقة عذبة. تخف على اللسان، ولا تثقل على
+        السمع، فلفظ «أسد» أخف من لفظ «فدوكس» .
+    000013 [list_item] role=author_prose
+        2. خلوصها من الغرابة، وتكون مألوفة الاستعمال.
+    000014 [list_item] role=author_prose
+        3. خلوصها من مخالفة القياس الصرفي، حتى لا تكون شاذة.
+    000015 [list_item] role=author_prose
+        4. خلوصها من الكراهة في السمع.
+
+  Relations (1):
+    split_continues_in -> jawahir:exc:000021
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf
+    `shuroot_fasahat_alfard__overview`. Cases=A2_division_classification,
+    C5_inline_list_in_prose, B1_clean_boundary, D5_parent_level_content. BOUNDARY:
+    Atoms 012-015 are the four شروط listed immediately after heading 011, forming the
+    overview enumeration of فصاحة الكلمة conditions. Each condition's detailed
+    treatment (atoms 016-050) is excerpted separately under the respective عيب leaves.
+    The author's later ملخص summary (atoms 051-052) is a separate excerpt at the same
+    __overview node, connected via split_continues_in relation. ROLES: Roles are
+    authoritative as encoded in `core_atoms` and `context_atoms` (validator enforces:
+    evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`shuroot_fasahat_alfard__overview`; taxonomy_path=مقدمات >
+    الفصاحة > فصاحة المفرد > شروط فصاحة المفرد إجمالا. Leaf must be true in the
+    referenced taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in
+    passage decisions log (one record per excerpt). ALTS: (legacy) Alternatives not
+    recorded; if a future reviewer disagrees, propose a taxonomy_change or boundary
+    split and re-validate.
+
+=== jawahir:exc:000004 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          3uyub_alfard_tanafur
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: تنافر الحروف
+  Cases:         A1_pure_definition, A2_division_classification, C4_embedded_verse_evidence, B1_clean_boundary
+  Source:        passage1_matn_canonical.txt — context[654..766], core[897..1446]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة
+
+  Context -- framing (1):
+    000012 [list_item] role=classification_frame
+        1. خلوصها من تنافر الحروف: لتكون رقيقة عذبة. تخف على اللسان، ولا تثقل على
+        السمع، فلفظ «أسد» أخف من لفظ «فدوكس» .
+
+  Core atoms (6):
+    000016 [bonded_cluster] role=author_prose
+        أما «تنافر الحروف» ؛ فهو وصف في الكلمة يوجب ثقلها على السمع. وصعوبة أدائها
+        باللسان: بسبب كون حروف الكلمة متقاربة المخارج ـ وهو نوعان:
+    000017 [bonded_cluster] role=author_prose
+        1. شديد في الثقل ـ كالظش (للموضع الخشن) ونحو: همخع «لنبت ترعاه الإبل» من
+        قول أعرابي:
+    000018 [verse_evidence] role=evidence
+        تركت ناقتي ترعى الهمخع
+    000019 [bonded_cluster] role=author_prose
+        2. وخفيف في الثقل ـ كالنقنقة «لصوت الضفادع» والنقاخ «للماء العذب الصافي»
+        ونحو: مستشزرات «بمعنى مرتفعات» من قول امرئ القيس يصف شعر ابنة عمه:
+    000020 [verse_evidence] role=evidence
+        غدائره مستشزراتٌ إلى العلا تضل العقاص في مُثنَّى ومرسل
+    000021 [bonded_cluster] role=author_prose
+        ولا ضابط لمعرفة الثقل والصعوبة سوى الذوق السليم، والحس الصادق الناجمين عن
+        النظر في كلام البلغاء وممارسة أساليبهم
+
+  Relations (1):
+    has_overview -> jawahir:exc:000003
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `3uyub_alfard_tanafur`.
+    Cases=A1_pure_definition, A2_division_classification, C4_embedded_verse_evidence,
+    B1_clean_boundary. BOUNDARY: Atom 016 opens with 'أما تنافر الحروف' — clear topic
+    marker. Atoms 017-020 present two degrees (شديد/خفيف) with verse evidence. Atom
+    021 states the epistemological principle (الذوق السليم). Ends before atom 022
+    'واما غرابة الاستعمال' which transitions to the next عيب. Context: atom 012
+    provides the classification frame (condition 1 from the overview list). ROLES:
+    Roles are authoritative as encoded in `core_atoms` and `context_atoms` (validator
+    enforces: evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`3uyub_alfard_tanafur`; taxonomy_path=مقدمات > الفصاحة > فصاحة
+    المفرد > عيوب المفرد: تنافر الحروف. Leaf must be true in the referenced taxonomy
+    YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage decisions log
+    (one record per excerpt). ALTS: (legacy) Alternatives not recorded; if a future
+    reviewer disagrees, propose a taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000005 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          3uyub_alfard_gharaba
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: الغرابة
+  Cases:         A1_pure_definition, A2_division_classification, A4_shahid_with_commentary, A5_scholarly_dispute, C4_embedded_verse_evidence, B4_multipage_continuous, B1_clean_boundary, D4_cross_science
+  Cross-science: sarf
+  Source:        passage1_matn_canonical.txt — context[767..812], core[1447..2859]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة
+
+  Context -- framing (1):
+    000013 [list_item] role=classification_frame
+        2. خلوصها من الغرابة، وتكون مألوفة الاستعمال.
+
+  Core atoms (19):
+    000022 [prose_sentence] role=author_prose
+        واما غرابة الاستعمال، فهي كون الكلمة غير ظاهرة المعنى، ولا مألوفة
+        الاستعمال عند العرب الفصحاء، لان المعول عليه في ذلك استعمالهم.
+    000023 [prose_sentence] role=author_prose
+        والغرابة قسمان:
+    000024 [prose_sentence] role=author_prose
+        القسم الاول: ما يوجب حيرة السامع في فهم المعنى المقصود من الكلمة: لترددها
+        بين معنيين أو أكثر بلا قرينة.
+    000025 [prose_sentence] role=author_prose
+        وذلك في الألفاظ المشتركة «كمسّرج» من قول رؤبة بن العجاج:
+    000026 [verse_evidence] role=evidence
+        ومقلةً وحاجباً مزججا وفاحماً ومرسنا مسرّجا
+    000027 [prose_sentence] role=author_prose
+        فلا يعلم ما أراد بقوله «مسرَّجا» حتى اختلف أئمة اللغة في تخريجة.
+    000028 [prose_sentence] role=author_prose
+        فقال «ابن دريد» يريد ان انفه في الاستواء والدقة كالسيف السّريجي.
+    000029 [prose_sentence] role=author_prose
+        وقال «ابن سيده» يريد انه في البريق واللمعان كالسراج.
+    000030 [prose_sentence] role=author_prose
+        فلهذا يحتار السامع في فهم المعنى المقصود لتردد الكلمة بين معنيين بدون
+        «قرينة» تعين المقصود منهما.
+    000031 [bonded_cluster] role=author_prose
+        فلأجل هذا التردد، ولأجل أن مادة (فعل) تدل على مجرد نسبة شيء لشيء، لا على
+        النسبة التشبيهية: كانت الكلمة غير ظاهرة الدلالة على المعنى. فصارت غريبة.
+    000032 [prose_sentence] role=author_prose
+        وأما مع القرينة فلا غرابة ـ كلفظة «عزَّر» في قوله تعالى: (فالذين امنوا
+        وعزروه ونصروه) فانها مشتركة بين التعظيم والإهانة.
+    000033 [prose_sentence] role=author_prose
+        ولكن ذكر النصر قرينة على ارادة التعظيم.
+    000034 [prose_sentence] role=author_prose
+        القسم الثاني: ما يعاب استعماله لاحتياج إلى تتبع اللغات وكثرة البحث
+        والتفتيش في المعاجم «قواميس متن اللغة المطولة» :
+    000035 [bonded_cluster] role=author_prose
+        «أ» فمنه ما يعثر فيها على تفسير بعد كدّ. وبحث ـ نحو: تكأكأتم «بمعنى
+        اجتمعتم» من قول عيسى بن عمرو النَّحوي:
+    000036 [prose_sentence] role=evidence
+        مالكم تكأكأتم عليّ، كتكأكئكم على ذي جنة إفر نقعوا عنّي
+    000037 [bonded_cluster] role=author_prose
+        ـ ونحو (مشمخر) في قول: بشر بن عوانة. يصف الأسد:
+    000038 [verse_evidence] role=evidence
+        فخر مدرَّجاً بدم كأني هدمت به بناء مشمخرا
+    000039 [prose_sentence] role=author_prose
+        «ب» ومنه ما لم يعثر على تفسيره نحو (جحلنجع) من قول ابي الهميسع
+    000040 [verse_evidence] role=evidence
+        من طمحة صبيرهاجحلنجع لم يحضها الجدول بالتنوع
+
+  Relations (1):
+    has_overview -> jawahir:exc:000003
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `3uyub_alfard_gharaba`.
+    Cases=A1_pure_definition, A2_division_classification, A4_shahid_with_commentary,
+    A5_scholarly_dispute, C4_embedded_verse_evidence, B4_multipage_continuous,
+    B1_clean_boundary. CROSS-SCIENCE: Contains explicit morphological premise: "مادة
+    (فعل) تدل..." used to justify غرابة → mark cross_science_context=true
+    (related_science=sarf). BOUNDARY: Atom 022 opens with 'واما غرابة الاستعمال' —
+    clear topic marker. Continuous treatment through atom 040 (last verse in وحشي sub-
+    division). Internal structure: definition (022), two-division intro (023),
+    division 1: حيرة with مسرّج scholarly dispute (024-033), division 2: وحشي with
+    sub-types أ/ب (034-040). Ends before atom 041 'واما مخالفة القياس' which
+    transitions to the next عيب. Context: atom 013 provides the classification frame
+    (condition 2 from the overview list). Despite 19 core atoms, this is one
+    continuous discussion — the author never breaks topic. ROLES: Roles are
+    authoritative as encoded in `core_atoms` and `context_atoms` (validator enforces:
+    evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`3uyub_alfard_gharaba`; taxonomy_path=مقدمات > الفصاحة > فصاحة
+    المفرد > عيوب المفرد: الغرابة. Leaf must be true in the referenced taxonomy YAML.
+    CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage decisions log (one
+    record per excerpt). ALTS: (legacy) Alternatives not recorded; if a future
+    reviewer disagrees, propose a taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000006 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          3uyub_alfard_mukhalafat_qiyas
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: مخالفة القياس
+  Cases:         A1_pure_definition, A4_shahid_with_commentary, B6_definition_with_exception, C4_embedded_verse_evidence, D4_cross_science, B1_clean_boundary
+  Cross-science: sarf
+  Source:        passage1_matn_canonical.txt — context[813..865], core[2860..3523]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة
+
+  Context -- framing (1):
+    000014 [list_item] role=classification_frame
+        3. خلوصها من مخالفة القياس الصرفي، حتى لا تكون شاذة.
+
+  Core atoms (7):
+    000041 [prose_sentence] role=author_prose
+        واما (مخالفة القياس) فهو كون الكلمة شاذَّة غير جارية على القانون الصرفي
+        المستنبط من كلام العرب؛ بأن تكون على خلاف ما ثبت فيها عن العرف العربي
+        الصحيح
+    000042 [prose_sentence] role=author_prose
+        مثل (الأجلل) في قول أبي النجم:
+    000043 [verse_evidence] role=evidence
+        ألحمد لله العلي الأجلل الواحد الفرد القديم الأوَّل
+    000044 [bonded_cluster] role=author_prose
+        فإن القياس (الأجل) بالادغام، ولا مسوّغ لفكّه وكقطع همزة وصل «اثنين» في قول
+        جميل:
+    000045 [verse_evidence] role=evidence
+        ألا لا أرى إثنين أحسن شيمةً على حدثان الدَّهر منَّى ومن جمل
+    000046 [prose_sentence] role=author_prose
+        ويستثنى من ذلك ما ثبت استعماله لدى العرب مخالفاً للقياس ولكنه فصيح.
+    000047 [bonded_cluster] role=author_prose
+        لهذا لم يخرج عن الفصاحة لفظتا (المشرق والمغرب) بكسر الراء، والقياس فتحها
+        فيهما، وكذا لفظتا (المُدهُن والمنخُل) والقياس فيهما مِفْعَل بكسر الميم
+        وفتح العين ـ وكذا نحو قولهم (عَوِر) والقياس عارَ: لتحرك الواو وانفتاح ما
+        قبلها.
+
+  Relations (1):
+    has_overview -> jawahir:exc:000003
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf
+    `3uyub_alfard_mukhalafat_qiyas`. Cases=A1_pure_definition,
+    A4_shahid_with_commentary, B6_definition_with_exception,
+    C4_embedded_verse_evidence, D4_cross_science, B1_clean_boundary. BOUNDARY: Atom
+    041 opens with 'واما مخالفة القياس' — clear topic marker. Atoms 042-045: two verse
+    examples (الأجلل + إثنين) demonstrating morphological deviance. Atoms 046-047:
+    exception rule (ما ثبت استعماله لدى العرب) with counter-examples (المشرق/المغرب,
+    استحوذ/استنوق). Ends before atom 048 'واما الكراهة في السمع'. Cross-science: the
+    examples require صرف knowledge (إدغام, قطع همزة, تصحيح الواو) but are used بلاغيا
+    to define the عيب. ROLES: Roles are authoritative as encoded in `core_atoms` and
+    `context_atoms` (validator enforces: evidence is core; no evidence in context).
+    PLACEMENT: taxonomy_node_id=`3uyub_alfard_mukhalafat_qiyas`; taxonomy_path=مقدمات
+    > الفصاحة > فصاحة المفرد > عيوب المفرد: مخالفة القياس. Leaf must be true in the
+    referenced taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in
+    passage decisions log (one record per excerpt). ALTS: (legacy) Alternatives not
+    recorded; if a future reviewer disagrees, propose a taxonomy_change or boundary
+    split and re-validate.
+
+=== jawahir:exc:000007 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          3uyub_alfard_karahat_sam3
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: الكراهة في السمع
+  Cases:         A1_pure_definition, C4_embedded_verse_evidence, D2_new_node_discovery, B1_clean_boundary
+  Source:        passage1_matn_canonical.txt — context[866..896], core[3524..3756]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة
+
+  Context -- framing (1):
+    000015 [list_item] role=classification_frame
+        4. خلوصها من الكراهة في السمع.
+
+  Core atoms (3):
+    000048 [prose_sentence] role=author_prose
+        واما (الكراهة في السمع) فهو كون الكلمة وحشية، تأنفها الطباع وتمجها
+        الاسماع، وتنبو عنه، كما ينبو عن سماع الأصوات المنكرة.
+    000049 [prose_sentence] role=author_prose
+        (كالجرشى ـ للنفس) في قول أبي الطيب المتنبي يمدح سيف الدولة
+    000050 [verse_evidence] role=evidence
+        مبارك الإسم أغرُّ اللقب … كريم الجرشَّى شريف النَّسب
+
+  Relations (1):
+    has_overview -> jawahir:exc:000003
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf
+    `3uyub_alfard_karahat_sam3`. Cases=A1_pure_definition, C4_embedded_verse_evidence,
+    D2_new_node_discovery, B1_clean_boundary. BOUNDARY: Atom 048 opens with 'واما
+    الكراهة في السمع' — clear topic marker. Atoms 049-050: verse example (المتنبي,
+    الجرشى). Ends before atom 051 which is a ملخص of ALL four conditions (assigned to
+    the overview excerpt jawahir:exc:000003). New taxonomy node
+    3uyub_alfard_karahat_sam3 created because الهاشمي treats كراهة السمع as
+    independent from تنافر: تنافر is about pronunciation difficulty, كراهة is about
+    aesthetic repugnance even for phonetically easy words. ROLES: Roles are
+    authoritative as encoded in `core_atoms` and `context_atoms` (validator enforces:
+    evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`3uyub_alfard_karahat_sam3`; taxonomy_path=مقدمات > الفصاحة >
+    فصاحة المفرد > عيوب المفرد: الكراهة في السمع. Leaf must be true in the referenced
+    taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage
+    decisions log (one record per excerpt). ALTS: (legacy) Alternatives not recorded;
+    if a future reviewer disagrees, propose a taxonomy_change or boundary split and
+    re-validate.
+
+=== jawahir:exc:000008 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          shuroot_fasahat_alfard__overview
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > شروط فصاحة المفرد إجمالا
+  Cases:         A1_pure_definition, C1_scholarly_footnote, D4_cross_science
+  Cross-science: sarf
+  Source:        passage1_fn_canonical.txt — core[629..873]
+
+  Core atoms (1):
+    000003 [prose_sentence] role=author_prose
+        ففصاحة الكلمة تكونها من حروف متآلفة يسهل على اللسان نطقها من غير عناء، مع
+        وضوح معناها، وكثرة تداولها بين المتكلمين وموافقتها للقواعد الصرفية ومرجع
+        ذلك الذوق السليم، والالمام بمتن اللغة، وقواعد الصرف ـ وبذلك تسلم مادتها
+        وصيغتها. ومعناها من الخلل
+
+  Relations (1):
+    footnote_supports -> jawahir:exc:000003
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf
+    `shuroot_fasahat_alfard__overview`. Cases=A1_pure_definition,
+    C1_scholarly_footnote. CROSS-SCIENCE: Footnote explicitly invokes "القواعد
+    الصرفية" and "مادتها وصيغتها" as a شرط للفصاحة → mark cross_science_context=true
+    (related_science=sarf). BOUNDARY: Footnote atom fn:003 defines فصاحة الكلمة as
+    'تكونها من حروف متآلفة يسهل على اللسان نطقها من غير عناء مع وضوح معناها وكثرة
+    تداولها...' This is a more detailed restatement of the overview conditions, not
+    specific to any one عيب. Placed at the overview node. ROLES: Roles are
+    authoritative as encoded in `core_atoms` and `context_atoms` (validator enforces:
+    evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`shuroot_fasahat_alfard__overview`; taxonomy_path=مقدمات >
+    الفصاحة > فصاحة المفرد > شروط فصاحة المفرد إجمالا. Leaf must be true in the
+    referenced taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in
+    passage decisions log (one record per excerpt). ALTS: (legacy) Alternatives not
+    recorded; if a future reviewer disagrees, propose a taxonomy_change or boundary
+    split and re-validate.
+
+=== jawahir:exc:000009 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          3uyub_alfard_tanafur
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: تنافر الحروف
+  Cases:         A3_rule_with_conditions, C1_scholarly_footnote
+  Source:        passage1_fn_canonical.txt — core[874..1150]
+
+  Core atoms (1):
+    000004 [prose_sentence] role=author_prose
+        واعلم أنه ليس تنافر الحروف يكون موجبه دائما قرب مخارج الحروف. إذ قربها لا
+        يوجبه دائما ـ كما أن تباعدها لا يوجب خفتها ـ فها هي كلمة «بفمي» حسنة،
+        وحروفها من مخرج واحد وهو الشفة، وكلمة «ملع» منتافرة ثقيلة، وحروفها متباعدة
+        المخارج، وأيضاً ليس موجب التنافر طول الكلمة وكثرة حروفها.
+
+  Relations (1):
+    footnote_supports -> jawahir:exc:000004
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `3uyub_alfard_tanafur`.
+    Cases=A3_rule_with_conditions, C1_scholarly_footnote. BOUNDARY: Footnote atom
+    fn:004 argues that تنافر is NOT solely determined by مخارج proximity: 'بفمي' has
+    same مخرج but is pleasant, 'ملع' has distant مخارج but is cacophonous. Placed at
+    تنافر node as supporting scholarly clarification. ROLES: Roles are authoritative
+    as encoded in `core_atoms` and `context_atoms` (validator enforces: evidence is
+    core; no evidence in context). PLACEMENT: taxonomy_node_id=`3uyub_alfard_tanafur`;
+    taxonomy_path=مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: تنافر الحروف. Leaf
+    must be true in the referenced taxonomy YAML. CHECKLIST: Placement checklist
+    PLACE.P1–P8 recorded in passage decisions log (one record per excerpt). ALTS:
+    (legacy) Alternatives not recorded; if a future reviewer disagrees, propose a
+    taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000010 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          3uyub_alfard_gharaba
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: الغرابة
+  Cases:         A1_pure_definition, A2_division_classification, C1_scholarly_footnote, A6_historical_bibliographical, B4_multipage_continuous
+  Source:        passage1_fn_canonical.txt — core[1390..2846]
+
+  Core atoms (5):
+    000006 [prose_sentence] role=evidence
+        الألفاظ تنقسم إلى ثلاثة أقسام ـ قسمان حسنان، وقسم قبيح، فالقسمان الحسنان:
+        أحدهما ما تداول استعماله السلف والخلف من الزمن القديم إلى زماننا هذا ولا
+        يطلق عليه أنه وحشي، والآخر ما تداول استعماله السلف دون الخلف، ويختلف في
+        استعماله بالنسبة إلى الزمن واهله ـ وهذا هو الذي يعاب استعماله عند العرب
+        لأنه لم يكن عندهم وحشيا وهو عندنا وحشي.
+    000007 [prose_sentence] role=evidence
+        ولا يسبق وهمك إلى قول قصراء النظر بأن العرب كانت تستعمل من الألفاظ كذا
+        وكذا ـ فهذا دليل على أنه حسن، بل ينبغي أن تعلم أن الذي نستحسنه نحن في
+        زماننا هذا، هو الذي كان عند العرب مستحسناً، والذي نستقبحه هو الذي كان
+        عندهم مستقبحا ـ والاستعمال ليس بدليل على الحسن، فاننا نحن نستعمل الأن من
+        الكلام ما ليس بحسن، وإنما نستعمله لضرورة، فليس استعمال الحسن بممكن في كل
+        الأحوال ـ
+    000008 [prose_sentence] role=evidence
+        واعلم أن استحسان الألفاظ واستقباحها لا يؤخذ بالتقليد من العرب لانه شيء ليس
+        للتقليد فيه مجال، وإنما هو شيء له خصائص وهيئات وعلامات إذا وجدت علم حسنه
+        من قبحه ـ ألا ترى أن لفظة (المزنة) مثلا حسنة عند الناس كافة من العرب
+        وغيرهم، فاذا استعملتها العرب لا يكون استعمالهم إياها مخرجا لها عن القبح،
+        ولا يلتفت إذن إلى استعمالهم إياها بل يعاب مستعملها ويغلظ له النكير حيث
+        استعملها ـ
+    000009 [prose_sentence] role=evidence
+        فلا تظن ان الوحشي من الألفاظ ما يكرهه سمعك ويثقل عليك النطق به وانما هو
+        الغريب الذي يقل استعماله، فتارة يخف على سمعك ولا تجد به كراهة، وتارة يثقل
+        على سمعك وتجد منه الكراهة، وذلك في اللفط عيبان كونه غريب الاستعمال وكونه
+        ثقيلا على السمع كريها على الذوق. وليس وراءه في القبح درجة أخرى، ولا
+        يستعمله إلا أجهل الناس ممن لم يخطر بباله شيء من معرفة هذا الفن أصلا.
+    000010 [prose_sentence] role=author_prose
+        انتهى عن المثل السائر ـ بتصرف.
+
+  Relations (1):
+    footnote_supports -> jawahir:exc:000005
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `3uyub_alfard_gharaba`.
+    Cases=A1_pure_definition, A2_division_classification, C1_scholarly_footnote,
+    A6_historical_bibliographical, B4_multipage_continuous. BOUNDARY: Footnote atoms
+    fn:006-010 contain a substantial quotation from المثل السائر by ابن الأثير
+    (attributed with 'انتهى عن المثل السائر بتصرف'). Content: classification of ألفاظ
+    into 3 categories by beauty (fn:006), argument that usage ≠ beauty (fn:007),
+    beauty not determined by تقليد (fn:008), definition of وحشي as غريب الاستعمال with
+    two عيبان (fn:009), attribution close (fn:010). Placed at غرابة node — this is the
+    most substantive footnote in the passage, providing an extended scholarly
+    treatment of وحشية. ROLES: Roles are authoritative as encoded in `core_atoms` and
+    `context_atoms` (validator enforces: evidence is core; no evidence in context).
+    PLACEMENT: taxonomy_node_id=`3uyub_alfard_gharaba`; taxonomy_path=مقدمات > الفصاحة
+    > فصاحة المفرد > عيوب المفرد: الغرابة. Leaf must be true in the referenced
+    taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage
+    decisions log (one record per excerpt). ALTS: (legacy) Alternatives not recorded;
+    if a future reviewer disagrees, propose a taxonomy_change or boundary split and
+    re-validate.
+
+=== jawahir:exc:000011 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          3uyub_alfard_gharaba
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: الغرابة
+  Cases:         A3_rule_with_conditions, C1_scholarly_footnote, D4_cross_science
+  Cross-science: sarf
+  Source:        passage1_fn_canonical.txt — core[3099..3285]
+
+  Core atoms (1):
+    000012 [prose_sentence] role=author_prose
+        أي ولفظة مسرج غير ظاهر الدلالة على ما ذكر، لأن فعل إنما يدل على مجرد
+        النسبة، وهي لا تدل على التشبيه، فاخذه منها بعيد ـ لهذا أدخل الحيرة على
+        السامع في فهم المعنى المقصود من الكلمة لترددها
+
+  Relations (1):
+    footnote_explains -> jawahir:exc:000005
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `3uyub_alfard_gharaba`.
+    Cases=A3_rule_with_conditions, C1_scholarly_footnote. CROSS-SCIENCE: Footnote
+    explains the morphological pattern "فعّل" (دلالة النسبة) as premise for the غرابة
+    analysis → mark cross_science_context=true (related_science=sarf). BOUNDARY:
+    Footnote atom fn:012 explains the grammatical reason why مسرج is غامضة الدلالة:
+    the فعّل pattern only indicates نسبة (attribution), not تشبيه (comparison), so
+    taking it as سراج-like is بعيد. Placed at غرابة node — directly explains the
+    linguistic mechanism behind the مسرج ambiguity discussed in jawahir:exc:000005.
+    ROLES: Roles are authoritative as encoded in `core_atoms` and `context_atoms`
+    (validator enforces: evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`3uyub_alfard_gharaba`; taxonomy_path=مقدمات > الفصاحة > فصاحة
+    المفرد > عيوب المفرد: الغرابة. Leaf must be true in the referenced taxonomy YAML.
+    CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage decisions log (one
+    record per excerpt). ALTS: (legacy) Alternatives not recorded; if a future
+    reviewer disagrees, propose a taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000012 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          3uyub_alfard_mukhalafat_qiyas
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: مخالفة القياس
+  Cases:         A4_shahid_with_commentary, C1_scholarly_footnote, D4_cross_science
+  Cross-science: sarf
+  Source:        passage1_fn_canonical.txt — core[3589..4137]
+
+  Core atoms (4):
+    000018 [prose_sentence] role=author_prose
+        ما استثناه الصرفيون من قواعدهم المجمع عليها وان خالف للقياس «فصيح»
+    000019 [prose_sentence] role=author_prose
+        فمثل (آل وماه) أصلها أهل وموه ـ أبدلت الهاء فيهما همزة، وابدال الهمزة من
+        الهاء وإن كان على خلاف القياس إلا أنه ثبت عن الواضع ـ
+    000020 [prose_sentence] role=author_prose
+        ومثل (أبي يأبى) بفتح الباء في المضارع والقياس، كسرها فيه لأن فعل بفتح
+        العين لا يأتي مضارعه على يفعل بالفتح إلا إذا كان عين ماضيه او لامه حرف حلق
+        كسال ونفع، فمجيئ المضارع بالفتح على خلاف القياس، الا ان الفتح ثبت عن
+        الواضع ـ
+    000021 [prose_sentence] role=author_prose
+        ومثل (عور يعور) أي فالقياس فيهما عار يعار بقلب الواو ألفا لتحركها وانفتاح
+        ما قبلها، فتصحيح الواو خلاف القياس إلا أنه ثبت عن الواضع.
+
+  Relations (1):
+    footnote_supports -> jawahir:exc:000006
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf
+    `3uyub_alfard_mukhalafat_qiyas`. Cases=A4_shahid_with_commentary,
+    C1_scholarly_footnote, D4_cross_science. BOUNDARY: Footnote atoms fn:018-021
+    provide three detailed morphological examples of مخالفة القياس that are
+    nonetheless فصيح because ثبت عن الواضع: آل/ماه (إبدال), أبى يأبى (مضارع فتح), عور
+    يعور (تصحيح واو). This is substantive صرف content used to explain the بلاغة
+    exception rule in jawahir:exc:000006 atom 046. ROLES: Roles are authoritative as
+    encoded in `core_atoms` and `context_atoms` (validator enforces: evidence is core;
+    no evidence in context). PLACEMENT:
+    taxonomy_node_id=`3uyub_alfard_mukhalafat_qiyas`; taxonomy_path=مقدمات > الفصاحة >
+    فصاحة المفرد > عيوب المفرد: مخالفة القياس. Leaf must be true in the referenced
+    taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage
+    decisions log (one record per excerpt). ALTS: (legacy) Alternatives not recorded;
+    if a future reviewer disagrees, propose a taxonomy_change or boundary split and
+    re-validate.
+
+=== jawahir:exc:000013 ===================================================================
+  Kind:          exercise
+  Exercise role: set
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary
+  Tests nodes:   3uyub_alfard_gharaba, 3uyub_alfard_tanafur
+  Source:        passage1_matn_canonical.txt — core[3942..3979]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة > تطبيق
+
+  Core atoms (1):
+    000054 [prose_sentence] role=exercise_content
+        ما الذي أخل بفصاحة الكلمات فيما يأتي:
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `tatbiq_fasahat_alfard`.
+    Cases=C2_exercise_section, B1_clean_boundary. BOUNDARY: Atom 054 is the exercise
+    prompt: 'ما الذي أخل بفصاحة الكلمات فيما يأتي'. This is the parent exercise-set
+    framing all 5 items that follow. Heading atom 053 ('تطبيق') provides structural
+    context. ROLES: Roles are authoritative as encoded in `core_atoms` and
+    `context_atoms` (validator enforces: evidence is core; no evidence in context).
+    PLACEMENT: taxonomy_node_id=`tatbiq_fasahat_alfard`; taxonomy_path=مقدمات >
+    الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد. Leaf must be true in the referenced
+    taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage
+    decisions log (one record per excerpt). ALTS: (legacy) Alternatives not recorded;
+    if a future reviewer disagrees, propose a taxonomy_change or boundary split and
+    re-validate.
+
+=== jawahir:exc:000014 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, A4_shahid_with_commentary
+  Tests nodes:   3uyub_alfard_gharaba
+  Primary test:  3uyub_alfard_gharaba
+  Source:        passage1_matn_canonical.txt — core[3980..4069]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة > تطبيق
+
+  Core atoms (1):
+    000055 [bonded_cluster] role=exercise_content
+        قال يحيى بن يعمر: لرجل حاكمته امراته إليه «أئن سالتك ثمن شكرها وشبرك، اخذت
+        تطلها وتضهلها.
+
+  Relations (2):
+    exercise_tests -> jawahir:exc:000005
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `tatbiq_fasahat_alfard`.
+    Cases=C2_exercise_section, A4_shahid_with_commentary. BOUNDARY: Atom 055 quotes
+    يحيى بن يعمر using archaic words (شكر=رضاع, ثبر=نكاح, تطلها=تبطل حقها,
+    تصهلها=تعطيها القليل). These are وحشي words — unfamiliar to the average listener,
+    requiring dictionary lookup. Tests the غرابة condition. ROLES: Roles are
+    authoritative as encoded in `core_atoms` and `context_atoms` (validator enforces:
+    evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`tatbiq_fasahat_alfard`; taxonomy_path=مقدمات > الفصاحة > فصاحة
+    المفرد > تطبيقات فصاحة المفرد. Leaf must be true in the referenced taxonomy YAML.
+    CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage decisions log (one
+    record per excerpt). ALTS: (legacy) Alternatives not recorded; if a future
+    reviewer disagrees, propose a taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000015 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, A4_shahid_with_commentary
+  Tests nodes:   3uyub_alfard_gharaba
+  Primary test:  3uyub_alfard_gharaba
+  Source:        passage1_matn_canonical.txt — core[4070..4289]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة > تطبيق
+
+  Core atoms (1):
+    000056 [bonded_cluster] role=exercise_content
+        وقال بعض أمراء العرب، وقد اعتلت أمّه، فكتب رقاعاً وطرحها في المسجد الجامع
+        بمدينة السلام: صين امرؤ وَرَعَا، دعا لامراة انقحلة مقسئنة قد منيت بأكل
+        الطرموق فأصابها من أجله الاستمصال بأن يمن الله عليها بالاطرعشاش والابرغشاش
+
+  Relations (2):
+    exercise_tests -> jawahir:exc:000005
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `tatbiq_fasahat_alfard`.
+    Cases=C2_exercise_section, A4_shahid_with_commentary. BOUNDARY: Atom 056 quotes an
+    Arab prince's letter filled with obscure words (صلبة, خريعة, حضرمية, ممغورة,
+    مأسودة — all requiring glosses). Tests غرابة: words that require تتبع اللغات.
+    ROLES: Roles are authoritative as encoded in `core_atoms` and `context_atoms`
+    (validator enforces: evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`tatbiq_fasahat_alfard`; taxonomy_path=مقدمات > الفصاحة > فصاحة
+    المفرد > تطبيقات فصاحة المفرد. Leaf must be true in the referenced taxonomy YAML.
+    CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage decisions log (one
+    record per excerpt). ALTS: (legacy) Alternatives not recorded; if a future
+    reviewer disagrees, propose a taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000016 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section
+  Tests nodes:   3uyub_alfard_tanafur, 3uyub_alfard_gharaba
+  Primary test:  3uyub_alfard_tanafur
+  Source:        passage1_matn_canonical.txt — core[4290..4370]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة > تطبيق
+
+  Core atoms (1):
+    000057 [bonded_cluster] role=exercise_content
+        أسمع جعجعة ـ ولا أرى طحنا ـ الاسفنط ـ حرام ـ وهذا الخنشليل صقيل، والفدوكس
+        مفترس.
+
+  Relations (3):
+    exercise_tests -> jawahir:exc:000004
+    exercise_tests -> jawahir:exc:000005
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `tatbiq_fasahat_alfard`.
+    Cases=C2_exercise_section. BOUNDARY: Atom 057 has 'أسمع جعجعة ـ ولا أرى طحنا'
+    (تنافر الحروف in جعجعة) plus 'الاسفنط حرام والخنشليل صقيل والفدوكس مفترس'
+    (وحشي/غريب words). Tests both تنافر (جعجعة) and غرابة (الاسفنط etc.). ROLES: Roles
+    are authoritative as encoded in `core_atoms` and `context_atoms` (validator
+    enforces: evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`tatbiq_fasahat_alfard`; taxonomy_path=مقدمات > الفصاحة > فصاحة
+    المفرد > تطبيقات فصاحة المفرد. Leaf must be true in the referenced taxonomy YAML.
+    CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage decisions log (one
+    record per excerpt). ALTS: (legacy) Alternatives not recorded; if a future
+    reviewer disagrees, propose a taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000017 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section
+  Tests nodes:   3uyub_alfard_gharaba
+  Primary test:  3uyub_alfard_gharaba
+  Source:        passage1_matn_canonical.txt — core[4371..4403]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة > تطبيق
+
+  Core atoms (1):
+    000058 [prose_sentence] role=exercise_content
+        يوم عصبصب وهلوف، ملأ السجسج طلا.
+
+  Relations (2):
+    exercise_tests -> jawahir:exc:000005
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `tatbiq_fasahat_alfard`.
+    Cases=C2_exercise_section. BOUNDARY: Atom 058 contains 'يوم عصبصب وهلوف ملأ السجسج
+    طلا' — archaic words for severe weather and terrain types. Tests غرابة: obscure
+    vocabulary unfamiliar to ordinary speakers. ROLES: Roles are authoritative as
+    encoded in `core_atoms` and `context_atoms` (validator enforces: evidence is core;
+    no evidence in context). PLACEMENT: taxonomy_node_id=`tatbiq_fasahat_alfard`;
+    taxonomy_path=مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد. Leaf must be
+    true in the referenced taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8
+    recorded in passage decisions log (one record per excerpt). ALTS: (legacy)
+    Alternatives not recorded; if a future reviewer disagrees, propose a
+    taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000018 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, C4_embedded_verse_evidence
+  Tests nodes:   3uyub_alfard_gharaba
+  Primary test:  3uyub_alfard_gharaba
+  Source:        passage1_matn_canonical.txt — core[4404..4450]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة > تطبيق
+
+  Core atoms (1):
+    000059 [verse_evidence] role=exercise_content
+        أمنَّا أن تصرّع عن سماحٍ وللآمال في يدك اصطراع
+
+  Relations (2):
+    exercise_tests -> jawahir:exc:000005
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `tatbiq_fasahat_alfard`.
+    Cases=C2_exercise_section, C4_embedded_verse_evidence. BOUNDARY: Atom 059 contains
+    'أمنّا أن تصرّع عن سماح وللآمال في يدك اصطراع' — the word اصطراع is used in a far-
+    fetched metaphorical sense (= تنافس وتغالب). The footnote explicitly calls this
+    usage بعيد. Tests غرابة in the semantic-ambiguity sub-type (like مسرّج). ROLES:
+    Roles are authoritative as encoded in `core_atoms` and `context_atoms` (validator
+    enforces: evidence is core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`tatbiq_fasahat_alfard`; taxonomy_path=مقدمات > الفصاحة > فصاحة
+    المفرد > تطبيقات فصاحة المفرد. Leaf must be true in the referenced taxonomy YAML.
+    CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage decisions log (one
+    record per excerpt). ALTS: (legacy) Alternatives not recorded; if a future
+    reviewer disagrees, propose a taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000019 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, C1_scholarly_footnote
+  Tests nodes:   3uyub_alfard_tanafur, 3uyub_alfard_gharaba
+  Primary test:  3uyub_alfard_tanafur
+  Source:        passage1_fn_canonical.txt — core[4340..4402], core[4434..4493]
+
+  Core atoms (2):
+    000029 [prose_sentence] role=exercise_answer_content
+        جعجعة غير فصيحة لتنافر حروفها، وهو مثل يضرب لمن يقول ولا يفعل.
+    000032 [prose_sentence] role=exercise_answer_content
+        الفدوكس الأسد، فكل من هذه الألفاظ الثلاثة وحشية غير مألوفة.
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000016
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `tatbiq_fasahat_alfard`.
+    Cases=C2_exercise_section, C1_scholarly_footnote. BOUNDARY: Footnote atoms fn:029
+    and fn:032 contain explicit scholarly judgments identifying the عيوب in exercise
+    item jawahir:exc:000016. fn:029 identifies جعجعة as تنافر الحروف; fn:032 concludes
+    الفدوكس/الاسفنط/الخنشليل are وحشية غير مألوفة. Atoms fn:030-031 (pure glosses)
+    excluded between them, making this non-contiguous. ROLES: Roles are authoritative
+    as encoded in `core_atoms` and `context_atoms` (validator enforces: evidence is
+    core; no evidence in context). PLACEMENT:
+    taxonomy_node_id=`tatbiq_fasahat_alfard`; taxonomy_path=مقدمات > الفصاحة > فصاحة
+    المفرد > تطبيقات فصاحة المفرد. Leaf must be true in the referenced taxonomy YAML.
+    CHECKLIST: Placement checklist PLACE.P1–P8 recorded in passage decisions log (one
+    record per excerpt). ALTS: (legacy) Alternatives not recorded; if a future
+    reviewer disagrees, propose a taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000020 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, C1_scholarly_footnote
+  Tests nodes:   3uyub_alfard_gharaba
+  Primary test:  3uyub_alfard_gharaba
+  Source:        passage1_fn_canonical.txt — core[4705..4747]
+
+  Core atoms (1):
+    000036 [prose_sentence] role=exercise_answer_content
+        واستعماله للفظة الاصطراع بهذا المعنى بعيد.
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000018
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf `tatbiq_fasahat_alfard`.
+    Cases=C2_exercise_section, C1_scholarly_footnote. BOUNDARY: Footnote atom fn:036
+    contains the explicit scholarly judgment 'واستعماله للفظة الاصطراع بهذا المعنى
+    بعيد' — identifying the عيب in exercise item jawahir:exc:000018 as غرابة
+    (distant/unusual usage). Atoms fn:034-035 (meaning glosses for the verse) remain
+    excluded as apparatus. ROLES: Roles are authoritative as encoded in `core_atoms`
+    and `context_atoms` (validator enforces: evidence is core; no evidence in
+    context). PLACEMENT: taxonomy_node_id=`tatbiq_fasahat_alfard`;
+    taxonomy_path=مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد. Leaf must be
+    true in the referenced taxonomy YAML. CHECKLIST: Placement checklist PLACE.P1–P8
+    recorded in passage decisions log (one record per excerpt). ALTS: (legacy)
+    Alternatives not recorded; if a future reviewer disagrees, propose a
+    taxonomy_change or boundary split and re-validate.
+
+=== jawahir:exc:000021 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          shuroot_fasahat_alfard__overview
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > شروط فصاحة المفرد إجمالا
+  Cases:         D5_parent_level_content, B1_clean_boundary
+  Source:        passage1_matn_canonical.txt — core[3757..3935]
+  Headings:      مقدمة > في معرفة الفصاحة والبلاغة > الفصاحة > فصاحة الكلمة
+
+  Core atoms (2):
+    000051 [bonded_cluster] role=author_prose
+        وملخَّص القول ـ أن فصاحة الكلمة تكون بسلامتها من تنافر الحروف ومن الغرابة.
+        ومن مخالفة القياس. ومن الابتذال. والضعف.
+    000052 [prose_sentence] role=author_prose
+        فاذا لصق بالكلمة عيب من هذه العيوب السابقة وجب نبذها واطراحها.
+
+  Relations (1):
+    split_continued_from -> jawahir:exc:000003
+
+  Boundary reasoning:
+    GROUPING: Single-topic excerpt grouped per taxonomy leaf
+    `shuroot_fasahat_alfard__overview`. Cases=D5_parent_level_content,
+    B1_clean_boundary. BOUNDARY: Atoms 051-052 are the author's ملخص القول summarizing
+    فصاحة الكلمة conditions after the detailed عيب treatments. This is a recap of the
+    overview enumeration (exc:000003), placed at the same __overview leaf. IMPORTANT:
+    atom 051 diverges from the enumeration in exc:000003. The ملخص lists: تنافر
+    الحروف، الغرابة، مخالفة القياس، الابتذال، الضعف — introducing الابتذال and الضعف
+    (absent from the enumeration) and omitting الكراهة في السمع (which IS treated as
+    an independent عيب in atoms 048-050). This is an author inconsistency preserved
+    per content sovereignty; do NOT auto-create taxonomy nodes from summary-only
+    mentions. Synthesis LLM must be aware that the summary and the enumeration do not
+    perfectly align. ROLES: Roles are authoritative as encoded in `core_atoms` and
+    `context_atoms` (validator enforces: evidence is core; no evidence in context).
+    PLACEMENT: taxonomy_node_id=`shuroot_fasahat_alfard__overview`;
+    taxonomy_path=مقدمات > الفصاحة > فصاحة المفرد > شروط فصاحة المفرد إجمالا. Leaf
+    must be true in the referenced taxonomy YAML. CHECKLIST: Placement checklist
+    PLACE.P1–P8 recorded in passage decisions log (one record per excerpt). ALTS:
+    (legacy) Alternatives not recorded; if a future reviewer disagrees, propose a
+    taxonomy_change or boundary split and re-validate.
+
+
+==========================================================================================
+EXCLUSION RECORDS
+==========================================================================================
+
+  heading_structural (5 atoms):
+    000001 [matn] مقدمة
+    000002 [matn] في معرفة الفصاحة والبلاغة
+    000003 [matn] الفصاحة
+    000011 [matn] فصاحة الكلمة
+    000053 [matn] تطبيق
+
+  footnote_apparatus (21 atoms):
+    000001 [footnote] مقدمة مشتقة من قدم اللازم، وهذه مقدمة كتاب لأنها ألفاظ تقدمت أمام ا...
+    000002 [footnote] واعلم أن علوم البلاغة أجل العلوم الأدبية قدراً. وأرسخها أصلا. وأبسق...
+    000005 [footnote] «الغدائر» الضفائر، والضمير يرجع إلى (فرع) في البيت قبله (والاستشراز...
+    000011 [footnote] «مزججا» مدققا مطولا (فاحما) شعرا اسود كالفحمة (مرسنا) بكسر الميم وف...
+    000013 [footnote] اجتمعتم.
+    000014 [footnote] جنون.
+    000015 [footnote] انصرفوا ـ وقال ذلك حين سقط عن دابته فاجتمع الناس حوله.
+    000016 [footnote] الطمحة النظرة، والصبير السحاب المتراكم ـ وقبله
+إن تمنعي صوبك صوب ال...
+    000017 [footnote] الضئب الحب والثعثع اللؤلؤ ـ قال صاحب القاموس ذكروا جحلنجع ولم يفسرو...
+    000022 [footnote] الشيمة الخلق، والحدثان نوائب الدهر، وجمل فرسه.
+    000023 [footnote] الشكر الرضاع والثبر النكاح وتطلها تسعى في بطلان حقها وتصهلها تعطيها...
+    000024 [footnote] يابسة.
+    000025 [footnote] مسنة عجوز.
+    000026 [footnote] ابتليت باكل الطين.
+    000027 [footnote] الإسهال.
+    000028 [footnote] البرء ـ وكذا معنى ما بعده.
+    000030 [footnote] الاسفنط الخمر.
+    000031 [footnote] الخنشليل السيف.
+    000033 [footnote] شديد البرد فيهما ـ والسجسج الارض التي ليست بسهلة ولا صلبة.
+    000034 [footnote] أراد: أنهم امنوا أن يغلبه غالب يصرعه عن السماع ويمنعه منه
+    000035 [footnote] وأما قوله (وللآمال في يدك اصطراع) فمعناه تنافس وتغالب وازدحام في يد...
+
+
+==========================================================================================
+RELATION GRAPH
+==========================================================================================
+
+  jawahir:exc:000003 --[split_continues_in]--> jawahir:exc:000021
+  jawahir:exc:000004 --[has_overview]--> jawahir:exc:000003
+  jawahir:exc:000005 --[has_overview]--> jawahir:exc:000003
+  jawahir:exc:000006 --[has_overview]--> jawahir:exc:000003
+  jawahir:exc:000007 --[has_overview]--> jawahir:exc:000003
+  jawahir:exc:000008 --[footnote_supports]--> jawahir:exc:000003
+  jawahir:exc:000009 --[footnote_supports]--> jawahir:exc:000004
+  jawahir:exc:000010 --[footnote_supports]--> jawahir:exc:000005
+  jawahir:exc:000011 --[footnote_explains]--> jawahir:exc:000005
+  jawahir:exc:000012 --[footnote_supports]--> jawahir:exc:000006
+  jawahir:exc:000014 --[exercise_tests]--> jawahir:exc:000005
+  jawahir:exc:000014 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000015 --[exercise_tests]--> jawahir:exc:000005
+  jawahir:exc:000015 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000016 --[exercise_tests]--> jawahir:exc:000004
+  jawahir:exc:000016 --[exercise_tests]--> jawahir:exc:000005
+  jawahir:exc:000016 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000017 --[exercise_tests]--> jawahir:exc:000005
+  jawahir:exc:000017 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000018 --[exercise_tests]--> jawahir:exc:000005
+  jawahir:exc:000018 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000019 --[answers_exercise_item]--> jawahir:exc:000016
+  jawahir:exc:000019 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000020 --[answers_exercise_item]--> jawahir:exc:000018
+  jawahir:exc:000020 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000021 --[split_continued_from]--> jawahir:exc:000003

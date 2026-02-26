@@ -1,0 +1,70 @@
+<!-- GENERATED FILE — DO NOT EDIT. -->
+<!-- renderer=v0.3.7 -->
+<!-- inputs: 2d37079676aabc0d excerpts=passage2_excerpts_v02.jsonl:6d4ccb35b7a0 atoms=passage2_matn_atoms_v02.jsonl:9abe4467c5c1 atoms=passage2_fn_atoms_v02.jsonl:fb1c94d22e90 -->
+
+# Excerpts index
+
+- jawahir:exc:000022 — بند تمرين — وقال الفرزدق: — `jawahir:exc:000022` → jawahir__exc__000022.md
+- jawahir:exc:000023 — بند تمرين — وقال أبو تمّام: — `jawahir:exc:000023` → jawahir__exc__000023.md
+- jawahir:exc:000024 — بند تمرين — وقال شمر: — `jawahir:exc:000024` → jawahir__exc__000024.md
+- jawahir:exc:000025 — بند تمرين — وقال أبو تمام: — `jawahir:exc:000025` → jawahir__exc__000025.md
+- jawahir:exc:000026 — بند تمرين — وقال امرؤ القيس: — `jawahir:exc:000026` → jawahir__exc__000026.md
+- jawahir:exc:000027 — بند تمرين — علمي إلى علمك كالقرارة في المثعنجر . — `jawahir:exc:000027` → jawahir__exc__000027.md
+- jawahir:exc:000028 — بند تمرين — أنّ بعضاً من القريض هراءٌ ليس شيئا وبعضه إحكام — `jawahir:exc:000028` → jawahir__exc__000028.md
+- jawahir:exc:000029 — بند تمرين — فيه ما يجلب البراعة والفهـ م وفيه ما يجلب البرسامُ — `jawahir:exc:000029` → jawahir__exc__000029.md
+- jawahir:exc:000030 — بند تمرين — ومن الناس من تجوز عليهم شعراء كأنها الخاز بازُ — `jawahir:exc:000030` → jawahir__exc__000030.md
+- jawahir:exc:000031 — تمرين — 1. فرِّق بين التنافر في الكلمة، وفي الكلام، واذكر السبب؟ — `jawahir:exc:000031` → jawahir__exc__000031.md
+- jawahir:exc:000032 — بند تمرين — 2. اذكر مثالا للتعقيد اللفظي، وبين سبب هذا التعقيد، ثم — `jawahir:exc:000032` → jawahir__exc__000032.md
+- jawahir:exc:000033 — بند تمرين — 3. قد يلازم تنافر الحروف الغرابة، وقد تنفرد الغرابة عن — `jawahir:exc:000033` → jawahir__exc__000033.md
+- jawahir:exc:000034 — بند تمرين — 4. كل كلام بليغ يكون فصيحا ولا عكس. اشرح هذه — `jawahir:exc:000034` → jawahir__exc__000034.md
+- jawahir:exc:000035 — تمرين — ميِّز الكلام الفصيح من غير الفصيح في كل ما يأتي، — `jawahir:exc:000035` → jawahir__exc__000035.md
+- jawahir:exc:000036 — بند تمرين — (1) كلما قربت النفس من المال شبراً، بعدت عن الفضيلة — `jawahir:exc:000036` → jawahir__exc__000036.md
+- jawahir:exc:000037 — بند تمرين — (2) شكت امرأة صمعمعة الرأس ، متعثكلة الشعر، درد بيساحلَّت — `jawahir:exc:000037` → jawahir__exc__000037.md
+- jawahir:exc:000038 — بند تمرين — (3) … نم وإن لم أنم كراى كراكا شاهدت الدمع، — `jawahir:exc:000038` → jawahir__exc__000038.md
+- jawahir:exc:000039 — بند تمرين — (4) … فأصبحت بعد خطِّ بهجتها كاز قفراً رسومها قلما. — `jawahir:exc:000039` → jawahir__exc__000039.md
+- jawahir:exc:000040 — بند تمرين — (5) … وازورَّ مَن كان لهُ زائراً وعاف عافى العُرف — `jawahir:exc:000040` → jawahir__exc__000040.md
+- jawahir:exc:000041 — بند تمرين — (6) … وأكرمُ من غَمام عند مَحل فتىً يَحيِى بمدحته — `jawahir:exc:000041` → jawahir__exc__000041.md
+- jawahir:exc:000042 — بند تمرين — (7) أشكوك كُوكك، كي ينفكَّ عن كنفي ولا ينيخ على — `jawahir:exc:000042` → jawahir__exc__000042.md
+- jawahir:exc:000043 — بند تمرين — (8) سأل كوفيٌّ خياطاً عن فرس ومُهر فقدَهُما فقال: — `jawahir:exc:000043` → jawahir__exc__000043.md
+- jawahir:exc:000044 — بند تمرين — (9) كتب أحدهم لصديقه يقول: — `jawahir:exc:000044` → jawahir__exc__000044.md
+- jawahir:exc:000045 — تمرين — (1) أيّ أجزاء هذين البيتين غير فصيح: — `jawahir:exc:000045` → jawahir__exc__000045.md
+- jawahir:exc:000046 — بند تمرين — (أ) … أصبحتُ كالثوب اللّبيس قد أخلقت جدَّاتُه منه فعاد — `jawahir:exc:000046` → jawahir__exc__000046.md
+- jawahir:exc:000047 — بند تمرين — (ب) … رمتني ميّ بالهوى رمىَ مَمضغ من الوحش أو — `jawahir:exc:000047` → jawahir__exc__000047.md
+- jawahir:exc:000048 — تمرين — ما الذي أخلّ بفصاحة الكلمات فيما يلي: — `jawahir:exc:000048` → jawahir__exc__000048.md
+- jawahir:exc:000049 — بند تمرين — يا نفسُ صبراً كل حيٍ لاق … وكل إثنين إلى — `jawahir:exc:000049` → jawahir__exc__000049.md
+- jawahir:exc:000050 — بند تمرين — أبعد بعدتَ بياضاً لا بياض له … لأنت أسودُ في — `jawahir:exc:000050` → jawahir__exc__000050.md
+- jawahir:exc:000051 — بند تمرين — مهلاً أعَازلَ قد جَرَّبتِ من خَلقي … إتسعَ الفتقُّ على — `jawahir:exc:000051` → jawahir__exc__000051.md
+- jawahir:exc:000052 — بند تمرين — تشكو الوَجى من أظلَلٍ وأظلّل … غداتئذٍ أو هالك في — `jawahir:exc:000052` → jawahir__exc__000052.md
+- jawahir:exc:000053 — بند تمرين — أنّى أجودُ لأقوامِ وان ضنُنوا — `jawahir:exc:000053` → jawahir__exc__000053.md
+- jawahir:exc:000054 — بند تمرين — (1) وقال ابن جحدر: — `jawahir:exc:000054` → jawahir__exc__000054.md
+- jawahir:exc:000055 — بند تمرين — (2) وقال ذو الرُّمة: — `jawahir:exc:000055` → jawahir__exc__000055.md
+- jawahir:exc:000056 — بند تمرين — وقال أبو نواس: — `jawahir:exc:000056` → jawahir__exc__000056.md
+- jawahir:exc:000057 — تمرين — ما الذي أخلَّ بفصاحة الكلمات فيما يلي؟ — `jawahir:exc:000057` → jawahir__exc__000057.md
+- jawahir:exc:000058 — بند تمرين — (1) قال النّابغة الذُّبياني: — `jawahir:exc:000058` → jawahir__exc__000058.md
+- jawahir:exc:000059 — بند تمرين — (2) وقال أبو تّمَّام: — `jawahir:exc:000059` → jawahir__exc__000059.md
+- jawahir:exc:000060 — بند تمرين — (3) وقال المُتنبي: — `jawahir:exc:000060` → jawahir__exc__000060.md
+- jawahir:exc:000061 — تمرين — ما الذي اخلِّ بفصاحة الكلمات فيما يأتي؟ — `jawahir:exc:000061` → jawahir__exc__000061.md
+- jawahir:exc:000062 — بند تمرين — (1) لم يَلقَهَا إى بشكَّه باسِلٍ … يخشى الحوادِث حازم — `jawahir:exc:000062` → jawahir__exc__000062.md
+- jawahir:exc:000063 — بند تمرين — (2) وأصبح مَبيضَّ الضَّريب كأنه … على سَرَوات البَيت قُطن — `jawahir:exc:000063` → jawahir__exc__000063.md
+- jawahir:exc:000064 — بند تمرين — (3) فأيقَنتُ أنِّى عند ذلك ثائرٌ … غدَاتئذٍ أو هالِكٌ — `jawahir:exc:000064` → jawahir__exc__000064.md
+- jawahir:exc:000065 — بند تمرين — (4) ومَلمُومَةٍ سيَفيَّةٍ رَبعيَّةٍ … يَصيح الحصا فيها صِياح اللقائِقِ — `jawahir:exc:000065` → jawahir__exc__000065.md
+- jawahir:exc:000066 — بند تمرين — (5) والقىَ بصحراء الغبِيط بَعاعَهُ … نُزول اليماني ذو العياب — `jawahir:exc:000066` → jawahir__exc__000066.md
+- jawahir:exc:000067 — بند تمرين — (6) ليس التَّعَللُ بالآمالِ من أربى … ولا القُنُوع بضنكِ — `jawahir:exc:000067` → jawahir__exc__000067.md
+- jawahir:exc:000068 — شرح — فصاحة الكلام: سلامته بعد فصاحة مفُرداته ممَّا يُبهم معناه ويحول — `jawahir:exc:000068` → jawahir__exc__000068.md
+- jawahir:exc:000069 — شرح — الأول - «تنافُر الكلمات مُجتمعة» أن تكون الكلمات ثقيلة على — `jawahir:exc:000069` → jawahir__exc__000069.md
+- jawahir:exc:000070 — جواب — (1) ـ فقد جمع (ناكس) على (فواعل) شذوذا وهذا لا [cross: sarf] — `jawahir:exc:000070` → jawahir__exc__000070.md
+- jawahir:exc:000071 — جواب — (2) ـ قال صاحب المثل السائر ـ ان لفظ (اطلخم) — `jawahir:exc:000071` → jawahir__exc__000071.md
+- jawahir:exc:000072 — جواب — (4) - الموماة المفازة الواسعة، ويقال للمستبد برأيه جحيش، ويقال — `jawahir:exc:000072` → jawahir__exc__000072.md
+- jawahir:exc:000073 — جواب — (5) - العيب في هذا البيت من حيث فك الادغام [cross: sarf] — `jawahir:exc:000073` → jawahir__exc__000073.md
+- jawahir:exc:000074 — جواب — (7) مصوون: شاذة وليست فصيحة لمخالفتها للقياس الصرفي. [cross: sarf] — `jawahir:exc:000074` → jawahir__exc__000074.md
+- jawahir:exc:000075 — جواب — (8) البعاق مطر السحاب، والجرد حل الوادي - وليستا فصيحتين — `jawahir:exc:000075` → jawahir__exc__000075.md
+- jawahir:exc:000076 — جواب — (9) بوقات مزامير - والقياس في جمعه أبواق. [cross: sarf] — `jawahir:exc:000076` → jawahir__exc__000076.md
+- jawahir:exc:000077 — جواب — (1) القياس مودة بالادغام. [cross: sarf] — `jawahir:exc:000077` → jawahir__exc__000077.md
+- jawahir:exc:000079 — جواب — فأيقنتَ أنّى عند ذلك ثائِر … (1) الظلم: الليالي الثلاث [cross: sarf] — `jawahir:exc:000079` → jawahir__exc__000079.md
+- jawahir:exc:000080 — شرح — تنبيهات: الأول من عيوب فصاحة اللفظة المفردة كونها مبتذلة - — `jawahir:exc:000080` → jawahir__exc__000080.md
+- jawahir:exc:000081 — شرح — (الثاني) لا تستعمل الألفاظ المبهمة إذا كان غرضك التعيين واحضار — `jawahir:exc:000081` → jawahir__exc__000081.md
+- jawahir:exc:000082 — شرح — (الثالث) لا تستعمل اللفظ المشترك الامع قرينة تبين المراد من — `jawahir:exc:000082` → jawahir__exc__000082.md
+- jawahir:exc:000083 — شرح — (1) المراد بفصاحة الكلام تكونه من كلمات فصيحة يسهل على [cross: nahw] — `jawahir:exc:000083` → jawahir__exc__000083.md
+- jawahir:exc:000084 — شرح — (2) (كثرة التكرار: وتتابع الاضافات) أقول الحق - أن هذين — `jawahir:exc:000084` → jawahir__exc__000084.md
+- jawahir:exc:000085 — شرح — (3) حرب بن أمية: قتله قائل هذا البيت، وهو هاتف — `jawahir:exc:000085` → jawahir__exc__000085.md
+- jawahir:exc:000086 — شرح — (4) أي هو كريم، وإذا مدحته وافقني الناس على مدحه، — `jawahir:exc:000086` → jawahir__exc__000086.md

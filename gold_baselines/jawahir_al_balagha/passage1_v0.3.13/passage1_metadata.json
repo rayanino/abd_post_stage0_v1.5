@@ -1,0 +1,64 @@
+{
+  "passage_id": "passage1",
+  "book_id": "jawahir",
+  "book_title": "جواهر البلاغة في المعاني والبيان والبديع",
+  "author": "أحمد الهاشمي",
+  "page_range": "ص ١٩–٢٥",
+  "topic": "الفصاحة وشروط فصاحة الكلمة المفردة",
+  "taxonomy_version": "balagha_v0_2",
+  "schema_version": "gold_standard_v0.3.3",
+  "offset_unit": "unicode_codepoint",
+  "canonical_derivation": "joined_from_atoms_with_newline_separators",
+  "canonical_files": {
+    "matn": {
+      "filename": "passage1_matn_canonical.txt",
+      "sha256": "46ecae6c9b458fdc39037aa35f91269138bbe1840bf029c37bac6851d630a9c4",
+      "char_count": 4508,
+      "byte_count_utf8": 8075,
+      "atom_count": 59
+    },
+    "footnote": {
+      "filename": "passage1_fn_canonical.txt",
+      "sha256": "c668f5c00f13adb7fda8c4de71ccc3c7ad4790a2b5fa274c3475ffc87fe69318",
+      "char_count": 4783,
+      "byte_count_utf8": 8609,
+      "atom_count": 36
+    }
+  },
+  "totals": {
+    "atoms": 95,
+    "excerpts": 21,
+    "exclusions": 26,
+    "teaching_excerpts": 13,
+    "exercise_excerpts": 8
+  },
+  "gold_scope": "excerpting_only",
+  "continuation": {
+    "description": "Machine-readable state for the next passage in this book. The AI builder or human annotator processing the next passage reads these values to know where to start numbering. Atom and excerpt sequences are globally sequential within a book — they never reset between passages.",
+    "next_matn_atom_seq": 60,
+    "next_fn_atom_seq": 37,
+    "next_excerpt_seq": 22,
+    "next_taxonomy_change_seq": 4,
+    "current_taxonomy_version": "balagha_v0_2"
+  },
+  "counts": {},
+  "validation": {
+    "validator": "validate_gold.py",
+    "validator_version": "v0.3.12",
+    "validated_utc": "2026-02-22T19:49:58Z",
+    "command": "python ../../../tools/validate_gold.py --atoms passage1_matn_atoms_v02.jsonl passage1_fn_atoms_v02.jsonl --excerpts passage1_excerpts_v02.jsonl --schema ../../../schemas/gold_standard_schema_v0.3.3.json --canonical matn:passage1_matn_canonical.txt footnote:passage1_fn_canonical.txt --taxonomy balagha_v0_2.yaml --taxonomy-changes taxonomy_changes.jsonl --decisions passage1_decisions.jsonl --checklists ../../checklists_v0.4.md --metadata passage1_metadata.json --manifest baseline_manifest.json --support-schemas ../../../schemas --taxonomy-registry ../../../taxonomy/taxonomy_registry.yaml",
+    "warnings": 0,
+    "errors": 0,
+    "result": "PASS"
+  },
+  "checkpoint1": {
+    "clean_matn_input": "passage1_clean_matn_input.txt",
+    "clean_fn_input": "passage1_clean_fn_input.txt",
+    "source_slice": "passage1_source_slice.json",
+    "tool": "tools/extract_clean_input.py",
+    "tool_version": "v0.2",
+    "command": "python ../../../tools/extract_clean_input.py --html ../shamela_export.htm --page-start 19 --page-end 25 --out-matn passage1_clean_matn_input.txt --out-fn passage1_clean_fn_input.txt --out-slice passage1_source_slice.json",
+    "generated_utc": "2026-02-21T19:39:34Z"
+  },
+  "baseline_version": "v0.3.13"
+}

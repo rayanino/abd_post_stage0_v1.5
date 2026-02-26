@@ -1,0 +1,50 @@
+{
+  "record_type": "cp6_tool_fingerprint",
+  "fingerprint_version": "0.1",
+  "generated_utc": "2026-02-24T07:07:16Z",
+  "tools": {
+    "tools/validate_gold.py": {
+      "sha256": "943b769d1ff2b68ccf6ceee8993d63f2dd9c6f6d479da1d1d33d77b65c0dc4e4"
+    },
+    "tools/pipeline_gold.py": {
+      "sha256": "adda65a24d6a0d8df4eabf5dec22d09856a474920111187f705fee98efb0ff64"
+    },
+    "tools/checkpoint_index_lib.py": {
+      "sha256": "fdce065121d4c5a23d832e43c61bbdc7cce71763e8d3f090f3a4266d8b4e7e3c"
+    },
+    "tools/render_excerpts_md.py": {
+      "sha256": "ab1cacd7249b938417845226ec70d58032c6e02da92630651bd498d2f8d42cd4"
+    },
+    "tools/build_baseline_manifest.py": {
+      "sha256": "40020b3c63e6ab9cec2ff077f919a36942572d1c47c26c5f48d9c66beaaab14c"
+    }
+  },
+  "baseline": {
+    "baseline_dirname": "passage2_v0.3.22",
+    "passage_id": "passage2",
+    "taxonomy_version": "balagha_v0_3",
+    "key_files": {
+      "passage2_matn_atoms_v02.jsonl": {
+        "sha256": "9abe4467c5c18f4e7171efddd1ac14c7f5bc27278403652f97f5fddd0a12363c"
+      },
+      "passage2_fn_atoms_v02.jsonl": {
+        "sha256": "fb1c94d22e90d20954f3a5d10398f15c666346bfbddfe5561a41f321304ce23a"
+      },
+      "passage2_excerpts_v02.jsonl": {
+        "sha256": "6d4ccb35b7a06f325faa5f61de563cee0858d396f565c9c9c66ec4bfc85af378"
+      },
+      "passage2_decisions.jsonl": {
+        "sha256": "4f32b4b8ab4595c833d8b330960c442c39b717184f44a905a59ee3d840337d87"
+      },
+      "taxonomy_changes.jsonl": {
+        "sha256": "533ca68891563a0c08192094d070f55a35a1d82357b6cac4e0f502cd481370b3"
+      },
+      "balagha_v0_3.yaml": {
+        "sha256": "ac27abc4ee0d7eb012b7b0b4115f03bb687066b07bd5f7bc6b0b6ffad976d143"
+      }
+    }
+  },
+  "validation": {
+    "command": "python ../../../tools/validate_gold.py --atoms passage2_matn_atoms_v02.jsonl passage2_fn_atoms_v02.jsonl --excerpts passage2_excerpts_v02.jsonl --schema ../../../schemas/gold_standard_schema_v0.3.3.json --canonical matn:passage2_matn_canonical.txt footnote:passage2_fn_canonical.txt --taxonomy balagha_v0_3.yaml --taxonomy-changes taxonomy_changes.jsonl --decisions passage2_decisions.jsonl --checklists ../../checklists_v0.4.md --metadata passage2_metadata.json --manifest baseline_manifest.json --support-schemas ../../../schemas --taxonomy-registry ../../../taxonomy/taxonomy_registry.yaml --resolve-external-from-active-gold"
+  }
+}

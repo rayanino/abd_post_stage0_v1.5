@@ -1,0 +1,90 @@
+{
+  "passage_id": "passage2",
+  "book_id": "jawahir",
+  "book_title": "جواهر البلاغة في المعاني والبيان والبديع",
+  "author": "أحمد الهاشمي",
+  "page_range": "ص ٢٦–٣٢",
+  "topic": "استكمال تطبيقات فصاحة المفرد + بدء فصاحة الكلام (التعريف وعيب تنافر الكلمات) + تنبيهات الحواشي",
+  "taxonomy_version": "balagha_v0_3",
+  "schema_version": "gold_standard_v0.3.1",
+  "offset_unit": "unicode_codepoint",
+  "canonical_derivation": "joined_from_atoms_with_newline_separators",
+  "canonical_files": {
+    "matn": {
+      "filename": "passage2_matn_canonical.txt",
+      "sha256": "a17c82fbf501bf1c1baddc06f523aedb8925f87ac1d544bb56506f53e48169f1",
+      "char_count": 4542,
+      "byte_count_utf8": 8147,
+      "atom_count": 86
+    },
+    "footnote": {
+      "filename": "passage2_fn_canonical.txt",
+      "sha256": "6b69c453d7dad826f80f98dc53a94673d6077900b50332a32137493b1f3b832c",
+      "char_count": 7642,
+      "byte_count_utf8": 13599,
+      "atom_count": 66
+    }
+  },
+  "totals": {
+    "atoms": 152,
+    "excerpts": 64,
+    "exclusions": 39,
+    "teaching_excerpts": 9,
+    "exercise_excerpts": 55
+  },
+  "gold_scope": "excerpting_only",
+  "continuation": {
+    "description": "Machine-readable state for the next passage in this book. Atom and excerpt sequences are globally sequential within a book — they never reset between passages.",
+    "next_matn_atom_seq": 146,
+    "next_fn_atom_seq": 103,
+    "next_excerpt_seq": 87,
+    "next_taxonomy_change_seq": 8,
+    "current_taxonomy_version": "balagha_v0_3"
+  },
+  "counts": {
+    "matn_atom_types": {
+      "prose_sentence": 29,
+      "verse_evidence": 45,
+      "heading": 7,
+      "list_item": 5
+    },
+    "fn_atom_types": {
+      "prose_sentence": 58,
+      "verse_evidence": 8
+    },
+    "relations": 68,
+    "core_atoms_assigned": 113,
+    "context_atoms_assigned": 0,
+    "taxonomy_changes": 7
+  },
+  "external_excerpt_dependencies": [
+    "jawahir:exc:000003",
+    "jawahir:exc:000013"
+  ],
+  "external_dependency_note": "This passage baseline references a few excerpt IDs created in Passage 1 via relations (overview/set continuity). Use Passage 1 baseline alongside Passage 2 when validating relation targets.",
+  "traceability": {
+    "decisions_file": "passage2_decisions.jsonl",
+    "decision_record_count": 64,
+    "atomization_notes_complete": true,
+    "boundary_reasoning_labeled_blocks": true
+  },
+  "validation": {
+    "validator": "validate_gold.py",
+    "validator_version": "v0.3.13",
+    "validated_utc": "2026-02-24T07:07:16Z",
+    "command": "python ../../../tools/validate_gold.py --atoms passage2_matn_atoms_v02.jsonl passage2_fn_atoms_v02.jsonl --excerpts passage2_excerpts_v02.jsonl --schema ../../../schemas/gold_standard_schema_v0.3.3.json --canonical matn:passage2_matn_canonical.txt footnote:passage2_fn_canonical.txt --taxonomy balagha_v0_3.yaml --taxonomy-changes taxonomy_changes.jsonl --decisions passage2_decisions.jsonl --checklists ../../checklists_v0.4.md --metadata passage2_metadata.json --manifest baseline_manifest.json --support-schemas ../../../schemas --taxonomy-registry ../../../taxonomy/taxonomy_registry.yaml --resolve-external-from-active-gold",
+    "warnings": 0,
+    "errors": 0,
+    "result": "PASS"
+  },
+  "checkpoint1": {
+    "clean_matn_input": "passage2_clean_matn_input.txt",
+    "clean_fn_input": "passage2_clean_fn_input.txt",
+    "source_slice": "passage2_source_slice.json",
+    "tool": "tools/extract_clean_input.py",
+    "tool_version": "v0.2",
+    "command": "python ../../../tools/extract_clean_input.py --html ../shamela_export.htm --page-start 26 --page-end 32 --out-matn passage2_clean_matn_input.txt --out-fn passage2_clean_fn_input.txt --out-slice passage2_source_slice.json",
+    "generated_utc": "2026-02-21T19:39:34Z"
+  },
+  "baseline_version": "v0.3.22"
+}

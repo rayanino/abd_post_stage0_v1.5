@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abd:schemas:source_locator:v0.1",
+  "title": "ABD Source Locator Schema v0.1",
+  "type": "object",
+  "required": [
+    "record_type",
+    "locator_version",
+    "book_id",
+    "passage_id",
+    "source_artifact",
+    "selectors",
+    "normalization_contract",
+    "extraction_tool",
+    "outputs"
+  ],
+  "properties": {
+    "record_type": {"const": "source_locator"},
+    "locator_version": {"const": "0.1"},
+    "locator_id": {"type": "string"},
+    "book_id": {"type": "string", "minLength": 1},
+    "passage_id": {"type": "string", "minLength": 1},
+    "source_artifact": {
+      "type": "object",
+      "required": ["artifact_kind", "baseline_relpath", "sha256"],
+      "properties": {
+        "artifact_kind": {"type": "string", "minLength": 1},
+        "baseline_relpath": {"type": "string", "minLength": 1},
+        "project_relpath": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "selectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/selector"}
+    },
+    "normalization_contract": {
+      "type": "object",
+      "required": ["contract_relpath", "contract_version"],
+      "properties": {
+        "contract_relpath": {"type": "string", "minLength": 1},
+        "contract_version": {"type": "string", "minLength": 1},
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "extraction_tool": {
+      "type": "object",
+      "required": ["tool_name", "tool_version"],
+      "properties": {
+        "tool_name": {"type": "string", "minLength": 1},
+        "tool_version": {"type": "string", "minLength": 1},
+        "tool_relpath": {"type": "string"},
+        "command": {"type": "string"},
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "outputs": {
+      "type": "object",
+      "required": ["clean_matn_input", "clean_fn_input"],
+      "properties": {
+        "clean_matn_input": {"type": "string", "minLength": 1},
+        "clean_fn_input": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "notes": {"type": "string"}
+  },
+  "$defs": {
+    "selector": {
+      "oneOf": [
+        {"$ref": "#/$defs/shamela_page_marker_range"},
+        {"$ref": "#/$defs/html_char_range"},
+        {"$ref": "#/$defs/html_anchor_range"},
+        {"$ref": "#/$defs/dom_xpath_range"}
+      ]
+    },
+    "shamela_page_marker_range": {
+      "type": "object",
+      "required": ["kind", "page_start", "page_end", "marker_pattern"],
+      "properties": {
+        "kind": {"const": "shamela_page_marker_range"},
+        "page_start": {"type": "integer"},
+        "page_end": {"type": "integer"},
+        "marker_pattern": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "html_char_range": {
+      "type": "object",
+      "required": ["kind", "char_start", "char_end"],
+      "properties": {
+        "kind": {"const": "html_char_range"},
+        "char_start": {"type": "integer", "minimum": 0},
+        "char_end": {"type": "integer", "minimum": 0}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"char_start": {"type": "integer"}, "char_end": {"type": "integer"}}},
+          "then": {
+            "properties": {},
+            "required": ["char_start", "char_end"]
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "html_anchor_range": {
+      "type": "object",
+      "required": ["kind", "anchor_start", "anchor_end"],
+      "properties": {
+        "kind": {"const": "html_anchor_range"},
+        "anchor_start": {"type": "string", "minLength": 1},
+        "anchor_end": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "dom_xpath_range": {
+      "type": "object",
+      "required": ["kind", "xpath_start", "xpath_end"],
+      "properties": {
+        "kind": {"const": "dom_xpath_range"},
+        "xpath_start": {"type": "string", "minLength": 1},
+        "xpath_end": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

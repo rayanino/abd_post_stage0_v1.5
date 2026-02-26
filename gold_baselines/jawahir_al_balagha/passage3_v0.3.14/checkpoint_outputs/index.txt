@@ -1,0 +1,199 @@
+ABD deterministic checkpoint index (checkpoint_outputs_index_v0.1)
+DO NOT EDIT BY HAND. Regenerate via: python tools/generate_checkpoint_index.py --baseline-dir <baseline_dir>
+
+=== Identity ===
+baseline_id: 0.3.14
+passage_id: passage3
+book_id: jawahir
+pipeline_version: gold_pipeline_v0.3
+checkpoint_last_completed: 6
+
+=== Stable fingerprint ===
+algorithm: sha256(concat(relpath:sha256)) over inventory excluding volatile/cyclic paths
+excludes:
+  - baseline_manifest.json
+  - checkpoint_outputs/index.txt
+  - checkpoint_state.json
+  - validation_report.txt
+  - excerpts_rendered/**
+  - checkpoint_outputs/cp6_*.stdout.txt
+  - checkpoint_outputs/cp6_*.stderr.txt
+value: 1c2b1a17e9b99f33585c69232c37908b14fcbb4d4fb65b8c5ba963ed27773f75
+
+=== Checkpoints (from checkpoint_state.json) ===
+-- CP1: done --
+command: python ../../../tools/extract_clean_input.py --html ../shamela_export.htm --page-start 33 --page-end 40 --out-matn passage3_clean_matn_input.txt --out-fn passage3_clean_fn_input.txt --out-slice passage3_source_slice.json
+artifacts:
+  - OK  passage3_clean_matn_input.txt
+  - OK  passage3_clean_fn_input.txt
+  - OK  passage3_source_slice.json
+  - OK  checkpoint_outputs/cp1_extract_clean_input.stdout.txt
+  - OK  checkpoint_outputs/cp1_extract_clean_input.stderr.txt
+  - OK  checkpoint_outputs/index.txt
+
+-- CP2: done --
+command: (missing)
+artifacts:
+  - OK  passage3_matn_atoms_v02.jsonl
+  - OK  passage3_fn_atoms_v02.jsonl
+  - OK  passage3_matn_canonical.txt
+  - OK  passage3_fn_canonical.txt
+
+-- CP3: done --
+command: (missing)
+artifacts:
+  - OK  passage3_decisions.jsonl
+
+-- CP4: done --
+command: (missing)
+artifacts:
+  - OK  passage3_excerpts_v02.jsonl
+
+-- CP5: done --
+command: (missing)
+artifacts:
+  - OK  taxonomy_changes.jsonl
+  - OK  balagha_v0_4.yaml
+
+-- CP6: done --
+command: python ../../../tools/validate_gold.py --atoms passage3_matn_atoms_v02.jsonl passage3_fn_atoms_v02.jsonl --excerpts passage3_excerpts_v02.jsonl --schema ../../../schemas/gold_standard_schema_v0.3.3.json --canonical matn:passage3_matn_canonical.txt footnote:passage3_fn_canonical.txt --taxonomy balagha_v0_4.yaml --taxonomy-changes taxonomy_changes.jsonl --decisions passage3_decisions.jsonl --checklists ../../checklists_v0.4.md --metadata passage3_metadata.json --manifest baseline_manifest.json --support-schemas ../../../schemas --taxonomy-registry ../../../taxonomy/taxonomy_registry.yaml --resolve-external-from-active-gold
+artifacts:
+  - OK  validation_report.txt
+  - OK  baseline_manifest.json
+  - OK  excerpts_rendered/INDEX.md
+  - OK  checkpoint_outputs/index.txt
+  - OK  checkpoint_outputs/cp6_validate.stdout.txt
+  - OK  checkpoint_outputs/cp6_validate.stderr.txt
+  - OK  checkpoint_outputs/cp6_render_md.stdout.txt
+  - OK  checkpoint_outputs/cp6_render_md.stderr.txt
+  - OK  checkpoint_outputs/cp6_tool_fingerprint.json
+  - OK  checkpoint_state.json
+
+=== Inventory (relpaths) ===
+total_files: 125
+  - 00_BINDING_DECISIONS_v0.3.8.md
+  - AUDIT_LOG.md
+  - _SCRATCH/README.md
+  - _SCRATCH/backups/passage3_excerpts_v02.jsonl.bak_patch2
+  - _SCRATCH/backups/passage3_excerpts_v02.jsonl.bak_slice2
+  - _SCRATCH/snapshots/00_BINDING_DECISIONS_v0.3.8.snapshot.md
+  - _SCRATCH/snapshots/extraction_protocol_v2.snapshot.md
+  - balagha_v0_3.yaml
+  - balagha_v0_4.yaml
+  - baseline_manifest.json
+  - checkpoint1_fixed_report.md
+  - checkpoint1_footnotes_pages_33_40_raw.txt
+  - checkpoint1_footnotes_unitized.txt
+  - checkpoint1_matn_pages_33_40_fixed.txt
+  - checkpoint3_boundary_plan.md
+  - checkpoint4_report.md
+  - checkpoint_outputs/cp1_extract_clean_input.stderr.txt
+  - checkpoint_outputs/cp1_extract_clean_input.stdout.txt
+  - checkpoint_outputs/cp6_render_md.stderr.txt
+  - checkpoint_outputs/cp6_render_md.stdout.txt
+  - checkpoint_outputs/cp6_tool_fingerprint.json
+  - checkpoint_outputs/cp6_validate.stderr.txt
+  - checkpoint_outputs/cp6_validate.stdout.txt
+  - checkpoint_outputs/index.txt
+  - checkpoint_state.json
+  - decision_log_format_v0.1.md
+  - excerpts_rendered/INDEX.md
+  - excerpts_rendered/jawahir__exc__000087.md
+  - excerpts_rendered/jawahir__exc__000088.md
+  - excerpts_rendered/jawahir__exc__000089.md
+  - excerpts_rendered/jawahir__exc__000090.md
+  - excerpts_rendered/jawahir__exc__000091.md
+  - excerpts_rendered/jawahir__exc__000092.md
+  - excerpts_rendered/jawahir__exc__000093.md
+  - excerpts_rendered/jawahir__exc__000094.md
+  - excerpts_rendered/jawahir__exc__000095.md
+  - excerpts_rendered/jawahir__exc__000096.md
+  - excerpts_rendered/jawahir__exc__000097.md
+  - excerpts_rendered/jawahir__exc__000098.md
+  - excerpts_rendered/jawahir__exc__000099.md
+  - excerpts_rendered/jawahir__exc__000100.md
+  - excerpts_rendered/jawahir__exc__000101.md
+  - excerpts_rendered/jawahir__exc__000102.md
+  - excerpts_rendered/jawahir__exc__000103.md
+  - excerpts_rendered/jawahir__exc__000104.md
+  - excerpts_rendered/jawahir__exc__000105.md
+  - excerpts_rendered/jawahir__exc__000106.md
+  - excerpts_rendered/jawahir__exc__000107.md
+  - excerpts_rendered/jawahir__exc__000108.md
+  - excerpts_rendered/jawahir__exc__000109.md
+  - excerpts_rendered/jawahir__exc__000110.md
+  - excerpts_rendered/jawahir__exc__000111.md
+  - excerpts_rendered/jawahir__exc__000112.md
+  - excerpts_rendered/jawahir__exc__000113.md
+  - excerpts_rendered/jawahir__exc__000114.md
+  - excerpts_rendered/jawahir__exc__000115.md
+  - excerpts_rendered/jawahir__exc__000116.md
+  - excerpts_rendered/jawahir__exc__000117.md
+  - excerpts_rendered/jawahir__exc__000118.md
+  - excerpts_rendered/jawahir__exc__000119.md
+  - excerpts_rendered/jawahir__exc__000120.md
+  - excerpts_rendered/jawahir__exc__000121.md
+  - excerpts_rendered/jawahir__exc__000122.md
+  - excerpts_rendered/jawahir__exc__000123.md
+  - excerpts_rendered/jawahir__exc__000124.md
+  - excerpts_rendered/jawahir__exc__000125.md
+  - excerpts_rendered/jawahir__exc__000126.md
+  - excerpts_rendered/jawahir__exc__000127.md
+  - excerpts_rendered/jawahir__exc__000128.md
+  - excerpts_rendered/jawahir__exc__000129.md
+  - excerpts_rendered/jawahir__exc__000130.md
+  - excerpts_rendered/jawahir__exc__000131.md
+  - excerpts_rendered/jawahir__exc__000132.md
+  - excerpts_rendered/jawahir__exc__000133.md
+  - excerpts_rendered/jawahir__exc__000134.md
+  - excerpts_rendered/jawahir__exc__000135.md
+  - excerpts_rendered/jawahir__exc__000136.md
+  - excerpts_rendered/jawahir__exc__000137.md
+  - excerpts_rendered/jawahir__exc__000138.md
+  - excerpts_rendered/jawahir__exc__000139.md
+  - excerpts_rendered/jawahir__exc__000140.md
+  - excerpts_rendered/jawahir__exc__000141.md
+  - excerpts_rendered/jawahir__exc__000142.md
+  - excerpts_rendered/jawahir__exc__000143.md
+  - excerpts_rendered/jawahir__exc__000144.md
+  - excerpts_rendered/jawahir__exc__000145.md
+  - excerpts_rendered/jawahir__exc__000146.md
+  - excerpts_rendered/jawahir__exc__000147.md
+  - excerpts_rendered/jawahir__exc__000148.md
+  - excerpts_rendered/jawahir__exc__000149.md
+  - excerpts_rendered/jawahir__exc__000150.md
+  - excerpts_rendered/jawahir__exc__000151.md
+  - excerpts_rendered/jawahir__exc__000152.md
+  - excerpts_rendered/jawahir__exc__000153.md
+  - excerpts_rendered/jawahir__exc__000154.md
+  - excerpts_rendered/jawahir__exc__000155.md
+  - excerpts_rendered/jawahir__exc__000156.md
+  - excerpts_rendered/jawahir__exc__000157.md
+  - excerpts_rendered/jawahir__exc__000158.md
+  - excerpts_rendered/jawahir__exc__000159.md
+  - excerpts_rendered/jawahir__exc__000160.md
+  - excerpts_rendered/jawahir__exc__000161.md
+  - excerpts_rendered/jawahir__exc__000162.md
+  - excerpts_rendered/jawahir__exc__000163.md
+  - extraction_protocol_v2.md
+  - passage3_clean_fn_input.txt
+  - passage3_clean_matn_input.txt
+  - passage3_decisions.jsonl
+  - passage3_excerpts_v02.jsonl
+  - passage3_fn_atoms_v02.jsonl
+  - passage3_fn_canonical.txt
+  - passage3_matn_atoms_v02.jsonl
+  - passage3_matn_canonical.txt
+  - passage3_metadata.json
+  - passage3_source_slice.json
+  - project_glossary.md
+  - schemas/baseline_manifest_schema_v0.1.json
+  - schemas/checkpoint_state_schema_v0.1.json
+  - schemas/decision_log_schema_v0.1.json
+  - schemas/passage_metadata_schema_v0.1.json
+  - schemas/source_locator_schema_v0.1.json
+  - taxonomy_changes.jsonl
+  - tools/render_excerpts_md.py
+  - validate_gold.py
+  - validation_report.txt
+

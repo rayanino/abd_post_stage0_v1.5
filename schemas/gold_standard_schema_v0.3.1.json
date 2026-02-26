@@ -1,0 +1,848 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://arabic-book-digester.dev/schemas/gold-standard-v0.3.1.json",
+  "title": "Arabic Book Digester — Gold Standard Schema v0.3.1",
+  "description": "Canonical schema for gold-standard records. JSONL format (one JSON per line). record_type discriminates. v0.2 incorporates tightenings A–F: deterministic bonded_cluster triggers, structural list whitelist, cross-science two-case fields, footnote linkage, deterministic exclusion enum, and unresolved relation pointers. v0.3.0 adds exercise_answer_content role, exercise_role=answer, answers_exercise_item and belongs_to_exercise_set relations, footnote_ref orphan handling, and source_inconsistency internal_tag. v0.3.1 adds comprehensive field-level documentation for AI-readability — every field, enum value, and sub-definition now carries a description explaining its purpose, semantics, and usage by downstream consumers (extraction application, synthesis LLM, human reviewers).",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/atom_record"
+    },
+    {
+      "$ref": "#/definitions/excerpt_record"
+    },
+    {
+      "$ref": "#/definitions/taxonomy_change_record"
+    },
+    {
+      "$ref": "#/definitions/exclusion_record"
+    }
+  ],
+  "definitions": {
+    "bonded_cluster_trigger": {
+      "type": "object",
+      "description": "Structured trigger record. Required for every bonded_cluster atom. Patch A.",
+      "required": [
+        "trigger_id",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "trigger_id": {
+          "type": "string",
+          "enum": [
+            "T1",
+            "T2",
+            "T3",
+            "T4",
+            "T5",
+            "T6"
+          ],
+          "description": "T1=failed_independent_predication, T2=unmatched_quotation_brackets, T3=colon_definition_leadin, T4=short_fragment(<15 chars), T5=verse_coupling, T6=attribution_then_quote."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One-sentence explanation citing concrete textual evidence."
+        }
+      }
+    },
+    "internal_tag": {
+      "type": "object",
+      "required": [
+        "tag_type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tag_type": {
+          "type": "string",
+          "enum": [
+            "quran_embedded",
+            "hadith_embedded",
+            "verse_fragment_embedded",
+            "source_inconsistency"
+          ],
+          "description": "Type of embedded content or anomaly. quran_embedded = Quran text embedded within a prose sentence (not a standalone quran_quote_standalone atom). hadith_embedded = Hadith text embedded within prose. verse_fragment_embedded = Poetry fragment (less than a full bayt) embedded within prose. source_inconsistency = Documents a factual inconsistency in the author's text (e.g., a summary that contradicts the enumeration it summarizes). The note field explains the inconsistency. The synthesis LLM must be aware of these to avoid propagating errors."
+        },
+        "text_fragment": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Exact substring within the atom's text. Required for quran_embedded, hadith_embedded, verse_fragment_embedded. Null for source_inconsistency."
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Free-text annotation. Required for source_inconsistency. Null for embedded-content tags."
+        }
+      },
+      "description": "Tag marking embedded content or anomalies within an atom's text. Used to flag Quran fragments, hadith fragments, verse fragments, or author inconsistencies that are embedded within prose sentences (not standalone atoms). The extraction application uses these to avoid misclassifying embedded quotations, and the synthesis LLM uses them to properly attribute embedded content."
+    },
+    "footnote_ref": {
+      "type": "object",
+      "description": "Links a matn atom to its footnote(s). Patch D.",
+      "required": [
+        "marker_text",
+        "footnote_atom_ids"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "marker_text": {
+          "type": "string",
+          "description": "Original marker as in source, e.g. '(1)'. Stripped from atom text but preserved here."
+        },
+        "footnote_atom_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ordered atom IDs in the footnote layer for this marker."
+        },
+        "footnote_ref_status": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "orphan"
+          ],
+          "default": "normal",
+          "description": "Status of the footnote reference. 'normal' = footnote_atom_ids is non-empty. 'orphan' = source has a marker but no corresponding footnote text."
+        },
+        "orphan_note": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Required when footnote_ref_status is 'orphan'. Explains why the reference has no target."
+        }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "description": "Typed directional link between excerpts. The source excerpt (containing this relation) points to the target excerpt. Relations express cross-layer support (footnote→matn), structural hierarchy (item→set), content sharing (shared evidence), and discussion continuity (split discussions). When target_excerpt_id is null, the relation is 'unresolved' — the target excerpt has not yet been created (expected in a future passage). target_hint describes where to find it.",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "footnote_supports",
+            "footnote_explains",
+            "footnote_citation_only",
+            "split_continues_in",
+            "split_continued_from",
+            "shared_shahid",
+            "exercise_tests",
+            "interwoven_sibling",
+            "cross_layer",
+            "has_overview",
+            "footnote_source",
+            "answers_exercise_item",
+            "belongs_to_exercise_set"
+          ],
+          "description": "Relation semantics. Each type has a specific directional meaning (source→target): footnote_supports = footnote excerpt provides additional evidence or examples reinforcing the matn excerpt's claim. footnote_explains = footnote excerpt clarifies, glosses, or analyzes something in the matn excerpt (deeper than mere support). footnote_citation_only = footnote excerpt provides only a bibliographic reference for the matn excerpt (no substantive content). footnote_source = footnote excerpt identifies the original source of a quotation/citation in the matn excerpt. has_overview = this excerpt's topic is covered by a broader overview/enumeration excerpt (target). shared_shahid = this excerpt and the target excerpt both use the same verse/hadith as evidence (the evidence atom is core in both). exercise_tests = this exercise excerpt tests comprehension of the teaching in the target excerpt. belongs_to_exercise_set = this exercise item/answer belongs to the target exercise set (the framing prompt). answers_exercise_item = this answer excerpt provides the scholarly judgment for the target exercise item. split_continues_in = this excerpt's discussion continues in the target excerpt (same topic, separated by intervening content). split_continued_from = this excerpt continues a discussion started in the target excerpt. interwoven_sibling = this excerpt shares inseparable text with the target excerpt (same atoms appear in both due to interwoven topics). cross_layer = generic cross-layer reference when none of the footnote_* types apply."
+        },
+        "target_excerpt_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Null = unresolved. Must become non-null after resolution pass.",
+          "default": null
+        },
+        "target_hint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "REQUIRED when target_excerpt_id is null. Topic + approximate location.",
+          "default": null
+        }
+      }
+    },
+    "context_atom_entry": {
+      "type": "object",
+      "required": [
+        "atom_id",
+        "role"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "atom_id": {
+          "type": "string",
+          "description": "Reference to an atom record. The atom must exist and must share the excerpt's source_layer. Context atoms may also appear as core atoms in a different excerpt (e.g., an overview condition is core in the overview excerpt and context/classification_frame in each detail excerpt)."
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "preceding_setup",
+            "classification_frame",
+            "back_reference",
+            "cross_science_background"
+          ],
+          "description": "Why this atom is included as context. classification_frame = an item from an overview enumeration that identifies which category this excerpt falls under (e.g., 'condition 2: الغرابة' included in the غرابة detail excerpt to frame it within the larger list). preceding_setup = earlier prose that establishes the broader topic, needed for the excerpt to be comprehensible (e.g., a transitional sentence that the first core atom's pronoun refers back to). back_reference = author's explicit reference to a prior discussion (e.g., 'كما تقدم في باب...'). cross_science_background = prerequisite concept from another science needed to understand this excerpt (e.g., a صرف definition needed to understand a بلاغة rule about morphological deviance)."
+        }
+      },
+      "description": "An atom included in the excerpt for comprehensibility but NOT part of the core teaching. Context atoms provide external orientation — they help the reader understand where the excerpt sits within the book's structure, but they do not teach the taxonomy node's topic. The synthesis LLM must treat context atoms as framing, NOT as authoritative content for the node. CRITICAL RULE: evidence (verses, hadith, quotations cited as proof) is NEVER context — evidence always goes in core_atoms with role=evidence."
+    },
+    "atom_record": {
+      "type": "object",
+      "description": "Smallest indivisible text unit. Once created, never split.",
+      "required": [
+        "record_type",
+        "atom_id",
+        "atom_type",
+        "source_layer",
+        "text",
+        "source_anchor",
+        "book_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_type": {
+          "const": "atom",
+          "description": "Discriminator field. Always 'atom' for atom records."
+        },
+        "atom_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+:[a-z0-9_]+:[0-9]{6}$",
+          "description": "Globally unique identifier: {book_id}:{layer}:{six_digit_sequence}. Example: jawahir:matn:000004. Sequence numbers are assigned in reading order within each layer, starting from 000001. They are globally sequential within a book — never reset between passages. Once assigned, an atom_id is immutable."
+        },
+        "atom_type": {
+          "type": "string",
+          "enum": [
+            "heading",
+            "prose_sentence",
+            "bonded_cluster",
+            "verse_evidence",
+            "quran_quote_standalone",
+            "list_item"
+          ],
+          "description": "Structural type of this atom, determining its behavior in excerpting. heading = section/chapter heading; excluded from excerpts but referenced in heading_path. prose_sentence = single complete Arabic sentence (the most common type). bonded_cluster = two or more sentences merged because they are semantically inseparable (e.g., question+answer, claim+evidence); must have bonded_cluster_trigger explaining the bond. verse_evidence = poetry cited as evidence; covers full bayt, single hemistich (مصراع), or verse fragment. quran_quote_standalone = Quran text appearing as a standalone atom (not embedded in prose). list_item = numbered or bulleted item in an author's enumeration (e.g., '1. خلوصها من تنافر الحروف')."
+        },
+        "source_layer": {
+          "type": "string",
+          "enum": [
+            "matn",
+            "footnote",
+            "sharh",
+            "hashiya",
+            "tahqiq_3ilmi"
+          ],
+          "description": "Source layer. 'footnote' = editor footnotes in modern editions (common case of تحقيق). 'tahqiq_3ilmi' = substantive editorial commentary when distinct from apparatus footnotes. 'sharh'/'hashiya' = classical multi-layer."
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Verbatim text of this atom, copied exactly from the source. Never edited, rewritten, or normalized after atomization. Footnote markers (e.g., '(1)') are stripped during atomization but recorded in footnote_refs. This is the ground truth for all downstream processing."
+        },
+        "source_anchor": {
+          "type": "object",
+          "required": [
+            "char_offset_start",
+            "char_offset_end"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "char_offset_start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "char_offset_end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "description": "Character-level position of this atom within its layer's canonical text file. The invariant atom.text == canonical_text[char_offset_start:char_offset_end] must always hold. Offsets are in Unicode codepoints (Python len()), not bytes."
+        },
+        "page_hint": {
+          "type": "string",
+          "default": "",
+          "description": "Approximate page reference in the printed edition (e.g., 'p.21', 'pp.21-22'). Informational only — not used for validation. Helps human reviewers locate atoms in physical books."
+        },
+        "book_id": {
+          "type": "string",
+          "description": "Short identifier for the book. Must be consistent across all records in the dataset. Example: 'jawahir' for جواهر البلاغة. May contain lowercase letters, digits, and underscores."
+        },
+        "bonded_cluster_trigger": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/bonded_cluster_trigger"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "REQUIRED non-null when atom_type='bonded_cluster'. Null otherwise. Patch A.",
+          "default": null
+        },
+        "atomization_notes": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Free-text for non-trigger decisions (heading recognition, verse ID, page-span). Null for straightforward atoms.",
+          "default": null
+        },
+        "internal_tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/internal_tag"
+          },
+          "default": [],
+          "description": "List of embedded content markers and anomaly flags within this atom's text. Used to identify Quran/hadith/verse fragments embedded in prose sentences, and to document source inconsistencies. Empty array for atoms with no embedded content or anomalies."
+        },
+        "footnote_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/footnote_ref"
+          },
+          "description": "Patch D: matn→footnote linkage. Empty for footnote-layer atoms.",
+          "default": []
+        },
+        "canonical_text_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "SHA-256 of the canonical text file this atom's char offsets refer to. Ensures offset auditability.",
+          "default": null
+        }
+      }
+    },
+    "excerpt_record": {
+      "type": "object",
+      "description": "Gold excerpt: atoms from one layer assigned to one taxonomy leaf.",
+      "required": [
+        "record_type",
+        "excerpt_id",
+        "book_id",
+        "source_layer",
+        "excerpt_kind",
+        "taxonomy_version",
+        "taxonomy_node_id",
+        "taxonomy_path",
+        "core_atoms",
+        "context_atoms",
+        "heading_path",
+        "boundary_reasoning",
+        "case_types",
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_type": {
+          "const": "excerpt",
+          "description": "Discriminator field. Always 'excerpt' for excerpt records."
+        },
+        "excerpt_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+:exc:[0-9]{6}$",
+          "description": "Globally unique identifier: {book_id}:exc:{six_digit_sequence}. Example: jawahir:exc:000003. Sequence numbers are assigned in creation order, globally sequential within a book — never reset between passages. Immutable once assigned."
+        },
+        "book_id": {
+          "type": "string",
+          "description": "Short identifier for the book. Must match the book_id on all atoms referenced by this excerpt."
+        },
+        "source_layer": {
+          "type": "string",
+          "enum": [
+            "matn",
+            "footnote",
+            "sharh",
+            "hashiya",
+            "tahqiq_3ilmi"
+          ],
+          "description": "Source layer. 'footnote' = editor footnotes in modern editions (common case of تحقيق). 'tahqiq_3ilmi' = substantive editorial commentary when distinct from apparatus footnotes. 'sharh'/'hashiya' = classical multi-layer."
+        },
+        "excerpt_kind": {
+          "type": "string",
+          "enum": [
+            "teaching",
+            "exercise",
+            "apparatus"
+          ],
+          "description": "Primary classification of the excerpt's purpose. teaching = scholarly content that teaches, defines, explains, or argues about the taxonomy node's topic. This is the main type — definitions, rules, evidence, commentary, scholarly disputes. exercise = practice material for the reader (تمارين/تطبيقات). Has additional fields: exercise_role, tests_nodes, primary_test_node. apparatus = reserved for future use; editorial or structural content that doesn't fit teaching or exercise."
+        },
+        "taxonomy_version": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+_v[0-9]+_[0-9]+$",
+          "description": "Version identifier of the taxonomy tree at the time this excerpt was created. Format: {science}_v{major}_{minor} (e.g., 'balagha_v0_2'). When the taxonomy evolves (node added/renamed/split), the version bumps. This field records which version of the tree the excerpt was placed into, enabling migration tracking when the taxonomy changes."
+        },
+        "taxonomy_node_id": {
+          "type": "string",
+          "description": "The leaf node in the taxonomy tree where this excerpt is placed. Must be a leaf node (leaf=true) in the taxonomy version referenced by taxonomy_version. Each excerpt is assigned to exactly one node. The node represents the specific topic that this excerpt's core atoms substantively address."
+        },
+        "taxonomy_path": {
+          "type": "string",
+          "description": "Human-readable breadcrumb trail from the taxonomy root to this excerpt's node, using Arabic titles. Example: 'مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: الغرابة'. Purely informational — the authoritative placement is taxonomy_node_id. This field helps human reviewers and the synthesis LLM understand hierarchical context."
+        },
+        "context_atoms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/context_atom_entry"
+          },
+          "default": [],
+          "description": "Atoms providing essential framing for the excerpt but not part of the author's core teaching at this taxonomy node. Each has a typed role (evidence, classification_frame, etc.). RULE: context atoms MUST share the excerpt's source_layer. Cross-layer relationships (e.g., footnote supporting matn) are expressed through typed relations connecting separate excerpts, never through context_atoms."
+        },
+        "heading_path": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Ordered list of heading atom IDs forming the navigational path for this excerpt (e.g., مقدمة > الفصاحة > فصاحة الكلمة). IMPORTANT: heading atoms referenced here are ALSO excluded as heading_structural. This is intentional — headings carry navigational metadata, not teaching content. The validator treats heading_path references as structural metadata, NOT as 'usage' for coverage purposes. Only core_atoms and context_atoms count as usage."
+        },
+        "interwoven_group_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Non-null only when multiple excerpts share the same inseparable text passage because the author discusses multiple taxonomy topics in an interwoven way that cannot be separated at atom boundaries. All excerpts in the same group share this UUID. The synthesis LLM must treat the group as ONE evidence block and not count the same text multiple times. Null for normal (non-interwoven) excerpts."
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/relation"
+          },
+          "description": "Typed directional links to other excerpts. Express cross-layer support (footnote→matn), structural hierarchy (exercise item→set), content relationships (has_overview, shared evidence), and discussion continuity (split discussions). See the relation type enum for full semantics. Empty array when the excerpt has no relationships to other excerpts.",
+          "default": []
+        },
+        "tests_nodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "For exercise excerpts only: list of taxonomy node IDs that this exercise tests. An exercise item may test multiple nodes (e.g., a single example that contains both تنافر and غرابة). For exercise sets, this is the union of all child items' tests_nodes. Empty array for non-exercise excerpts."
+        },
+        "cross_science_context": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when this excerpt's content relies on concepts from another linguistic science (e.g., a بلاغة excerpt that requires understanding صرف concepts like إدغام or تصحيح الواو). Signals to the synthesis LLM that prerequisite knowledge from another science may be needed. False for excerpts that are self-contained within their own science."
+        },
+        "rhetorical_treatment_of_cross_science": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the author treats another science's concepts rhetorically (as examples or illustrations of the current science's principles), rather than requiring the reader to understand them technically. Only meaningful when cross_science_context is true. Helps the synthesis LLM decide whether to include cross-science prerequisites or just note the illustration."
+        },
+        "related_science": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "nahw",
+            "sarf",
+            "3arud",
+            "lughah",
+            "other",
+            null
+          ],
+          "default": null,
+          "description": "Which other linguistic science is involved, when cross_science_context is true. nahw = syntax (نحو). sarf = morphology (صرف). 3arud = prosody (عروض). lughah = lexicography/linguistics (لغة). other = a science outside the four core ones. Null when cross_science_context is false."
+        },
+        "split_discussion": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "is_split": {
+              "type": "boolean",
+              "default": false
+            },
+            "continues_in": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/relation"
+              },
+              "default": []
+            },
+            "continued_from": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/relation"
+              },
+              "default": []
+            },
+            "split_note": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "default": {
+            "is_split": false,
+            "continues_in": [],
+            "continued_from": [],
+            "split_note": ""
+          },
+          "description": "Tracks when a single topic's discussion is split across non-adjacent locations in the source (e.g., author discusses topic X, digresses for pages, then returns to X). is_split: true if this excerpt is part of a split discussion. continues_in: relations pointing to the excerpt(s) where this discussion resumes. continued_from: relations pointing to the excerpt(s) where this discussion began. split_note: free-text explanation of the split pattern. The synthesis LLM must merge split excerpts at the same node to present a complete treatment."
+        },
+        "boundary_reasoning": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable explanation of WHY this excerpt starts and ends where it does. Documents: what opens the excerpt (topic marker, heading, clean transition), what closes it (next topic begins, section ends), why atoms are grouped (continuous discussion, same topic), why context atoms were included, and for non-contiguous excerpts: why the gap exists. This is the audit trail for human reviewers and serves as training signal for the extraction application — the app learns boundary-detection patterns from these explanations across gold-standard passages."
+        },
+        "case_types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "A1_pure_definition",
+              "A2_division_classification",
+              "A3_rule_with_conditions",
+              "A4_shahid_with_commentary",
+              "A5_scholarly_dispute",
+              "A6_historical_bibliographical",
+              "B1_clean_boundary",
+              "B2_gradual_transition",
+              "B3_interwoven",
+              "B4_multipage_continuous",
+              "B5_comprehensibility_dependency",
+              "B6_definition_with_exception",
+              "C1_scholarly_footnote",
+              "C2_exercise_section",
+              "C3_qa_review",
+              "C4_embedded_verse_evidence",
+              "C5_inline_list_in_prose",
+              "D1_clean_single_node",
+              "D2_new_node_discovery",
+              "D3_leaf_granulation",
+              "D4_cross_science",
+              "D5_parent_level_content",
+              "E1_split_discussion",
+              "E2_editor_note_scholarly"
+            ]
+          },
+          "minItems": 1,
+          "description": "Pattern annotations documenting which excerpting patterns appear in this excerpt. Assign ALL that apply. Used as training labels for the extraction application — it learns to recognize these patterns in new text. Categories: A=content pattern, B=boundary pattern, C=special structure, D=taxonomy interaction, E=cross-excerpt pattern. A1_pure_definition = clean definition statement (تعريف). A2_division_classification = division into types or categories (تقسيم). A3_rule_with_conditions = rule statement with qualifying conditions (قاعدة مع شروط). A4_shahid_with_commentary = verse/hadith evidence with author's analysis of it. A5_scholarly_dispute = presentation of خلاف between scholars or schools. A6_historical_bibliographical = historical attribution or bibliographic information. B1_clean_boundary = excerpt starts and ends at clear, unambiguous topic transitions. B2_gradual_transition = topic boundary is gradual rather than sharp; boundary choice required judgment. B3_interwoven = inseparable multi-topic content requiring interwoven_group_id. B4_multipage_continuous = excerpt spans multiple pages with no internal topic break. B5_comprehensibility_dependency = context atoms required for comprehensibility (pronouns, back-references). B6_definition_with_exception = definition that includes an explicit exception or caveat (استثناء). C1_scholarly_footnote = footnote containing substantive scholarly content (not apparatus). C2_exercise_section = exercise or practice material (تمارين/تطبيقات). C3_qa_review = question-and-answer review section. C4_embedded_verse_evidence = verse/hadith evidence embedded within prose flow (not standalone). C5_inline_list_in_prose = enumeration embedded within continuous prose (not a standalone list). D1_clean_single_node = excerpt maps cleanly to exactly one existing taxonomy leaf. D2_new_node_discovery = excerpt triggered creation of a new taxonomy node. D3_leaf_granulation = excerpt required splitting an existing leaf into sub-leaves. D4_cross_science = content involves concepts from another linguistic science. D5_parent_level_content = content addresses a parent-level concept rather than a specific leaf. E1_split_discussion = part of a discussion split across non-adjacent locations. E2_editor_note_scholarly = editorial note with substantive scholarly value."
+        },
+        "taxonomy_change_triggered": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "If this excerpt caused a taxonomy change (new node, granulation, rename, move), this field holds the change_id (e.g., 'TC-002') of the corresponding taxonomy_change record. The taxonomy_change record's triggered_by_excerpt_id must point back to this excerpt (bidirectional link). Null when the excerpt did not trigger any taxonomy change."
+        },
+        "supersedes_excerpt_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "When an excerpt is revised (boundary changed, node reassigned), the new version has supersedes_excerpt_id pointing to the old version's excerpt_id. The old version's status becomes 'superseded'. This creates an immutable revision chain. Null for original excerpts."
+        },
+        "annotator_notes": {
+          "type": "string",
+          "default": "",
+          "description": "Free-text notes from the human annotator about this excerpt. Used for flagging uncertainties, recording alternative placement considerations, or noting patterns for future reference. Empty string when there are no notes. Not used by the extraction application or synthesis LLM — purely for human review and project documentation."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "gold",
+            "gold_migrated",
+            "superseded"
+          ],
+          "description": "Lifecycle status of this excerpt. gold = manually created and validated; the authoritative version. gold_migrated = was gold, then automatically migrated due to a taxonomy change (node split/rename). Needs human re-validation to confirm the migration was correct. superseded = replaced by a newer version (see supersedes_excerpt_id on the replacement). No longer authoritative — retained for audit trail only."
+        },
+        "primary_test_node": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "For exercise excerpts: the single most relevant taxonomy node being tested. Required when tests_nodes has >1 entry.",
+          "default": null
+        },
+        "exercise_role": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "set",
+            "item",
+            "answer",
+            null
+          ],
+          "description": "For exercise excerpts: 'set' = framing prompt for a group of exercises (tests_nodes is the union of all child items' test nodes, primary_test_node is null), 'item' = individual exercise (tests_nodes lists relevant nodes, primary_test_node identifies the single strongest match). Null for non-exercise excerpts. 'answer' = footnote-layer excerpt containing the scholarly answer/judgment for an exercise item.",
+          "default": null
+        },
+        "core_atoms": {
+          "type": "array",
+          "description": "Atoms that substantively address the excerpt's taxonomy node topic — everything the excerpt intends to present as its body. Each atom carries a functional role. May include redundant restatements, supporting evidence, and multi-span content. RULE: all core atoms must share the excerpt's source_layer.",
+          "items": {
+            "$ref": "#/definitions/core_atom_entry"
+          }
+        },
+        "source_spans": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Multi-span source traceability. Each span is a contiguous run of atoms in the canonical text. Non-contiguous excerpts produce multiple spans with gaps between them. Replaces the old single source_range which was misleading for non-contiguous content.",
+          "additionalProperties": false,
+          "properties": {
+            "canonical_text_file": {
+              "type": "string"
+            },
+            "canonical_text_sha256": {
+              "type": "string"
+            },
+            "spans": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/source_span"
+              }
+            }
+          },
+          "default": null
+        }
+      }
+    },
+    "taxonomy_change_record": {
+      "type": "object",
+      "required": [
+        "record_type",
+        "change_id",
+        "taxonomy_version_before",
+        "taxonomy_version_after",
+        "change_type",
+        "node_id",
+        "reasoning",
+        "book_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_type": {
+          "const": "taxonomy_change",
+          "description": "Discriminator field. Always 'taxonomy_change' for taxonomy change records."
+        },
+        "change_id": {
+          "type": "string",
+          "pattern": "^TC-[0-9]{3}$",
+          "description": "Unique identifier for this change: TC-{three_digit_sequence} (e.g., 'TC-001'). Globally sequential within the project — never reset between passages or books."
+        },
+        "taxonomy_version_before": {
+          "type": "string",
+          "description": "Taxonomy version identifier BEFORE this change was applied (e.g., 'balagha_v0_1'). Must differ from taxonomy_version_after."
+        },
+        "taxonomy_version_after": {
+          "type": "string",
+          "description": "Taxonomy version identifier AFTER this change was applied (e.g., 'balagha_v0_2'). This is the version that excerpts referencing the new/modified node will use."
+        },
+        "change_type": {
+          "type": "string",
+          "enum": [
+            "node_added",
+            "leaf_granulated",
+            "node_renamed",
+            "node_moved"
+          ],
+          "description": "What kind of taxonomy modification occurred. node_added = a new leaf node was created (most common — content demanded a node that didn't exist). leaf_granulated = an existing leaf was split into multiple child leaves (content revealed sub-topics). node_renamed = an existing node's title or ID was changed for accuracy. node_moved = an existing node was relocated to a different parent in the tree."
+        },
+        "parent_node_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The parent node under which the new/modified node sits. Required for node_added (where should the new node go?). Null for changes that don't alter parentage."
+        },
+        "new_children": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "node_id",
+              "title",
+              "leaf"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "leaf": {
+                "type": "boolean"
+              }
+            }
+          },
+          "default": [],
+          "description": "For leaf_granulated: the new child nodes created from the split. Each entry has node_id, title, and leaf (boolean). Empty array for non-granulation changes."
+        },
+        "migration": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": {},
+          "description": "Maps old node IDs to lists of excerpt IDs that need to be reassigned after this change. For leaf_granulated: excerpts previously at the old leaf must be migrated to one of the new children. Empty object when no migration is needed (e.g., node_added creates a brand new node with no prior excerpts)."
+        },
+        "triggered_by_excerpt_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "The excerpt that revealed the need for this taxonomy change. Bidirectional link: this field points excerpt→TC, and the excerpt's taxonomy_change_triggered points TC→excerpt. Both must be consistent — the validator enforces this. Null only when the change was triggered by structural analysis rather than a specific excerpt."
+        },
+        "reasoning": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Detailed explanation of WHY this taxonomy change was necessary. Must cite the specific content that demanded the change (e.g., 'الهاشمي treats كراهة السمع as independent from تنافر — تنافر is about pronunciation difficulty, كراهة is about aesthetic repugnance'). This is the permanent record justifying the tree's evolution."
+        },
+        "node_id": {
+          "type": "string",
+          "description": "The taxonomy node that was added, modified, or moved. For node_added, this is the new node's ID. For leaf_granulated, this is the original leaf that was split. For node_renamed/node_moved, this is the affected node."
+        },
+        "book_id": {
+          "type": "string",
+          "description": "Short identifier for the book whose content triggered this change."
+        },
+        "passage_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Identifier for the passage being processed when this change was triggered. Null when the change applies at book level rather than passage level."
+        },
+        "batch_note": {
+          "type": "string",
+          "default": "",
+          "description": "Note for batch changes — when multiple taxonomy changes are applied together as a single version bump. Example: 'Batch bump v0_1→v0_2: all three changes from passage 1.' Empty string for standalone changes."
+        }
+      },
+      "description": "Records a modification to the taxonomy tree triggered by content discovered during excerpting. Every change to the tree (new node, split, rename, move) gets a permanent record explaining what changed, why, and which excerpt triggered it. This enables full audit trail of the taxonomy's evolution and supports migration of existing excerpts when the tree structure changes."
+    },
+    "exclusion_record": {
+      "type": "object",
+      "description": "Atom explicitly excluded. Patch E: closed enum, deterministic test.",
+      "required": [
+        "record_type",
+        "atom_id",
+        "exclusion_reason",
+        "book_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_type": {
+          "const": "exclusion",
+          "description": "Discriminator field. Always 'exclusion' for exclusion records."
+        },
+        "atom_id": {
+          "type": "string",
+          "description": "The atom being excluded. Must reference an existing atom record. An excluded atom does not appear as core in any excerpt. It may still appear in heading_path (for heading_structural exclusions) or as context in other excerpts (rare — context atoms are typically also core somewhere)."
+        },
+        "book_id": {
+          "type": "string",
+          "description": "Short identifier for the book. Must match the atom's book_id."
+        },
+        "exclusion_reason": {
+          "type": "string",
+          "enum": [
+            "khutba_devotional_apparatus",
+            "page_header_artifact",
+            "decorative_separator",
+            "publishing_metadata",
+            "footnote_apparatus",
+            "duplicate_content",
+            "exercise_prompt_only",
+            "non_scholarly_apparatus",
+            "heading_structural"
+          ],
+          "description": "Why this atom is excluded from excerpting. Closed vocabulary — new reasons require a schema version bump. heading_structural = heading atom (chapter/section title). Excluded because headings carry navigational metadata, not teaching content. These atoms are still referenced in heading_path on excerpts. footnote_apparatus = word-by-word glosses, verse parsing (إعراب), meaning explanations that serve as reading aids. These help a student read difficult text but contain no substantive scholarly content about the science itself. khutba_devotional_apparatus = opening prayers, بسملة, حمدلة, devotional formulas. Conventional religious preamble, not scholarly content. non_scholarly_apparatus = any other non-teaching content (transitional formulas, section labels, etc.). page_header_artifact = running headers, page numbers, or other artifacts from the print/digital source. decorative_separator = ornamental dividers between sections (e.g., '***', '---'). publishing_metadata = publisher information, edition notes, copyright text. duplicate_content = exact or near-exact duplicate of another atom (use duplicate_of_atom_id to link). exercise_prompt_only = exercise framing text that has been excerpted as an exercise set — this exclusion applies when the prompt atom is handled entirely by the exercise excerpt."
+        },
+        "exclusion_note": {
+          "type": "string",
+          "default": "",
+          "description": "Optional free-text explanation for edge cases where the exclusion reason alone is insufficient. Example: 'Word-by-word glosses for verse, no scholarly content about بلاغة.' Empty string when the exclusion_reason is self-explanatory."
+        },
+        "duplicate_of_atom_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Non-null only for 'duplicate_content'. Points to retained original.",
+          "default": null
+        }
+      }
+    },
+    "core_atom_entry": {
+      "type": "object",
+      "required": [
+        "atom_id",
+        "role"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "atom_id": {
+          "type": "string",
+          "description": "Reference to the atom record."
+        },
+        "role": {
+          "type": "string",
+          "description": "Functional role within the excerpt's body. Versioned vocabulary — grows via schema bump. author_prose = the author's own teaching text (definitions, transitions, attribution formulas); evidence = material cited by the author as proof (verse, hadith, external prose); exercise_content = material presented as exercise items.; exercise_answer_content = scholarly judgment in a footnote identifying the عيب in an exercise item (the answer key).",
+          "enum": [
+            "author_prose",
+            "evidence",
+            "exercise_content",
+            "exercise_answer_content"
+          ]
+        }
+      },
+      "description": "An atom that substantively addresses the excerpt's taxonomy node topic — part of the excerpt's body. Each core atom carries a functional role describing HOW it serves the excerpt (author's own teaching, evidence cited as proof, exercise content, or exercise answer). RULE: each atom may be core in at most ONE excerpt (core-uniqueness invariant). RULE: all core atoms must share the excerpt's source_layer."
+    },
+    "source_span": {
+      "type": "object",
+      "required": [
+        "char_start",
+        "char_end",
+        "span_kind",
+        "atom_ids"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "char_start": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Unicode codepoint offset of the first character of this span in the canonical text file."
+        },
+        "char_end": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Unicode codepoint offset one past the last character of this span in the canonical text file."
+        },
+        "span_kind": {
+          "type": "string",
+          "enum": [
+            "core",
+            "context"
+          ],
+          "description": "Whether this span contains core or context atoms. core = atoms that are in core_atoms (the excerpt's body). context = atoms that are in context_atoms (external framing). A single excerpt may have both core and context spans interleaved."
+        },
+        "atom_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ordered atom IDs in this contiguous run, matching the reading order in the canonical text. Every atom_id listed here must appear in either core_atoms or context_atoms of the parent excerpt."
+        }
+      },
+      "description": "A contiguous run of atoms within the canonical text file. An excerpt with all atoms in sequence has one span. An excerpt with a gap (non-contiguous core, or context from a different location) has multiple spans. Spans are ordered by char_start ascending."
+    }
+  },
+  "$comment": "Changelog — v0.3.1: Comprehensive field documentation (80/80 fields, 11/11 definitions, all enum values described). Self-documenting contract for AI builder. v0.3.0: Added exercise_answer_content role, exercise_role=answer, answers_exercise_item and belongs_to_exercise_set relations, footnote_ref_status/orphan_note, source_inconsistency internal_tag."
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abd:schemas:baseline_manifest:v0.1",
+  "title": "ABD Baseline Manifest Schema v0.1",
+  "type": "object",
+  "required": ["manifest_version", "baseline_id", "created_utc", "updated_utc", "files"],
+  "properties": {
+    "manifest_version": {"type": "string"},
+    "baseline_id": {"type": "string"},
+    "created_utc": {"type": "string"},
+    "updated_utc": {"type": "string"},
+    "schema_version": {"type": "string"},
+    "taxonomy_version": {"type": "string"},
+    "files": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["sha256", "size_bytes", "role"],
+        "properties": {
+          "sha256": {"type": "string"},
+          "size_bytes": {"type": "integer", "minimum": 0},
+          "role": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "baseline_sha256": {"type": "string"},
+    "baseline_sha256_algorithm": {"type": "string"}
+  },
+  "additionalProperties": true
+}

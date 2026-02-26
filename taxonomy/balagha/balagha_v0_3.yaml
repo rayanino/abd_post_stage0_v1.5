@@ -1,0 +1,639 @@
+taxonomy:
+  id: balagha_v0_3
+  title: علم البلاغة
+  language: ar
+  policy:
+    leaf_atomic: true
+    single_core_node_per_excerpt: true
+    exclude_cross_science_nodes: true
+    allow_rhetorical_treatment_only: true
+  nodes:
+  - id: muqaddimat
+    title: مقدمات علم البلاغة
+    children:
+    - id: ta3rif_albalagha
+      title: تعريف البلاغة
+      children:
+      - id: ta3rif_albalagha_lugha
+        title: تعريف البلاغة لغة
+        leaf: true
+      - id: ta3rif_albalagha_istilah
+        title: تعريف البلاغة اصطلاحا
+        leaf: true
+      - id: sabab_tasmiyat_albalagha
+        title: سبب التسمية وعلاقته بالبلوغ والإيصال
+        leaf: true
+      - id: qayd_mutabaqat_albalagha_lilhal
+        title: قيد مطابقة الكلام لمقتضى الحال داخل تعريف البلاغة
+        leaf: true
+    - id: mawdu3_albalagha
+      title: موضوع علم البلاغة
+      leaf: true
+    - id: ghaya_thamara
+      title: غاية البلاغة وثمرتها
+      children:
+      - id: ghaya_albalagha
+        title: غاية علم البلاغة
+        leaf: true
+      - id: thamarat_albalagha
+        title: ثمرة تعلم البلاغة
+        leaf: true
+    - id: nisba_wahd_wajibat
+      title: نسبة البلاغة وتقسيماتها وحكم تعلمها
+      children:
+      - id: nisbat_albalagha_ila_ghayriha
+        title: نسبة البلاغة إلى علوم العربية
+        leaf: true
+      - id: hukm_ta3allum_albalagha
+        title: حكم تعلم البلاغة ومحلها من الكفايات
+        leaf: true
+      - id: had_albalagha_wahd_3ilm
+        title: هل البلاغة علم واحد أم علوم ثلاثة؟
+        leaf: true
+    - id: alfasaha
+      title: الفصاحة وعلاقتها بالبلاغة
+      children:
+      - id: ta3rif_alfasaha
+        title: تعريف الفصاحة
+        children:
+        - id: ta3rif_alfasaha_lugha
+          title: تعريف الفصاحة لغة
+          leaf: true
+        - id: ta3rif_alfasaha_istilah
+          title: تعريف الفصاحة اصطلاحا
+          leaf: true
+      - id: fasahat_alfard
+        title: فصاحة المفرد
+        children:
+        - id: shuroot_fasahat_alfard__overview
+          title: شروط فصاحة المفرد إجمالا / تعداد الشروط
+          leaf: true
+        - id: 3uyub_alfard_gharaba
+          title: 'عيوب المفرد: الغرابة'
+          leaf: true
+        - id: 3uyub_alfard_tanafur
+          title: 'عيوب المفرد: تنافر الحروف'
+          leaf: true
+        - id: 3uyub_alfard_mukhalafat_qiyas
+          title: 'عيوب المفرد: مخالفة القياس'
+          leaf: true
+        - id: 3uyub_alfard_karahat_sam3
+          title: 'عيوب المفرد: الكراهة في السمع'
+          leaf: true
+          note: بعض المؤلفين يدرجونها ضمن التنافر أو الغرابة، لكن جواهر البلاغة تفصلها
+            عيبًا مستقلًا بتعريف ومثال وشرح، فيُعمل بسيادة المحتوى.
+        - id: 3uyub_alfard_ibtidhal
+          title: 'عيوب المفرد: الابتذال'
+          leaf: true
+        - id: 3uyub_alfard_ibham
+          title: 'عيوب المفرد: الإبهام عند إرادة التعيين'
+          leaf: true
+        - id: 3uyub_alfard_ishtirak_bila_qarina
+          title: 'عيوب المفرد: استعمال المشترك بلا قرينة'
+          leaf: true
+        - id: tatbiq_fasahat_alfard
+          title: تطبيقات فصاحة المفرد
+          leaf: true
+          note: تمارين تطبيقية على شروط فصاحة الكلمة المفردة
+      - id: fasahat_alkalam
+        title: فصاحة الكلام
+        children:
+        - id: fasahat_alkalam__overview
+          title: فصاحة الكلام إجمالا / تعريفها وتعداد عيوبها
+          leaf: true
+        - id: 3uyub_alkalam_tanafur_kalimat
+          title: 'عيوب الكلام: تنافر الكلمات'
+          leaf: true
+        - id: 3uyub_alkalam_ta3qid
+          title: 'عيوب الكلام: التعقيد'
+          leaf: true
+        - id: 3uyub_alkalam_ikrar
+          title: 'عيوب الكلام: كثرة التكرار المذموم'
+          leaf: true
+      - id: fasahat_almutakallim
+        title: فصاحة المتكلم
+        leaf: true
+    - id: taqsim_albalagha
+      title: 'تقسيم البلاغة إلى: المعاني والبيان والبديع'
+      children:
+      - id: ta3rif_3ilm_alma3ani
+        title: تعريف علم المعاني وموضوعه
+        children:
+        - id: ta3rif_3ilm_alma3ani_lugha
+          title: تعريف علم المعاني (اللفظ والمعنى اللغوي)
+          leaf: true
+        - id: ta3rif_3ilm_alma3ani_istilah
+          title: تعريف علم المعاني اصطلاحا
+          leaf: true
+        - id: mawdu3_3ilm_alma3ani
+          title: موضوع علم المعاني
+          leaf: true
+        - id: ghaya_3ilm_alma3ani
+          title: غاية علم المعاني
+          leaf: true
+      - id: ta3rif_3ilm_albayan
+        title: تعريف علم البيان وموضوعه
+        children:
+        - id: ta3rif_3ilm_albayan_lugha
+          title: تعريف علم البيان (اللفظ والمعنى اللغوي)
+          leaf: true
+        - id: ta3rif_3ilm_albayan_istilah
+          title: تعريف علم البيان اصطلاحا
+          leaf: true
+        - id: mawdu3_3ilm_albayan
+          title: موضوع علم البيان
+          leaf: true
+        - id: ghaya_3ilm_albayan
+          title: غاية علم البيان
+          leaf: true
+      - id: ta3rif_3ilm_albadi3
+        title: تعريف علم البديع وموضوعه
+        children:
+        - id: ta3rif_3ilm_albadi3_lugha
+          title: تعريف علم البديع (اللفظ والمعنى اللغوي)
+          leaf: true
+        - id: ta3rif_3ilm_albadi3_istilah
+          title: تعريف علم البديع اصطلاحا
+          leaf: true
+        - id: mawdu3_3ilm_albadi3
+          title: موضوع علم البديع
+          leaf: true
+        - id: ghaya_3ilm_albadi3
+          title: غاية علم البديع
+          leaf: true
+  - id: 3ilm_alma3ani
+    title: علم المعاني
+    children:
+    - id: muqaddima_ma3ani
+      title: مدخل علم المعاني ومفاهيمه
+      children:
+      - id: muqtada_alhal
+        title: مقتضى الحال والمقام والقرائن
+        children:
+        - id: ta3rif_alhal_walmaqaam
+          title: تعريف الحال والمقام
+          leaf: true
+        - id: ta3rif_muqtada_alhal
+          title: تعريف مقتضى الحال
+          leaf: true
+        - id: alqara_in_allafziya
+          title: القرائن اللفظية
+          leaf: true
+        - id: alqara_in_alhaliya
+          title: القرائن الحالية
+          leaf: true
+    - id: alkhabar
+      title: الخبر
+      children:
+      - id: ta3rif_alkhabar
+        title: تعريف الخبر
+        children:
+        - id: ta3rif_alkhabar_istilah
+          title: تعريف الخبر اصطلاحا
+          leaf: true
+        - id: sidq_kadhib
+          title: الصدق والكذب في الخبر
+          leaf: true
+      - id: adrub_alkhabar
+        title: أضرب الخبر بحسب حال المخاطب
+        children:
+        - id: khabar_ibtida_i
+          title: الخبر الابتدائي
+          leaf: true
+        - id: khabar_talabi
+          title: الخبر الطلبي
+          leaf: true
+        - id: khabar_inkari
+          title: الخبر الإنكاري
+          leaf: true
+      - id: tawkid_alkhabar
+        title: التوكيد في الخبر
+        children:
+        - id: mabda_tawkid
+          title: متى يُؤكَّد الخبر؟ قاعدة مطابقة حال المخاطب
+          leaf: true
+        - id: adawat_tawkid
+          title: أدوات توكيد الخبر
+          leaf: true
+      - id: aghrad_alkhabar
+        title: الأغراض البلاغية لخروج الخبر عن مقتضاه
+        leaf: true
+    - id: alinsha
+      title: الإنشاء
+      children:
+      - id: ta3rif_alinsha
+        title: تعريف الإنشاء وتقسيمه
+        children:
+        - id: ta3rif_alinsha_istilah
+          title: تعريف الإنشاء اصطلاحا
+          leaf: true
+        - id: insha_talabi_ghayr
+          title: 'تقسيم الإنشاء: طلبي وغير طلبي'
+          leaf: true
+      - id: insha_talabi
+        title: الإنشاء الطلبي
+        children:
+        - id: alamr
+          title: الأمر
+          children:
+          - id: ta3rif_alamr
+            title: تعريف الأمر بلاغيا
+            leaf: true
+          - id: sighat_alamr
+            title: صيغ الأمر
+            leaf: true
+          - id: aghrad_alamr
+            title: أغراض الأمر البلاغية
+            leaf: true
+        - id: annahy
+          title: النهي
+          children:
+          - id: ta3rif_annahy
+            title: تعريف النهي بلاغيا
+            leaf: true
+          - id: sighat_annahy
+            title: صيغة النهي
+            leaf: true
+          - id: aghrad_annahy
+            title: أغراض النهي البلاغية
+            leaf: true
+        - id: alistifham
+          title: الاستفهام
+          children:
+          - id: ta3rif_alistifham
+            title: تعريف الاستفهام بلاغيا
+            leaf: true
+          - id: adawat_alistifham
+            title: أدوات الاستفهام
+            leaf: true
+          - id: aghrad_alistifham
+            title: أغراض الاستفهام البلاغية
+            leaf: true
+        - id: attamanni
+          title: التمني
+          children:
+          - id: ta3rif_attamanni
+            title: تعريف التمني بلاغيا
+            leaf: true
+          - id: adawat_attamanni
+            title: أدوات التمني
+            leaf: true
+        - id: an_nida
+          title: النداء
+          children:
+          - id: ta3rif_annida
+            title: تعريف النداء بلاغيا
+            leaf: true
+          - id: adawat_annida
+            title: أدوات النداء
+            leaf: true
+          - id: aghrad_annida
+            title: أغراض النداء البلاغية
+            leaf: true
+      - id: insha_ghayr_talabi
+        title: الإنشاء غير الطلبي
+        children:
+        - id: alqasam
+          title: القسم بلاغيا
+          leaf: true
+        - id: atta3ajjub
+          title: التعجب بلاغيا
+          leaf: true
+        - id: almadh_waldhamm
+          title: المدح والذم بلاغيا
+          leaf: true
+    - id: alqasr
+      title: القصر
+      children:
+      - id: ta3rif_alqasr
+        title: تعريف القصر
+        children:
+        - id: ta3rif_alqasr_lugha
+          title: تعريف القصر لغة
+          leaf: true
+        - id: ta3rif_alqasr_istilah
+          title: تعريف القصر اصطلاحا
+          leaf: true
+      - id: arkan_alqasr
+        title: أركان القصر (مقصور/مقصور عليه)
+        leaf: true
+      - id: turuq_alqasr
+        title: طرق القصر
+        children:
+        - id: qasr_binnafy_walistithna
+          title: القصر بالنفي والاستثناء
+          leaf: true
+        - id: qasr_bi_innama
+          title: القصر بإنما
+          leaf: true
+        - id: qasr_bittaqdim
+          title: القصر بالتقديم والتأخير (بلاغيا)
+          leaf: true
+        - id: qasr_bil3atf
+          title: القصر بالعطف (بل/لكن/لا...)
+          leaf: true
+    - id: alwasl_walfasl
+      title: الوصل والفصل
+      children:
+      - id: ta3rif_alwasl
+        title: تعريف الوصل
+        leaf: true
+      - id: ta3rif_alfasl
+        title: تعريف الفصل
+        leaf: true
+      - id: qawa3id_alwasl
+        title: قواعد/مواضع الوصل
+        leaf: true
+      - id: qawa3id_alfasl
+        title: قواعد/مواضع الفصل
+        leaf: true
+    - id: alijaz_alitnab
+      title: الإيجاز والإطناب والمساواة
+      children:
+      - id: ta3rif_alijaz
+        title: تعريف الإيجاز
+        leaf: true
+      - id: ta3rif_alitnab
+        title: تعريف الإطناب
+        leaf: true
+      - id: ta3rif_almusawa
+        title: تعريف المساواة
+        leaf: true
+      - id: ijaz_alhazf
+        title: إيجاز الحذف
+        leaf: true
+      - id: ijaz_alqasr
+        title: إيجاز القصر
+        leaf: true
+      - id: wujuh_alitnab
+        title: وجوه الإطناب المشهورة
+        leaf: true
+  - id: 3ilm_albayan
+    title: علم البيان
+    children:
+    - id: attashbih
+      title: التشبيه
+      children:
+      - id: ta3rif_attashbih
+        title: تعريف التشبيه
+        children:
+        - id: ta3rif_attashbih_lugha
+          title: تعريف التشبيه لغة
+          leaf: true
+        - id: ta3rif_attashbih_istilah
+          title: تعريف التشبيه اصطلاحا
+          leaf: true
+      - id: arkan_attashbih
+        title: أركان التشبيه
+        children:
+        - id: rukn_mushabbah
+          title: المشبه
+          leaf: true
+        - id: rukn_mushabbah_bih
+          title: المشبه به
+          leaf: true
+        - id: rukn_wajh_shabah
+          title: وجه الشبه
+          leaf: true
+        - id: rukn_ada
+          title: أداة التشبيه
+          leaf: true
+      - id: anwa3_attashbih
+        title: أنواع التشبيه
+        children:
+        - id: tashbih_mursal
+          title: التشبيه المرسل
+          leaf: true
+        - id: tashbih_muakkad
+          title: التشبيه المؤكد
+          leaf: true
+        - id: tashbih_mufassal
+          title: التشبيه المفصل
+          leaf: true
+        - id: tashbih_mujmal
+          title: التشبيه المجمل
+          leaf: true
+        - id: tashbih_baligh
+          title: التشبيه البليغ
+          leaf: true
+        - id: tashbih_tamthili
+          title: التشبيه التمثيلي
+          leaf: true
+        - id: tashbih_dimni
+          title: التشبيه الضمني
+          leaf: true
+    - id: alisti3ara
+      title: الاستعارة
+      children:
+      - id: ta3rif_alisti3ara
+        title: تعريف الاستعارة
+        children:
+        - id: ta3rif_alisti3ara_lugha
+          title: تعريف الاستعارة لغة
+          leaf: true
+        - id: ta3rif_alisti3ara_istilah
+          title: تعريف الاستعارة اصطلاحا
+          leaf: true
+        - id: sabab_tasmiyat_alisti3ara
+          title: سبب التسمية في الاستعارة
+          leaf: true
+      - id: anwa3_alisti3ara
+        title: أنواع الاستعارة
+        children:
+        - id: isti3ara_tasrihiyya
+          title: استعارة تصريحية
+          leaf: true
+        - id: isti3ara_makniyya
+          title: استعارة مكنية
+          leaf: true
+        - id: isti3ara_tamthiliyya
+          title: استعارة تمثيلية
+          leaf: true
+        - id: isti3ara_asliyya
+          title: استعارة أصلية
+          leaf: true
+        - id: isti3ara_tabaiyya
+          title: استعارة تبعية
+          leaf: true
+        - id: isti3ara_mutlaqa
+          title: استعارة مطلقة
+          leaf: true
+        - id: isti3ara_murashshaha
+          title: استعارة مرشحة
+          leaf: true
+        - id: isti3ara_mujarrada
+          title: استعارة مجردة
+          leaf: true
+    - id: almajaz
+      title: المجاز
+      children:
+      - id: almajaz_mursal
+        title: المجاز المرسل
+        children:
+        - id: ta3rif_almajaz_mursal
+          title: تعريف المجاز المرسل
+          leaf: true
+        - id: 3alaqat_almajaz_mursal
+          title: علاقات المجاز المرسل (قائمة مفتوحة)
+          leaf: true
+      - id: almajaz_3aqli
+        title: المجاز العقلي
+        children:
+        - id: ta3rif_almajaz_3aqli
+          title: تعريف المجاز العقلي
+          leaf: true
+        - id: 3alaqat_almajaz_3aqli
+          title: علاقات المجاز العقلي (قائمة مفتوحة)
+          leaf: true
+    - id: alkinaya
+      title: الكناية
+      children:
+      - id: ta3rif_alkinaya
+        title: تعريف الكناية
+        children:
+        - id: ta3rif_alkinaya_lugha
+          title: تعريف الكناية لغة
+          leaf: true
+        - id: ta3rif_alkinaya_istilah
+          title: تعريف الكناية اصطلاحا
+          leaf: true
+      - id: anwa3_alkinaya
+        title: أنواع الكناية
+        children:
+        - id: kinaya_3an_sifa
+          title: كناية عن صفة
+          leaf: true
+        - id: kinaya_3an_mawsuf
+          title: كناية عن موصوف
+          leaf: true
+        - id: kinaya_3an_nisba
+          title: كناية عن نسبة
+          leaf: true
+  - id: 3ilm_albadi3
+    title: علم البديع
+    children:
+    - id: muqaddima_badi3
+      title: مدخل علم البديع
+      children:
+      - id: ta3rif_albadi3
+        title: تعريف علم البديع
+        children:
+        - id: ta3rif_albadi3_lugha
+          title: تعريف علم البديع لغة
+          leaf: true
+        - id: ta3rif_albadi3_istilah
+          title: تعريف علم البديع اصطلاحا
+          leaf: true
+      - id: maqam_albadi3
+        title: 'موقع البديع من البلاغة: تحسيني أم أصيل؟'
+        leaf: true
+    - id: muhasinat_ma3nawiyya
+      title: المحسنات المعنوية
+      children:
+      - id: tibaq
+        title: الطباق
+        children:
+        - id: ta3rif_tibaq
+          title: تعريف الطباق
+          leaf: true
+        - id: tibaq_ijab
+          title: طباق الإيجاب
+          leaf: true
+        - id: tibaq_salb
+          title: طباق السلب
+          leaf: true
+      - id: muqabala
+        title: المقابلة
+        children:
+        - id: ta3rif_muqabala
+          title: تعريف المقابلة
+          leaf: true
+      - id: tawriya
+        title: التورية
+        children:
+        - id: ta3rif_tawriya
+          title: تعريف التورية
+          leaf: true
+        - id: anwa3_tawriya
+          title: أنواع/مراتب التورية (قائمة مفتوحة)
+          leaf: true
+      - id: husn_ta3lil
+        title: حسن التعليل
+        leaf: true
+      - id: mura3at_nazir
+        title: مراعاة النظير
+        leaf: true
+      - id: iltifat
+        title: 'الالتفات (وموضعه: معاني أم بديع؟)'
+        leaf: true
+    - id: muhasinat_lafziyya
+      title: المحسنات اللفظية
+      children:
+      - id: jinas
+        title: الجناس
+        children:
+        - id: ta3rif_jinas
+          title: تعريف الجناس
+          leaf: true
+        - id: jinas_tamm
+          title: جناس تام
+          leaf: true
+        - id: jinas_naqis
+          title: جناس ناقص
+          leaf: true
+      - id: saj3
+        title: السجع
+        children:
+        - id: ta3rif_saj3
+          title: تعريف السجع
+          leaf: true
+        - id: anwa3_saj3
+          title: أنواع السجع (قائمة مفتوحة)
+          leaf: true
+      - id: tarshi3
+        title: الترصيع
+        leaf: true
+      - id: tasri3
+        title: التصريع
+        leaf: true
+  id_policy:
+    description: Rules for forming taxonomy node IDs. These rules are frozen — all
+      annotators, models, and tools must follow them to prevent ID drift across passages
+      and books.
+    charset: lowercase ASCII letters (a-z), digits (0-9), underscores (_)
+    transliteration_rules:
+      ع: '3'
+      ء_و_ؤ_ئ_إ_أ_آ: dropped (e.g., بلاغة→balagha, إملاء→imla)
+      ة: dropped from end (e.g., فصاحة→fasaha), but a→at in construct (إضافة) only
+        if ambiguous
+      ال_definite_article: prefixed as al (e.g., الفصاحة→alfasaha, البلاغة→albalagha)
+      shadda: doubled letter (e.g., المفرد→almufrad)
+      long_vowels: aa for alif maddah, uu for waw, ii for ya (e.g., معاني→ma3ani,
+        بيان→bayan)
+      ث: th
+      ذ: dh
+      ش: sh
+      ص: s
+      ض: d
+      ط: t
+      ظ: dh
+      غ: gh
+      خ: kh
+      ق: q
+      general: Use simplified Arabizi-like transliteration. When in doubt, match existing
+        IDs in the tree.
+    structure_rules:
+    - Use underscores to separate words (e.g., ta3rif_alfasaha)
+    - Prefix with parent concept when needed to disambiguate (e.g., 3uyub_alfard_tanafur,
+      not just tanafur)
+    - Overview/summary nodes use __overview suffix (e.g., shuroot_fasahat_alfard__overview)
+    - Exercise/practice nodes use tatbiq_ prefix (e.g., tatbiq_fasahat_alfard)
+    - Keep IDs concise but unambiguous — prefer 2-4 word IDs
+    - Once assigned, a node ID is immutable — rename via taxonomy_change_record, never
+      edit in place
+    examples:
+      الفصاحة: alfasaha
+      'عيوب المفرد: التنافر': 3uyub_alfard_tanafur
+      شروط فصاحة المفرد: shuroot_fasahat_alfard__overview
+      تطبيقات فصاحة المفرد: tatbiq_fasahat_alfard
+      تعريف البلاغة لغة: ta3rif_albalagha_lugha

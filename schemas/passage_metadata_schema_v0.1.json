@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abd:schemas:passage_metadata:v0.1",
+  "title": "ABD Passage Metadata Schema v0.1",
+  "type": "object",
+  "required": [
+    "passage_id",
+    "book_id",
+    "book_title",
+    "author",
+    "page_range",
+    "taxonomy_version",
+    "schema_version",
+    "offset_unit",
+    "canonical_files",
+    "validation"
+  ],
+  "properties": {
+    "passage_id": {"type": "string", "minLength": 1},
+    "book_id": {"type": "string", "minLength": 1},
+    "book_title": {"type": "string"},
+    "author": {"type": "string"},
+    "page_range": {"type": "string"},
+    "topic": {"type": "string"},
+    "taxonomy_version": {"type": "string", "minLength": 1},
+    "schema_version": {"type": "string", "minLength": 1},
+    "offset_unit": {"type": "string", "enum": ["unicode_codepoint"]},
+    "canonical_derivation": {"type": "string"},
+    "canonical_files": {
+      "type": "object",
+      "required": ["matn", "footnote"],
+      "properties": {
+        "matn": {
+          "type": "object",
+          "required": ["filename", "sha256"],
+          "properties": {
+            "filename": {"type": "string"},
+            "sha256": {"type": "string"},
+            "char_count": {"type": "integer", "minimum": 0},
+            "byte_count_utf8": {"type": "integer", "minimum": 0},
+            "atom_count": {"type": "integer", "minimum": 0}
+          },
+          "additionalProperties": true
+        },
+        "footnote": {
+          "type": "object",
+          "required": ["filename", "sha256"],
+          "properties": {
+            "filename": {"type": "string"},
+            "sha256": {"type": "string"},
+            "char_count": {"type": "integer", "minimum": 0},
+            "byte_count_utf8": {"type": "integer", "minimum": 0},
+            "atom_count": {"type": "integer", "minimum": 0}
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "checkpoint1": {
+      "type": "object",
+      "description": "Checkpoint-1 artifacts: clean text slice extracted from source HTML before layer separation and atomization.",
+      "required": ["clean_matn_input", "clean_fn_input", "source_slice"],
+      "properties": {
+        "clean_matn_input": {"type": "string"},
+        "clean_fn_input": {"type": "string"},
+        "source_slice": {"type": "string"},
+        "tool": {"type": "string"},
+        "tool_version": {"type": "string"},
+        "command": {"type": "string"},
+        "generated_utc": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "totals": {"type": "object"},
+    "continuation": {"type": "object"},
+    "external_excerpt_dependencies": {"type": "array", "items": {"type": "string"}},
+    "traceability": {"type": "object"},
+    "validation": {
+      "type": "object",
+      "required": ["validator", "validator_version", "command", "result"],
+      "properties": {
+        "validator": {"type": "string"},
+        "validator_version": {"type": "string"},
+        "validated_utc": {"type": "string"},
+        "command": {"type": "string"},
+        "warnings": {"type": "integer", "minimum": 0},
+        "errors": {"type": "integer", "minimum": 0},
+        "result": {"type": "string", "enum": ["PASS", "FAIL"]}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

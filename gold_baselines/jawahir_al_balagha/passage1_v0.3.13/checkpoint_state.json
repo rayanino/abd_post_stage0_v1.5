@@ -1,0 +1,82 @@
+{
+  "record_type": "checkpoint_state",
+  "checkpoint_state_version": "0.1",
+  "book_id": "jawahir",
+  "passage_id": "passage1",
+  "baseline_version": "0.3.13",
+  "pipeline_version": "gold_pipeline_v0.3",
+  "checkpoint_last_completed": 6,
+  "checkpoints": {
+    "1": {
+      "name": "CP1_clean_input",
+      "status": "done",
+      "artifacts": [
+        "passage1_clean_matn_input.txt",
+        "passage1_clean_fn_input.txt",
+        "passage1_source_slice.json",
+        "checkpoint_outputs/cp1_extract_clean_input.stdout.txt",
+        "checkpoint_outputs/cp1_extract_clean_input.stderr.txt",
+        "checkpoint_outputs/index.txt"
+      ],
+      "command": "python ../../../tools/extract_clean_input.py --html ../shamela_export.htm --page-start 19 --page-end 25 --out-matn passage1_clean_matn_input.txt --out-fn passage1_clean_fn_input.txt --out-slice passage1_source_slice.json"
+    },
+    "2": {
+      "name": "CP2_atoms_and_canonicals",
+      "status": "done",
+      "artifacts": [
+        "passage1_matn_atoms_v02.jsonl",
+        "passage1_fn_atoms_v02.jsonl",
+        "passage1_matn_canonical.txt",
+        "passage1_fn_canonical.txt"
+      ],
+      "notes": "Gold authoring: atoms + canonicals"
+    },
+    "3": {
+      "name": "CP3_decisions",
+      "status": "done",
+      "artifacts": [
+        "passage1_decisions.jsonl"
+      ],
+      "notes": "Gold authoring: decisions log"
+    },
+    "4": {
+      "name": "CP4_excerpts",
+      "status": "done",
+      "artifacts": [
+        "passage1_excerpts_v02.jsonl"
+      ],
+      "notes": "Gold authoring: excerpts + exclusions"
+    },
+    "5": {
+      "name": "CP5_taxonomy_changes",
+      "status": "done",
+      "artifacts": [
+        "taxonomy_changes.jsonl",
+        "balagha_v0_2.yaml"
+      ],
+      "notes": "Taxonomy changes + snapshot"
+    },
+    "6": {
+      "name": "CP6_validate_and_package",
+      "status": "done",
+      "artifacts": [
+        "validation_report.txt",
+        "baseline_manifest.json",
+        "excerpts_rendered/INDEX.md",
+        "checkpoint_outputs/index.txt",
+        "checkpoint_outputs/cp6_validate.stdout.txt",
+        "checkpoint_outputs/cp6_validate.stderr.txt",
+        "checkpoint_outputs/cp6_render_md.stdout.txt",
+        "checkpoint_outputs/cp6_render_md.stderr.txt",
+        "checkpoint_outputs/cp6_tool_fingerprint.json",
+        "checkpoint_state.json"
+      ],
+      "command": "python ../../../tools/validate_gold.py --atoms passage1_matn_atoms_v02.jsonl passage1_fn_atoms_v02.jsonl --excerpts passage1_excerpts_v02.jsonl --schema ../../../schemas/gold_standard_schema_v0.3.3.json --canonical matn:passage1_matn_canonical.txt footnote:passage1_fn_canonical.txt --taxonomy balagha_v0_2.yaml --taxonomy-changes taxonomy_changes.jsonl --decisions passage1_decisions.jsonl --checklists ../../checklists_v0.4.md --metadata passage1_metadata.json --manifest baseline_manifest.json --support-schemas ../../../schemas --taxonomy-registry ../../../taxonomy/taxonomy_registry.yaml",
+      "notes": "Validator + derived MD + manifest + captured logs"
+    }
+  },
+  "integrity": {
+    "baseline_manifest_sha256": "b0895db8dca6dbfe549d268870d5d2e888541bd46a4f5f8db3530603079a4abd",
+    "validator_version": "v0.3.12"
+  }
+}

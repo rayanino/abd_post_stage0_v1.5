@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ABD Checkpoint State Schema v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "checkpoint_state_version",
+    "book_id",
+    "passage_id",
+    "baseline_version",
+    "pipeline_version",
+    "checkpoint_last_completed",
+    "checkpoints"
+  ],
+  "properties": {
+    "record_type": {
+      "const": "checkpoint_state"
+    },
+    "checkpoint_state_version": {
+      "const": "0.1"
+    },
+    "book_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "passage_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseline_version": {
+      "type": "string",
+      "pattern": "^v?\\d+\\.\\d+\\.\\d+$"
+    },
+    "pipeline_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "checkpoint_last_completed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 6
+    },
+    "checkpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "properties": {
+        "1": {
+          "$ref": "#/definitions/checkpoint"
+        },
+        "2": {
+          "$ref": "#/definitions/checkpoint"
+        },
+        "3": {
+          "$ref": "#/definitions/checkpoint"
+        },
+        "4": {
+          "$ref": "#/definitions/checkpoint"
+        },
+        "5": {
+          "$ref": "#/definitions/checkpoint"
+        },
+        "6": {
+          "$ref": "#/definitions/checkpoint"
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline_manifest_sha256",
+        "validator_version"
+      ],
+      "properties": {
+        "baseline_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "validator_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "definitions": {
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "status",
+        "artifacts"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "done"
+          ]
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "command": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "integrity": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

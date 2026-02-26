@@ -1,0 +1,33 @@
+
+Gold Standard Validator v0.3.13
+----------------------------------------------------------------------
+
+======================================================================
+  Gold Standard Validator v0.3.13 — VALIDATION REPORT
+======================================================================
+
+ℹ️  INFO (21):
+  • [external] Resolved 162 excerpt_ids from 3 active baselines
+  • [support:metadata] Schema OK: passage3_metadata.json
+  • [support:manifest] Schema OK: baseline_manifest.json
+  • [support:checkpoint_state] Schema OK: /mnt/data/abd_repo_slice7/ABD/2_atoms_and_excerpts/1_jawahir_al_balagha/passage3_v0.3.14/checkpoint_state.json
+  • [cp1] Source locator schema OK: passage3_source_slice.json
+  • [taxonomy] taxonomy snapshot matches registry canonical: balagha_v0_4
+  • Schema: ../../../schemas/gold_standard_schema_v0.3.3.json
+  • Atoms: 116 total, 116 unique IDs
+  • Atom types: {'prose_sentence': 70, 'verse_evidence': 42, 'heading': 4}
+  • Layers: {'matn': 75, 'footnote': 41}
+  • Offset audit PASSED: 116/116
+  • Excerpts: 77, Unique core atoms: 112
+  • Coverage invariant PASSED
+  • Heading dual-state PASSED: 4 headings
+  • Source spans validation complete
+  • Exclusions: 4
+  • Taxonomy changes: 12
+  • Taxonomy tree: 201 nodes, 143 leaves
+  • Taxonomy tree validation complete
+  • Checklists: 73 IDs loaded from ../../checklists_v0.4.md
+  • Decisions: 77 excerpt, 0 atom
+
+✅ ALL CHECKS PASSED
+======================================================================

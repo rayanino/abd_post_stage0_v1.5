@@ -1,0 +1,2367 @@
+==========================================================================================
+PASSAGE2 — COMPLETE EXCERPTING REPORT (FINAL BASELINE)
+Gold Standard gold_standard_v0.3.1 | جواهر البلاغة في المعاني والبيان والبديع — (ص ٢٦–٣٢)
+==========================================================================================
+
+--------------------------------------------------
+SUMMARY
+--------------------------------------------------
+  Total atoms:             152 (66 footnote + 86 matn)
+  Teaching excerpts:       9 (2 matn + 7 footnote)
+  Exercise excerpts:       55 (6 set + 40 items + 9 answers)
+  Exclusion records:       39
+  Taxonomy version:        balagha_v0_3
+  Atoms as core:           113
+    - author_prose: 21
+    - evidence: 8
+    - exercise_answer_content: 12
+    - exercise_content: 72
+  Atoms as context:        0
+  Atoms excluded:          39
+
+--------------------------------------------------
+DATA INTEGRITY
+--------------------------------------------------
+  Book ID:                 jawahir
+  Offset unit:             unicode_codepoint
+  Canonical derivation:    joined_from_atoms_with_newline_separators
+  matn canonical SHA-256:  a5d99597b11b44e57ad1a11c639fa2e1eb0789a25a3797fcdb8d9d5032d16c3d
+  footnote canonical SHA-256:  0182214759498f80e65abb566f64cd5c37f07c02cd855986351fddb42244b2ff
+  Core atom model:         structured (atom_id + role)
+  Context atom scope:      external orientation only (no evidence)
+
+--------------------------------------------------
+TAXONOMY NODES COVERED
+--------------------------------------------------
+  tatbiq_fasahat_alfard
+    +-- jawahir:exc:000022 [exercise item] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000023 [exercise item] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000024 [exercise item] core=5, ctx=0, layer=matn
+    +-- jawahir:exc:000025 [exercise item] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000026 [exercise item] core=8, ctx=0, layer=matn
+    +-- jawahir:exc:000027 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000028 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000029 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000030 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000031 [exercise set] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000032 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000033 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000034 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000035 [exercise set] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000036 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000037 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000038 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000039 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000040 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000041 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000042 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000043 [exercise item] core=3, ctx=0, layer=matn
+    +-- jawahir:exc:000044 [exercise item] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000045 [exercise set] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000046 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000047 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000048 [exercise set] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000049 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000050 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000051 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000052 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000053 [exercise item] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000054 [exercise item] core=3, ctx=0, layer=matn
+    +-- jawahir:exc:000055 [exercise item] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000056 [exercise item] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000057 [exercise set] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000058 [exercise item] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000059 [exercise item] core=3, ctx=0, layer=matn
+    +-- jawahir:exc:000060 [exercise item] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000061 [exercise set] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000062 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000063 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000064 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000065 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000066 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000067 [exercise item] core=1, ctx=0, layer=matn
+    +-- jawahir:exc:000070 [exercise answer] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000071 [exercise answer] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000072 [exercise answer] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000073 [exercise answer] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000074 [exercise answer] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000075 [exercise answer] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000076 [exercise answer] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000077 [exercise answer] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000079 [exercise answer] core=4, ctx=0, layer=footnote
+  fasahat_alkalam__overview
+    +-- jawahir:exc:000068 [teaching] core=2, ctx=0, layer=matn
+    +-- jawahir:exc:000083 [teaching] core=2, ctx=0, layer=footnote
+    +-- jawahir:exc:000084 [teaching] core=2, ctx=0, layer=footnote
+  3uyub_alkalam_tanafur_kalimat
+    +-- jawahir:exc:000069 [teaching] core=5, ctx=0, layer=matn
+    +-- jawahir:exc:000085 [teaching] core=1, ctx=0, layer=footnote
+    +-- jawahir:exc:000086 [teaching] core=1, ctx=0, layer=footnote
+  3uyub_alfard_ibtidhal
+    +-- jawahir:exc:000080 [teaching] core=14, ctx=0, layer=footnote
+  3uyub_alfard_ibham
+    +-- jawahir:exc:000081 [teaching] core=1, ctx=0, layer=footnote
+  3uyub_alfard_ishtirak_bila_qarina
+    +-- jawahir:exc:000082 [teaching] core=1, ctx=0, layer=footnote
+
+==========================================================================================
+DETAILED EXCERPT RECORDS
+==========================================================================================
+
+=== jawahir:exc:000022 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Source:        passage2_matn_canonical.txt — core[0..71]
+
+  Core atoms (2):
+    000060 [prose_sentence] role=exercise_content
+        وقال الفرزدق:
+    000061 [verse_evidence] role=exercise_content
+        واذا الرجال رأوا يزيد رأيتهم خُضعَ الرَّقاب نواكس الأبصار
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000060 and ends at
+    jawahir:matn:000061. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: tests_nodes=['3uyub_alfard_mukhalafat_qiyas'];
+    primary_test_node=3uyub_alfard_mukhalafat_qiyas. CHECKLIST: EXC.B1, EXC.B6,
+    EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: merge multiple adjacent items into one
+    excerpt. Rejected to preserve one-item granularity and avoid multi-topic exercise
+    bundles.
+
+=== jawahir:exc:000023 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_gharaba, 3uyub_alfard_karahat_sam3
+  Primary test:  3uyub_alfard_karahat_sam3
+  Source:        passage2_matn_canonical.txt — core[72..148]
+
+  Core atoms (2):
+    000062 [prose_sentence] role=exercise_content
+        وقال أبو تمّام:
+    000063 [verse_evidence] role=exercise_content
+        قد قلت لمّا اطلخمَّ الأمر وانبعثت عشواء تاليةً غيساً دهاريسا
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000062 and ends at
+    jawahir:matn:000063. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: tests_nodes=['3uyub_alfard_gharaba',
+    '3uyub_alfard_karahat_sam3']; primary_test_node=3uyub_alfard_karahat_sam3.
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: merge
+    multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000024 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_karahat_sam3, 3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_karahat_sam3
+  Source:        passage2_matn_canonical.txt — core[149..384]
+
+  Core atoms (5):
+    000064 [prose_sentence] role=exercise_content
+        وقال شمر:
+    000065 [verse_evidence] role=exercise_content
+        واحمق ممن يكرع الماء قال لي … دع الخمر واشرب من نقاخ مُبّرد
+    000066 [verse_evidence] role=exercise_content
+        يظل بموماة ويمسى بغيرها جحيشا ويعرورى ظهور المسالك
+    000067 [verse_evidence] role=exercise_content
+        فلا يبرم الأمر الذي هو حالل ولا يُحللُ الأمر الذي هو يبرم
+    000068 [verse_evidence] role=exercise_content
+        مقابل في ذرا الاذواء منصبه عيصاً فعيصاً وقدموساً فقدموسا
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000064 and ends at
+    jawahir:matn:000068. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: tests_nodes=['3uyub_alfard_karahat_sam3',
+    '3uyub_alfard_mukhalafat_qiyas']; primary_test_node=3uyub_alfard_karahat_sam3.
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: merge
+    multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000025 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_gharaba
+  Primary test:  3uyub_alfard_gharaba
+  Source:        passage2_matn_canonical.txt — core[385..444]
+
+  Core atoms (2):
+    000069 [prose_sentence] role=exercise_content
+        وقال أبو تمام:
+    000070 [verse_evidence] role=exercise_content
+        نعم متاع الدنيا حباك به أورع لا جيدر ولا جبس
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000069 and ends at
+    jawahir:matn:000070. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: tests_nodes=['3uyub_alfard_gharaba'];
+    primary_test_node=3uyub_alfard_gharaba. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5,
+    EXC.R3 ALTS: Alternative: merge multiple adjacent items into one excerpt. Rejected
+    to preserve one-item granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000026 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_gharaba, 3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_gharaba
+  Source:        passage2_matn_canonical.txt — core[445..984]
+
+  Core atoms (8):
+    000071 [prose_sentence] role=exercise_content
+        وقال امرؤ القيس:
+    000072 [prose_sentence] role=exercise_content
+        رب جفنة مثعنجرة، وطعنة مسحنفرة، وخطبة مستحضرة وقصيدة محبّرة، تبقى
+    000073 [prose_sentence] role=exercise_content
+        غداً بأنقرة ـ أكلت العرين، وشربت الصّمادح إني إذا أنشدت لاحبنطى نزل بزيد
+        داهية خنفقيق وحل به عنقفير. لم يجدمنها مخلصاً. رأيت ماء نقاخا ينباع من سفح
+        جبل شامخ. إخال أنك مصوون ـ البعاق ملأ الجردحل
+    000074 [verse_evidence] role=exercise_content
+        فان يك بعض الناس سيفا لدولة ففي الناس بوقاتٌ لها وطبولُ
+    000075 [verse_evidence] role=exercise_content
+        نقيُّ تقيُّ لم يكثر غنيمة بنكهة ذي القربى ولا بحقلّد
+    000076 [verse_evidence] role=exercise_content
+        إن بني للئام زهده … مالي في صدورهم من مودده
+    000077 [verse_evidence] role=exercise_content
+        رمتني ميّ بالهوى رمى ممضغ من الوحش لوطٌ لم تعقه الأوالس
+    000078 [verse_evidence] role=exercise_content
+        بعينين نجلاوين لم يجر فيهما ضمان وجيدٍ حلى الدرّ شامس
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000071 and ends at
+    jawahir:matn:000078. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: tests_nodes=['3uyub_alfard_gharaba',
+    '3uyub_alfard_mukhalafat_qiyas']; primary_test_node=3uyub_alfard_gharaba.
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: merge
+    multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000027 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_tanafur
+  Primary test:  3uyub_alfard_tanafur
+  Source:        passage2_matn_canonical.txt — core[985..1021]
+
+  Core atoms (1):
+    000079 [prose_sentence] role=exercise_content
+        علمي إلى علمك كالقرارة في المثعنجر .
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000079 and ends at
+    jawahir:matn:000079. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: tests_nodes=['3uyub_alfard_tanafur'];
+    primary_test_node=3uyub_alfard_tanafur. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5,
+    EXC.R3 ALTS: Alternative: merge multiple adjacent items into one excerpt. Rejected
+    to preserve one-item granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000028 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_ibtidhal
+  Primary test:  3uyub_alfard_ibtidhal
+  Source:        passage2_matn_canonical.txt — core[1022..1068]
+
+  Core atoms (1):
+    000080 [verse_evidence] role=exercise_content
+        أنّ بعضاً من القريض هراءٌ ليس شيئا وبعضه إحكام
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000080 and ends at
+    jawahir:matn:000080. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: tests_nodes=['3uyub_alfard_ibtidhal'];
+    primary_test_node=3uyub_alfard_ibtidhal. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R3 ALTS: Alternative: merge multiple adjacent items into one excerpt.
+    Rejected to preserve one-item granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000029 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_ibtidhal
+  Primary test:  3uyub_alfard_ibtidhal
+  Source:        passage2_matn_canonical.txt — core[1069..1119]
+
+  Core atoms (1):
+    000081 [verse_evidence] role=exercise_content
+        فيه ما يجلب البراعة والفهـ م وفيه ما يجلب البرسامُ
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000081 and ends at
+    jawahir:matn:000081. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: tests_nodes=['3uyub_alfard_ibtidhal'];
+    primary_test_node=3uyub_alfard_ibtidhal. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R3 ALTS: Alternative: merge multiple adjacent items into one excerpt.
+    Rejected to preserve one-item granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000030 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_ibtidhal
+  Primary test:  3uyub_alfard_ibtidhal
+  Source:        passage2_matn_canonical.txt — core[1120..1166]
+
+  Core atoms (1):
+    000082 [prose_sentence] role=exercise_content
+        ومن الناس من تجوز عليهم شعراء كأنها الخاز بازُ
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000082 and ends at
+    jawahir:matn:000082. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: tests_nodes=['3uyub_alfard_ibtidhal'];
+    primary_test_node=3uyub_alfard_ibtidhal. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R3 ALTS: Alternative: merge multiple adjacent items into one excerpt.
+    Rejected to preserve one-item granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000031 ===================================================================
+  Kind:          exercise
+  Exercise role: set
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1173..1229]
+  Headings:      تمرين
+
+  Core atoms (1):
+    000084 [list_item] role=exercise_content
+        1. فرِّق بين التنافر في الكلمة، وفي الكلام، واذكر السبب؟
+
+  Boundary reasoning:
+    GROUPING: Exercise set framing prompt grouped as its own excerpt (one prompt = one
+    set). BOUNDARY: Starts at core atom jawahir:matn:000084 and ends at
+    jawahir:matn:000084. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: Core atom(s) are role=exercise_content
+    (the exercise prompt). Child items belong_to_exercise_set via relations.
+    PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard' (taxonomy_version
+    balagha_v0_3) because the core discourse directly teaches/tests this node.
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: omit a set
+    excerpt and treat items as standalone. Rejected because the prompt text is needed
+    to interpret the items and should be preserved as a set frame.
+
+=== jawahir:exc:000032 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1230..1290]
+  Headings:      تمرين
+
+  Core atoms (1):
+    000085 [list_item] role=exercise_content
+        2. اذكر مثالا للتعقيد اللفظي، وبين سبب هذا التعقيد، ثم ازله؟
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000031
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000085 and ends at
+    jawahir:matn:000085. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000033 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1291..1377]
+  Headings:      تمرين
+
+  Core atoms (1):
+    000086 [list_item] role=exercise_content
+        3. قد يلازم تنافر الحروف الغرابة، وقد تنفرد الغرابة عن التنافر. وضح ذلك
+        بامثلة مبتكرة؟
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000031
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000086 and ends at
+    jawahir:matn:000086. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000034 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1378..1455]
+  Headings:      تمرين
+
+  Core atoms (1):
+    000087 [list_item] role=exercise_content
+        4. كل كلام بليغ يكون فصيحا ولا عكس. اشرح هذه العبارة واستشهد عليها بما
+        يحضرك؟
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000031
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000087 and ends at
+    jawahir:matn:000087. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000035 ===================================================================
+  Kind:          exercise
+  Exercise role: set
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard, 3uyub_alfard_tanafur
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1466..1526]
+  Headings:      تمرين (ب)
+
+  Core atoms (1):
+    000089 [prose_sentence] role=exercise_content
+        ميِّز الكلام الفصيح من غير الفصيح في كل ما يأتي، وبين السبب:
+
+  Boundary reasoning:
+    GROUPING: Exercise set framing prompt grouped as its own excerpt (one prompt = one
+    set). BOUNDARY: Starts at core atom jawahir:matn:000089 and ends at
+    jawahir:matn:000089. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: Core atom(s) are role=exercise_content
+    (the exercise prompt). Child items belong_to_exercise_set via relations.
+    PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard' (taxonomy_version
+    balagha_v0_3) because the core discourse directly teaches/tests this node. TESTS:
+    Exercise set for تطبيقات فصاحة المفرد; child items include explicit
+    '3uyub_alfard_tanafur' cases plus broader classification practice. CHECKLIST:
+    EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: omit a set excerpt and
+    treat items as standalone. Rejected because the prompt text is needed to interpret
+    the items and should be preserved as a set frame.
+
+=== jawahir:exc:000036 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1527..1584]
+  Headings:      تمرين (ب)
+
+  Core atoms (1):
+    000090 [prose_sentence] role=exercise_content
+        (1) كلما قربت النفس من المال شبراً، بعدت عن الفضيلة ميلا.
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000035
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000090 and ends at
+    jawahir:matn:000090. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000037 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1585..1647]
+  Headings:      تمرين (ب)
+
+  Core atoms (1):
+    000091 [prose_sentence] role=exercise_content
+        (2) شكت امرأة صمعمعة الرأس ، متعثكلة الشعر، درد بيساحلَّت بها.
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000035
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000091 and ends at
+    jawahir:matn:000091. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000038 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1648..1704]
+  Headings:      تمرين (ب)
+
+  Core atoms (1):
+    000092 [verse_evidence] role=exercise_content
+        (3) … نم وإن لم أنم كراى كراكا شاهدت الدمع، ان ذاك كذاكا
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000035
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000092 and ends at
+    jawahir:matn:000092. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000039 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1705..1756]
+  Headings:      تمرين (ب)
+
+  Core atoms (1):
+    000093 [verse_evidence] role=exercise_content
+        (4) … فأصبحت بعد خطِّ بهجتها كاز قفراً رسومها قلما.
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000035
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000093 and ends at
+    jawahir:matn:000093. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000040 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1757..1816]
+  Headings:      تمرين (ب)
+
+  Core atoms (1):
+    000094 [verse_evidence] role=exercise_content
+        (5) … وازورَّ مَن كان لهُ زائراً وعاف عافى العُرف عرِفانَه.
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000035
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000094 and ends at
+    jawahir:matn:000094. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000041 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1817..1875]
+  Headings:      تمرين (ب)
+
+  Core atoms (1):
+    000095 [verse_evidence] role=exercise_content
+        (6) … وأكرمُ من غَمام عند مَحل فتىً يَحيِى بمدحته الكراما.
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000035
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000095 and ends at
+    jawahir:matn:000095. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000042 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_tanafur
+  Primary test:  3uyub_alfard_tanafur
+  Source:        passage2_matn_canonical.txt — core[1876..1940]
+  Headings:      تمرين (ب)
+
+  Core atoms (1):
+    000096 [verse_evidence] role=exercise_content
+        (7) أشكوك كُوكك، كي ينفكَّ عن كنفي ولا ينيخ على الركَّاب كَلكله.
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000035
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000096 and ends at
+    jawahir:matn:000096. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: Primarily tests '3uyub_alfard_tanafur' (clustered/echoing
+    phonemes in «أشكوك كوكك...» make articulation heavy). CHECKLIST: EXC.B1, EXC.B6,
+    EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: merge multiple adjacent items into one
+    excerpt. Rejected to preserve one-item granularity and avoid multi-topic exercise
+    bundles.
+
+=== jawahir:exc:000043 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[1941..2105]
+  Headings:      تمرين (ب)
+
+  Core atoms (3):
+    000097 [prose_sentence] role=exercise_content
+        (8) سأل كوفيٌّ خياطاً عن فرس ومُهر فقدَهُما فقال:
+    000098 [verse_evidence] role=exercise_content
+        «يا ذا النِّصاح - وذات السَّمِّ الطاعن بها في غير وغى لنير عِداً:
+    000099 [verse_evidence] role=exercise_content
+        هل رأيت الخيفانة القبَّاء، يتبعها الحسن المُرهف.
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000035
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000097 and ends at
+    jawahir:matn:000099. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000044 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2106..2244]
+  Headings:      تمرين (ب)
+
+  Core atoms (2):
+    000100 [prose_sentence] role=exercise_content
+        (9) كتب أحدهم لصديقه يقول:
+    000101 [prose_sentence] role=exercise_content
+        «يا أحبَّ صواحبي وأعزَزهم علىّ، يؤلمني أن أُصبح مقَصوباً عنك هذا الإقصاي،
+        وانت، منِِّى بمنزلة الروح من الجسد» .
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000035
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000100 and ends at
+    jawahir:matn:000101. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000045 ===================================================================
+  Kind:          exercise
+  Exercise role: set
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2251..2287]
+  Headings:      تمرين
+
+  Core atoms (1):
+    000103 [prose_sentence] role=exercise_content
+        (1) أيّ أجزاء هذين البيتين غير فصيح:
+
+  Boundary reasoning:
+    GROUPING: Exercise set framing prompt grouped as its own excerpt (one prompt = one
+    set). BOUNDARY: Starts at core atom jawahir:matn:000103 and ends at
+    jawahir:matn:000103. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: Core atom(s) are role=exercise_content
+    (the exercise prompt). Child items belong_to_exercise_set via relations.
+    PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard' (taxonomy_version
+    balagha_v0_3) because the core discourse directly teaches/tests this node.
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: omit a set
+    excerpt and treat items as standalone. Rejected because the prompt text is needed
+    to interpret the items and should be preserved as a set frame.
+
+=== jawahir:exc:000046 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2288..2349]
+  Headings:      تمرين
+
+  Core atoms (1):
+    000104 [verse_evidence] role=exercise_content
+        (أ) … أصبحتُ كالثوب اللّبيس قد أخلقت جدَّاتُه منه فعاد مذالا.
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000045
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000104 and ends at
+    jawahir:matn:000104. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000047 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2350..2418]
+  Headings:      تمرين
+
+  Core atoms (1):
+    000105 [verse_evidence] role=exercise_content
+        (ب) … رمتني ميّ بالهوى رمىَ مَمضغ من الوحش أو لوطٍ لم تعقهُ الأوالس.
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000045
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000105 and ends at
+    jawahir:matn:000105. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000048 ===================================================================
+  Kind:          exercise
+  Exercise role: set
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard, 3uyub_alfard_mukhalafat_qiyas
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2425..2462]
+  Headings:      تطبيق
+
+  Core atoms (1):
+    000107 [prose_sentence] role=exercise_content
+        ما الذي أخلّ بفصاحة الكلمات فيما يلي:
+
+  Boundary reasoning:
+    GROUPING: Exercise set framing prompt grouped as its own excerpt (one prompt = one
+    set). BOUNDARY: Starts at core atom jawahir:matn:000107 and ends at
+    jawahir:matn:000107. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: Core atom(s) are role=exercise_content
+    (the exercise prompt). Child items belong_to_exercise_set via relations.
+    PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard' (taxonomy_version
+    balagha_v0_3) because the core discourse directly teaches/tests this node. TESTS:
+    Exercise set for تطبيقات فصاحة المفرد; child items include explicit
+    '3uyub_alfard_mukhalafat_qiyas' cases plus broader classification practice.
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: omit a set
+    excerpt and treat items as standalone. Rejected because the prompt text is needed
+    to interpret the items and should be preserved as a set frame.
+
+=== jawahir:exc:000049 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2463..2510]
+  Headings:      تطبيق
+
+  Core atoms (1):
+    000108 [verse_evidence] role=exercise_content
+        يا نفسُ صبراً كل حيٍ لاق … وكل إثنين إلى افتراق
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000048
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000108 and ends at
+    jawahir:matn:000108. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000050 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Source:        passage2_matn_canonical.txt — core[2511..2572]
+  Headings:      تطبيق
+
+  Core atoms (1):
+    000109 [verse_evidence] role=exercise_content
+        أبعد بعدتَ بياضاً لا بياض له … لأنت أسودُ في عيني منَ الظُّلم
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000048
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000109 and ends at
+    jawahir:matn:000109. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: Tests '3uyub_alfard_mukhalafat_qiyas' (استعمال «أسود» في تركيب
+    التفضيل مع «من» في معنى أفعل التفضيل من ألوان، وهو مما نصّ عليه أهل القياس أنه لا
+    يطّرد). CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: merge
+    multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000051 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Source:        passage2_matn_canonical.txt — core[2573..2637]
+  Headings:      تطبيق
+
+  Core atoms (1):
+    000110 [verse_evidence] role=exercise_content
+        مهلاً أعَازلَ قد جَرَّبتِ من خَلقي … إتسعَ الفتقُّ على الرَّافِع
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000048
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000110 and ends at
+    jawahir:matn:000110. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: Tests '3uyub_alfard_mukhalafat_qiyas' (قطع همزة الوصل في «إتسع»؛
+    القياس إبقاؤها همزة وصل في درج الكلام). CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5,
+    EXC.R3 ALTS: Alternative: merge multiple adjacent items into one excerpt. Rejected
+    to preserve one-item granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000052 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Source:        passage2_matn_canonical.txt — core[2638..2695]
+  Headings:      تطبيق
+
+  Core atoms (1):
+    000111 [verse_evidence] role=exercise_content
+        تشكو الوَجى من أظلَلٍ وأظلّل … غداتئذٍ أو هالك في الهوالك
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000048
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000111 and ends at
+    jawahir:matn:000111. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: Tests '3uyub_alfard_mukhalafat_qiyas' (جمع «هالك» على «هوالك»
+    على وزن فواعل في وصف العاقل، وفكّ الإدغام في «أظلَل/أظلّل» على غير القياس).
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: merge
+    multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000053 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2696..2753]
+  Headings:      تطبيق
+
+  Core atoms (2):
+    000112 [verse_evidence] role=exercise_content
+        أنّى أجودُ لأقوامِ وان ضنُنوا
+    000113 [verse_evidence] role=exercise_content
+        من طول إملالٍ وظهرٍ مُملِلٍ
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000048
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000112 and ends at
+    jawahir:matn:000113. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000054 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2754..2877]
+  Headings:      تطبيق
+
+  Core atoms (3):
+    000114 [prose_sentence] role=exercise_content
+        (1) وقال ابن جحدر:
+    000115 [verse_evidence] role=exercise_content
+        حلَفتُ بما أرفلت حَوله … هَمَرجَلةٌ خُلُقها شَبظَمُ
+    000116 [verse_evidence] role=exercise_content
+        وما شبرقت من تنوفية … بها مِن وَحَى الجِنِّ زيز يزَم
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000048
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000114 and ends at
+    jawahir:matn:000116. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000055 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2878..2967]
+  Headings:      تطبيق
+
+  Core atoms (2):
+    000117 [prose_sentence] role=exercise_content
+        (2) وقال ذو الرُّمة:
+    000118 [verse_evidence] role=exercise_content
+        حتى إذا الهَبقُ أمسى شامَ أفرُخَهُ … وهُن لا مُؤيِسٌ نأياً ولا كتَبُ
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000048
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000117 and ends at
+    jawahir:matn:000118. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000056 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[2968..3024]
+  Headings:      تطبيق
+
+  Core atoms (2):
+    000119 [prose_sentence] role=exercise_content
+        وقال أبو نواس:
+    000120 [verse_evidence] role=exercise_content
+        يا مَن جَفاني وملأَّ … نَسيتَ أهلا وسَهلا
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000048
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000119 and ends at
+    jawahir:matn:000120. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000057 ===================================================================
+  Kind:          exercise
+  Exercise role: set
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard, 3uyub_alfard_ibtidhal
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3031..3069]
+  Headings:      تدريب
+
+  Core atoms (1):
+    000122 [prose_sentence] role=exercise_content
+        ما الذي أخلَّ بفصاحة الكلمات فيما يلي؟
+
+  Boundary reasoning:
+    GROUPING: Exercise set framing prompt grouped as its own excerpt (one prompt = one
+    set). BOUNDARY: Starts at core atom jawahir:matn:000122 and ends at
+    jawahir:matn:000122. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: Core atom(s) are role=exercise_content
+    (the exercise prompt). Child items belong_to_exercise_set via relations.
+    PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard' (taxonomy_version
+    balagha_v0_3) because the core discourse directly teaches/tests this node. TESTS:
+    Exercise set includes items testing '3uyub_alfard_ibtidhal' (see
+    jawahir:exc:000059) alongside broader classification practice. CHECKLIST: EXC.B1,
+    EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: omit a set excerpt and treat
+    items as standalone. Rejected because the prompt text is needed to interpret the
+    items and should be preserved as a set frame.
+
+=== jawahir:exc:000058 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3070..3159]
+  Headings:      تدريب
+
+  Core atoms (2):
+    000123 [prose_sentence] role=exercise_content
+        (1) قال النّابغة الذُّبياني:
+    000124 [verse_evidence] role=exercise_content
+        أودُميَةٍ في مَرمَرٍ مَرفُوعة … بُنِيَت بآجرٍ يُشادُ بقَرمَد
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000057
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000123 and ends at
+    jawahir:matn:000124. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000059 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_ibtidhal
+  Primary test:  3uyub_alfard_ibtidhal
+  Source:        passage2_matn_canonical.txt — core[3160..3318]
+  Headings:      تدريب
+
+  Core atoms (3):
+    000125 [prose_sentence] role=exercise_content
+        (2) وقال أبو تّمَّام:
+    000126 [verse_evidence] role=exercise_content
+        لكَ هَضبةُ الحِلم التي لو وَازَنَت … أجَأَ اُذا ثَقُلَت وكان خفيفا
+    000127 [verse_evidence] role=exercise_content
+        وحلاوة الشّيم التي لو مَازَجَت … خُلُقَ الزَّمَان الفَدمِ عَاد ظَريفا
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000057
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000125 and ends at
+    jawahir:matn:000127. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. TESTS: Tests '3uyub_alfard_ibtidhal' (وضع الألفاظ في غير ما وُضعت
+    له/تخصيص الدلالة: «حلاوة الشيم» و«ظرف خلق الزمان» استعمالان خارجان عن الدلالة
+    المألوفة لهذه الألفاظ). CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS:
+    Alternative: merge multiple adjacent items into one excerpt. Rejected to preserve
+    one-item granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000060 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3319..3401]
+  Headings:      تدريب
+
+  Core atoms (2):
+    000128 [prose_sentence] role=exercise_content
+        (3) وقال المُتنبي:
+    000129 [verse_evidence] role=exercise_content
+        يُوَسِّطه المَفاوزَ كلَّ يوم … طِلاّبُ الطّالبِين لا الانتِظارُ
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000057
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000128 and ends at
+    jawahir:matn:000129. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000061 ===================================================================
+  Kind:          exercise
+  Exercise role: set
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3408..3447]
+  Headings:      تدريب
+
+  Core atoms (1):
+    000131 [prose_sentence] role=exercise_content
+        ما الذي اخلِّ بفصاحة الكلمات فيما يأتي؟
+
+  Boundary reasoning:
+    GROUPING: Exercise set framing prompt grouped as its own excerpt (one prompt = one
+    set). BOUNDARY: Starts at core atom jawahir:matn:000131 and ends at
+    jawahir:matn:000131. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: Core atom(s) are role=exercise_content
+    (the exercise prompt). Child items belong_to_exercise_set via relations.
+    PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard' (taxonomy_version
+    balagha_v0_3) because the core discourse directly teaches/tests this node.
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: omit a set
+    excerpt and treat items as standalone. Rejected because the prompt text is needed
+    to interpret the items and should be preserved as a set frame.
+
+=== jawahir:exc:000062 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3448..3510]
+  Headings:      تدريب
+
+  Core atoms (1):
+    000132 [verse_evidence] role=exercise_content
+        (1) لم يَلقَهَا إى بشكَّه باسِلٍ … يخشى الحوادِث حازم مُستَعدد
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000061
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000132 and ends at
+    jawahir:matn:000132. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000063 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3511..3575]
+  Headings:      تدريب
+
+  Core atoms (1):
+    000133 [verse_evidence] role=exercise_content
+        (2) وأصبح مَبيضَّ الضَّريب كأنه … على سَرَوات البَيت قُطن مُندفِ
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000061
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000133 and ends at
+    jawahir:matn:000133. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000064 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3576..3641]
+  Headings:      تدريب
+
+  Core atoms (1):
+    000134 [verse_evidence] role=exercise_content
+        (3) فأيقَنتُ أنِّى عند ذلك ثائرٌ … غدَاتئذٍ أو هالِكٌ في الهوَالك
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000061
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000134 and ends at
+    jawahir:matn:000134. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000065 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3642..3712]
+  Headings:      تدريب
+
+  Core atoms (1):
+    000135 [verse_evidence] role=exercise_content
+        (4) ومَلمُومَةٍ سيَفيَّةٍ رَبعيَّةٍ … يَصيح الحصا فيها صِياح اللقائِقِ
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000061
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000135 and ends at
+    jawahir:matn:000135. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000066 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3713..3781]
+  Headings:      تدريب
+
+  Core atoms (1):
+    000136 [verse_evidence] role=exercise_content
+        (5) والقىَ بصحراء الغبِيط بَعاعَهُ … نُزول اليماني ذو العياب المُحمل
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000061
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000136 and ends at
+    jawahir:matn:000136. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000067 ===================================================================
+  Kind:          exercise
+  Exercise role: item
+  Layer:         matn
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         C2_exercise_section, B1_clean_boundary, D1_clean_single_node
+  Tests nodes:   tatbiq_fasahat_alfard
+  Primary test:  tatbiq_fasahat_alfard
+  Source:        passage2_matn_canonical.txt — core[3782..3853]
+  Headings:      تدريب
+
+  Core atoms (1):
+    000137 [verse_evidence] role=exercise_content
+        (6) ليس التَّعَللُ بالآمالِ من أربى … ولا القُنُوع بضنكِ العيشِ من شيمي
+
+  Relations (1):
+    belongs_to_exercise_set -> jawahir:exc:000061
+
+  Boundary reasoning:
+    GROUPING: Single exercise specimen grouped as one item excerpt (one item = one
+    excerpt). BOUNDARY: Starts at core atom jawahir:matn:000137 and ends at
+    jawahir:matn:000137. Boundary aligns with the smallest self-contained unit for
+    this subtopic in the matn layer. ROLES: All core atoms are role=exercise_content
+    (specimen to be analyzed). PLACEMENT: Placed at leaf node 'tatbiq_fasahat_alfard'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative:
+    merge multiple adjacent items into one excerpt. Rejected to preserve one-item
+    granularity and avoid multi-topic exercise bundles.
+
+=== jawahir:exc:000068 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          fasahat_alkalam__overview
+  Path:          مقدمات > الفصاحة > فصاحة الكلام > تعريف فصاحة الكلام وإجمال عيوبه
+  Cases:         A1_pure_definition, A2_division_classification, C5_inline_list_in_prose, D5_parent_level_content, D2_new_node_discovery
+  Source:        passage2_matn_canonical.txt — core[3867..4100]
+  Headings:      فصاحة الكلام
+
+  Core atoms (2):
+    000139 [prose_sentence] role=author_prose
+        فصاحة الكلام: سلامته بعد فصاحة مفُرداته ممَّا يُبهم معناه ويحول دون المراد
+        منه
+    000140 [list_item] role=author_prose
+        - وتتحقَّق فصاحته بخلُوه من ستة عيوب (1) تنافر الكلمات مجتمعة (2) ضعف
+        التأليف (3) التعقيد اللفظي (4) التعقيد المعنوي (5) كثرة التكرار (6) تتابُع
+        الإضافات.
+
+  Boundary reasoning:
+    GROUPING: Single coherent teaching unit on one subtopic, kept intact
+    (definition/explanation + embedded evidence if any). BOUNDARY: Starts at core atom
+    jawahir:matn:000139 and ends at jawahir:matn:000140. Boundary aligns with the
+    smallest self-contained unit for this subtopic in the matn layer. ROLES: All core
+    atoms are role=author_prose (author explanation). PLACEMENT: Placed at leaf node
+    'fasahat_alkalam__overview' (taxonomy_version balagha_v0_3) because the core
+    discourse directly teaches/tests this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R1, EXC.R2, EXC.C2 ALTS: Alternative: split into multiple excerpts
+    (definition vs examples) or place under a parent node. Rejected because the author
+    presents this as one continuous unit and placement matches the specific leaf (use
+    __overview only for branch-level content).
+
+=== jawahir:exc:000069 ===================================================================
+  Kind:          teaching
+  Layer:         matn
+  Node:          3uyub_alkalam_tanafur_kalimat
+  Path:          مقدمات > الفصاحة > فصاحة الكلام > عيوب الكلام: تنافر الكلمات
+  Cases:         A4_shahid_with_commentary, C4_embedded_verse_evidence, B1_clean_boundary, D1_clean_single_node
+  Source:        passage2_matn_canonical.txt — core[4101..4542]
+  Headings:      فصاحة الكلام
+
+  Core atoms (5):
+    000141 [prose_sentence] role=author_prose
+        الأول - «تنافُر الكلمات مُجتمعة» أن تكون الكلمات ثقيلة على السمع من
+        تركيبها مع بعضها، عَسرة النّطق بها مُجتمعةً على اللّسان (وإن كان كل جزء
+        منه على انفراده فصيحاً) والتنافر يَحصُل: إمِّا بتجاوُز كلمات متقاربة
+        الحروف وإمّا بتكرير كلمة واحدة.
+    000142 [prose_sentence] role=author_prose
+        (1) ومنه شديد الثِّقل: كالشطر الثاني في قوله:
+    000143 [verse_evidence] role=evidence
+        وَقبرُ حرب بمكان قفرٌ وَليس قَرب قبر حربٍ قبرُ
+    000144 [prose_sentence] role=author_prose
+        (ب) ومنه خفيف الثِّقل كالشطر الأول في قلو أبي تمَّام:
+    000145 [verse_evidence] role=evidence
+        كريم ٌ متى أمدَحهُ والورى معي: وإذا ما لمته لمته وحدي
+
+  Relations (1):
+    has_overview -> jawahir:exc:000068
+
+  Boundary reasoning:
+    GROUPING: Single coherent teaching unit on one subtopic, kept intact
+    (definition/explanation + embedded evidence if any). BOUNDARY: Starts at core atom
+    jawahir:matn:000141 and ends at jawahir:matn:000145. Boundary aligns with the
+    smallest self-contained unit for this subtopic in the matn layer. ROLES: Author
+    prose carries the explanation; evidence atoms (2) are role=evidence per evidence
+    rule. PLACEMENT: Placed at leaf node '3uyub_alkalam_tanafur_kalimat'
+    (taxonomy_version balagha_v0_3) because the core discourse directly teaches/tests
+    this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R1, EXC.R2, EXC.C2 ALTS:
+    Alternative: split into multiple excerpts (definition vs examples) or place under
+    a parent node. Rejected because the author presents this as one continuous unit
+    and placement matches the specific leaf (use __overview only for branch-level
+    content).
+
+=== jawahir:exc:000070 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         B1_clean_boundary, C1_scholarly_footnote, C2_exercise_section, D1_clean_single_node, D4_cross_science
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Cross-science: sarf
+  Source:        passage2_fn_canonical.txt — core[0..141]
+
+  Core atoms (1):
+    000037 [prose_sentence] role=exercise_answer_content
+        (1) ـ فقد جمع (ناكس) على (فواعل) شذوذا وهذا لا يطرد إلا في وصف لمؤنث عاقل
+        لا لمذكر كما هنا إلا في موضعين (فوارس وهوالك) والناكس: مطأطئ الرأس.
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000022
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Answer footnote excerpt (exercise_role=answer) for exercise item
+    jawahir:exc:000022; kept as the smallest self-contained scholarly judgment unit in
+    the footnote layer. BOUNDARY: Starts at core atom jawahir:fn:000037 and ends at
+    jawahir:fn:000037. Boundary aligns with the smallest self-contained unit for this
+    answer in the footnote layer. ROLES: All core atoms are
+    role=exercise_answer_content (author's judgment/explanation that constitutes the
+    answer). PLACEMENT: Per PLACE.X3, exercise items/answers are placed at leaf node
+    'tatbiq_fasahat_alfard' (taxonomy_version balagha_v0_3); the specific defects
+    tested are encoded in tests_nodes. RELATIONS: answers_exercise_item →
+    jawahir:exc:000022; belongs_to_exercise_set → jawahir:exc:000013. TESTS:
+    tests_nodes=['3uyub_alfard_mukhalafat_qiyas'];
+    primary_test_node=3uyub_alfard_mukhalafat_qiyas. CHECKLIST: EXC.B1, EXC.B6,
+    EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: keep as generic footnote teaching under
+    the defect leaf with footnote_explains. Rejected because this footnote is
+    functioning as an exercise answer key; per PLACE.X3 we encode it as
+    exercise_role=answer at the tatbiq_ leaf, with defects captured in tests_nodes.
+
+=== jawahir:exc:000071 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         B1_clean_boundary, C1_scholarly_footnote, C2_exercise_section, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_gharaba, 3uyub_alfard_karahat_sam3
+  Primary test:  3uyub_alfard_karahat_sam3
+  Source:        passage2_fn_canonical.txt — core[142..435]
+
+  Core atoms (1):
+    000038 [prose_sentence] role=exercise_answer_content
+        (2) ـ قال صاحب المثل السائر ـ ان لفظ (اطلخم) من الالفاظ المنكرة التي جمعت
+        الوصفين القبيحين في انها غريبة، وانها غليظة في السمع كريهة على الذوق،
+        وكذلك لفظة (دهاريس) واطلخم: أي اشت وعظم، والعشواء الليلة المظلمة، والغبسة
+        جمع اغبس وغبسا: وهي الشديدة الظلام مثلها ـ والدهاريس جمع دهريس وهي
+        الدواهي.
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000023
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Answer footnote excerpt (exercise_role=answer) for exercise item
+    jawahir:exc:000023; kept as the smallest self-contained scholarly judgment unit in
+    the footnote layer. BOUNDARY: Starts at core atom jawahir:fn:000038 and ends at
+    jawahir:fn:000038. Boundary aligns with the smallest self-contained unit for this
+    answer in the footnote layer. ROLES: All core atoms are
+    role=exercise_answer_content (author's judgment/explanation that constitutes the
+    answer). PLACEMENT: Per PLACE.X3, exercise items/answers are placed at leaf node
+    'tatbiq_fasahat_alfard' (taxonomy_version balagha_v0_3); the specific defects
+    tested are encoded in tests_nodes. RELATIONS: answers_exercise_item →
+    jawahir:exc:000023; belongs_to_exercise_set → jawahir:exc:000013. TESTS:
+    tests_nodes=['3uyub_alfard_gharaba', '3uyub_alfard_karahat_sam3'];
+    primary_test_node=3uyub_alfard_karahat_sam3. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R3 ALTS: Alternative: keep as generic footnote teaching under the
+    defect leaf with footnote_explains. Rejected because this footnote is functioning
+    as an exercise answer key; per PLACE.X3 we encode it as exercise_role=answer at
+    the tatbiq_ leaf, with defects captured in tests_nodes.
+
+=== jawahir:exc:000072 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         B1_clean_boundary, C1_scholarly_footnote, C2_exercise_section, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_karahat_sam3
+  Primary test:  3uyub_alfard_karahat_sam3
+  Source:        passage2_fn_canonical.txt — core[461..830]
+
+  Core atoms (1):
+    000040 [prose_sentence] role=exercise_answer_content
+        (4) - الموماة المفازة الواسعة، ويقال للمستبد برأيه جحيش، ويقال اغروري
+        الفرس ركبها عريانا- وان لفظة جحيش من الألفاظ المنكرة القبيحة - وبالله
+        العجب - أليس أنها بمعنى فريد، وفريد لفظة حسنة رائقة، ولو وضعت في هذا البيت
+        موضع جحيش لما اختل شيء من وزنه، فتأبط شراً لأنه ملوم من وجهين في هذا
+        الموضع، أحدهما أنه استعمل القبيح، والآخر أنه كانت له مندوحة عن استعماله
+        فلم يعدل عنه.
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000024
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Answer footnote excerpt (exercise_role=answer) for exercise item
+    jawahir:exc:000024; kept as the smallest self-contained scholarly judgment unit in
+    the footnote layer. BOUNDARY: Starts at core atom jawahir:fn:000040 and ends at
+    jawahir:fn:000040. Boundary aligns with the smallest self-contained unit for this
+    answer in the footnote layer. ROLES: All core atoms are
+    role=exercise_answer_content (author's judgment/explanation that constitutes the
+    answer). PLACEMENT: Per PLACE.X3, exercise items/answers are placed at leaf node
+    'tatbiq_fasahat_alfard' (taxonomy_version balagha_v0_3); the specific defects
+    tested are encoded in tests_nodes. RELATIONS: answers_exercise_item →
+    jawahir:exc:000024; belongs_to_exercise_set → jawahir:exc:000013. TESTS:
+    tests_nodes=['3uyub_alfard_karahat_sam3'];
+    primary_test_node=3uyub_alfard_karahat_sam3. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R3 ALTS: Alternative: keep as generic footnote teaching under the
+    defect leaf with footnote_explains. Rejected because this footnote is functioning
+    as an exercise answer key; per PLACE.X3 we encode it as exercise_role=answer at
+    the tatbiq_ leaf, with defects captured in tests_nodes.
+
+=== jawahir:exc:000073 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         B1_clean_boundary, C1_scholarly_footnote, C2_exercise_section, D1_clean_single_node, D4_cross_science
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Cross-science: sarf
+  Source:        passage2_fn_canonical.txt — core[831..955]
+
+  Core atoms (1):
+    000041 [prose_sentence] role=exercise_answer_content
+        (5) - العيب في هذا البيت من حيث فك الادغام في (حالل ويحلل) بلا مسوغ وهو
+        شاذ ومخالف للقياس الصرفي ومخالف للكلام العربي الصحيح
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000024
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Answer footnote excerpt (exercise_role=answer) for exercise item
+    jawahir:exc:000024; kept as the smallest self-contained scholarly judgment unit in
+    the footnote layer. BOUNDARY: Starts at core atom jawahir:fn:000041 and ends at
+    jawahir:fn:000041. Boundary aligns with the smallest self-contained unit for this
+    answer in the footnote layer. ROLES: All core atoms are
+    role=exercise_answer_content (author's judgment/explanation that constitutes the
+    answer). PLACEMENT: Per PLACE.X3, exercise items/answers are placed at leaf node
+    'tatbiq_fasahat_alfard' (taxonomy_version balagha_v0_3); the specific defects
+    tested are encoded in tests_nodes. RELATIONS: answers_exercise_item →
+    jawahir:exc:000024; belongs_to_exercise_set → jawahir:exc:000013. TESTS:
+    tests_nodes=['3uyub_alfard_mukhalafat_qiyas'];
+    primary_test_node=3uyub_alfard_mukhalafat_qiyas. CHECKLIST: EXC.B1, EXC.B6,
+    EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: keep as generic footnote teaching under
+    the defect leaf with footnote_explains. Rejected because this footnote is
+    functioning as an exercise answer key; per PLACE.X3 we encode it as
+    exercise_role=answer at the tatbiq_ leaf, with defects captured in tests_nodes.
+
+=== jawahir:exc:000074 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         B1_clean_boundary, C1_scholarly_footnote, C2_exercise_section, D1_clean_single_node, D4_cross_science
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Cross-science: sarf
+  Source:        passage2_fn_canonical.txt — core[1421..1473]
+
+  Core atoms (1):
+    000048 [prose_sentence] role=exercise_answer_content
+        (7) مصوون: شاذة وليست فصيحة لمخالفتها للقياس الصرفي.
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000026
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Answer footnote excerpt (exercise_role=answer) for exercise item
+    jawahir:exc:000026; kept as the smallest self-contained scholarly judgment unit in
+    the footnote layer. BOUNDARY: Starts at core atom jawahir:fn:000048 and ends at
+    jawahir:fn:000048. Boundary aligns with the smallest self-contained unit for this
+    answer in the footnote layer. ROLES: All core atoms are
+    role=exercise_answer_content (author's judgment/explanation that constitutes the
+    answer). PLACEMENT: Per PLACE.X3, exercise items/answers are placed at leaf node
+    'tatbiq_fasahat_alfard' (taxonomy_version balagha_v0_3); the specific defects
+    tested are encoded in tests_nodes. RELATIONS: answers_exercise_item →
+    jawahir:exc:000026; belongs_to_exercise_set → jawahir:exc:000013. TESTS:
+    tests_nodes=['3uyub_alfard_mukhalafat_qiyas'];
+    primary_test_node=3uyub_alfard_mukhalafat_qiyas. CHECKLIST: EXC.B1, EXC.B6,
+    EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: keep as generic footnote teaching under
+    the defect leaf with footnote_explains. Rejected because this footnote is
+    functioning as an exercise answer key; per PLACE.X3 we encode it as
+    exercise_role=answer at the tatbiq_ leaf, with defects captured in tests_nodes.
+
+=== jawahir:exc:000075 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         B1_clean_boundary, C1_scholarly_footnote, C2_exercise_section, D1_clean_single_node
+  Tests nodes:   3uyub_alfard_gharaba
+  Primary test:  3uyub_alfard_gharaba
+  Source:        passage2_fn_canonical.txt — core[1474..1541]
+
+  Core atoms (1):
+    000049 [prose_sentence] role=exercise_answer_content
+        (8) البعاق مطر السحاب، والجرد حل الوادي - وليستا فصيحتين لغرابتهما.
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000026
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Answer footnote excerpt (exercise_role=answer) for exercise item
+    jawahir:exc:000026; kept as the smallest self-contained scholarly judgment unit in
+    the footnote layer. BOUNDARY: Starts at core atom jawahir:fn:000049 and ends at
+    jawahir:fn:000049. Boundary aligns with the smallest self-contained unit for this
+    answer in the footnote layer. ROLES: All core atoms are
+    role=exercise_answer_content (author's judgment/explanation that constitutes the
+    answer). PLACEMENT: Per PLACE.X3, exercise items/answers are placed at leaf node
+    'tatbiq_fasahat_alfard' (taxonomy_version balagha_v0_3); the specific defects
+    tested are encoded in tests_nodes. RELATIONS: answers_exercise_item →
+    jawahir:exc:000026; belongs_to_exercise_set → jawahir:exc:000013. TESTS:
+    tests_nodes=['3uyub_alfard_gharaba']; primary_test_node=3uyub_alfard_gharaba.
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: keep as
+    generic footnote teaching under the defect leaf with footnote_explains. Rejected
+    because this footnote is functioning as an exercise answer key; per PLACE.X3 we
+    encode it as exercise_role=answer at the tatbiq_ leaf, with defects captured in
+    tests_nodes.
+
+=== jawahir:exc:000076 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         B1_clean_boundary, C1_scholarly_footnote, C2_exercise_section, D1_clean_single_node, D4_cross_science
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Cross-science: sarf
+  Source:        passage2_fn_canonical.txt — core[1542..1583]
+
+  Core atoms (1):
+    000050 [prose_sentence] role=exercise_answer_content
+        (9) بوقات مزامير - والقياس في جمعه أبواق.
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000026
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Answer footnote excerpt (exercise_role=answer) for exercise item
+    jawahir:exc:000026; kept as the smallest self-contained scholarly judgment unit in
+    the footnote layer. BOUNDARY: Starts at core atom jawahir:fn:000050 and ends at
+    jawahir:fn:000050. Boundary aligns with the smallest self-contained unit for this
+    answer in the footnote layer. ROLES: All core atoms are
+    role=exercise_answer_content (author's judgment/explanation that constitutes the
+    answer). PLACEMENT: Per PLACE.X3, exercise items/answers are placed at leaf node
+    'tatbiq_fasahat_alfard' (taxonomy_version balagha_v0_3); the specific defects
+    tested are encoded in tests_nodes. RELATIONS: answers_exercise_item →
+    jawahir:exc:000026; belongs_to_exercise_set → jawahir:exc:000013. TESTS:
+    tests_nodes=['3uyub_alfard_mukhalafat_qiyas'];
+    primary_test_node=3uyub_alfard_mukhalafat_qiyas. CHECKLIST: EXC.B1, EXC.B6,
+    EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: keep as generic footnote teaching under
+    the defect leaf with footnote_explains. Rejected because this footnote is
+    functioning as an exercise answer key; per PLACE.X3 we encode it as
+    exercise_role=answer at the tatbiq_ leaf, with defects captured in tests_nodes.
+
+=== jawahir:exc:000077 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         B1_clean_boundary, C1_scholarly_footnote, C2_exercise_section, D1_clean_single_node, D4_cross_science
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Cross-science: sarf
+  Source:        passage2_fn_canonical.txt — core[1584..1609]
+
+  Core atoms (1):
+    000051 [prose_sentence] role=exercise_answer_content
+        (1) القياس مودة بالادغام.
+
+  Relations (2):
+    answers_exercise_item -> jawahir:exc:000026
+    belongs_to_exercise_set -> jawahir:exc:000013
+
+  Boundary reasoning:
+    GROUPING: Answer footnote excerpt (exercise_role=answer) for exercise item
+    jawahir:exc:000026; kept as the smallest self-contained scholarly judgment unit in
+    the footnote layer. BOUNDARY: Starts at core atom jawahir:fn:000051 and ends at
+    jawahir:fn:000051. Boundary aligns with the smallest self-contained unit for this
+    answer in the footnote layer. ROLES: All core atoms are
+    role=exercise_answer_content (author's judgment/explanation that constitutes the
+    answer). PLACEMENT: Per PLACE.X3, exercise items/answers are placed at leaf node
+    'tatbiq_fasahat_alfard' (taxonomy_version balagha_v0_3); the specific defects
+    tested are encoded in tests_nodes. RELATIONS: answers_exercise_item →
+    jawahir:exc:000026; belongs_to_exercise_set → jawahir:exc:000013. TESTS:
+    tests_nodes=['3uyub_alfard_mukhalafat_qiyas'];
+    primary_test_node=3uyub_alfard_mukhalafat_qiyas. CHECKLIST: EXC.B1, EXC.B6,
+    EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: keep as generic footnote teaching under
+    the defect leaf with footnote_explains. Rejected because this footnote is
+    functioning as an exercise answer key; per PLACE.X3 we encode it as
+    exercise_role=answer at the tatbiq_ leaf, with defects captured in tests_nodes.
+
+=== jawahir:exc:000079 ===================================================================
+  Kind:          exercise
+  Exercise role: answer
+  Layer:         footnote
+  Node:          tatbiq_fasahat_alfard
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > تطبيقات فصاحة المفرد
+  Cases:         B1_clean_boundary, C1_scholarly_footnote, C2_exercise_section, D1_clean_single_node, D4_cross_science
+  Tests nodes:   3uyub_alfard_mukhalafat_qiyas
+  Primary test:  3uyub_alfard_mukhalafat_qiyas
+  Cross-science: sarf
+  Source:        passage2_fn_canonical.txt — core[2464..2864]
+
+  Core atoms (4):
+    000065 [prose_sentence] role=exercise_answer_content
+        فأيقنتَ أنّى عند ذلك ثائِر … (1) الظلم: الليالي الثلاث آخر الشهر، ولا بياض
+        له، لاحسن له - قاله المتنبي يخاطب الشيب له وخالف القياس في الاسود: لأنه لا
+        يبني اسم تفضيل من نحو سود وحمر.
+    000066 [prose_sentence] role=exercise_answer_content
+        (14) الحلة الصداقة: والفتق الشق، والراقع مصلح الفنق - وقد خالف القياس في
+        إتسع: حيث قطع همزة الوصل.
+    000067 [prose_sentence] role=exercise_answer_content
+        (15) هوالك فواعل - لا يطرد في وصف العاقل كما هنا..
+    000068 [prose_sentence] role=exercise_answer_content
+        (1) الوجى الجفا: والأظلل باطن خف البعير - وخالف القياس بفك الادغام..
+
+  Relations (4):
+    answers_exercise_item -> jawahir:exc:000050
+    answers_exercise_item -> jawahir:exc:000051
+    answers_exercise_item -> jawahir:exc:000052
+    belongs_to_exercise_set -> jawahir:exc:000048
+
+  Boundary reasoning:
+    GROUPING: Answer footnote excerpt (exercise_role=answer) for exercise items
+    jawahir:exc:000050–000052; kept as the smallest self-contained scholarly judgment
+    unit in the footnote layer. BOUNDARY: Starts at core atom jawahir:fn:000065 and
+    ends at jawahir:fn:000068. Boundary aligns with the smallest self-contained unit
+    for this answer in the footnote layer. ROLES: All core atoms are
+    role=exercise_answer_content (author's judgment/explanation that constitutes the
+    answer). PLACEMENT: Per PLACE.X3, exercise items/answers are placed at leaf node
+    'tatbiq_fasahat_alfard' (taxonomy_version balagha_v0_3); the specific defect
+    tested is encoded in tests_nodes. RELATIONS: answers_exercise_item →
+    jawahir:exc:000050, jawahir:exc:000051, jawahir:exc:000052;
+    belongs_to_exercise_set → jawahir:exc:000048. TESTS:
+    tests_nodes=['3uyub_alfard_mukhalafat_qiyas'];
+    primary_test_node=3uyub_alfard_mukhalafat_qiyas. CHECKLIST: EXC.B1, EXC.B6,
+    EXC.L1, EXC.C5, EXC.R3 ALTS: Alternative: keep as generic footnote teaching under
+    the defect leaf with footnote_explains. Rejected because this footnote is
+    functioning as an exercise answer key for the preceding items; per PLACE.X3 we
+    encode it as exercise_role=answer at the tatbiq_ leaf, with defects captured in
+    tests_nodes.
+
+=== jawahir:exc:000080 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          3uyub_alfard_ibtidhal
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: الابتذال
+  Cases:         C1_scholarly_footnote, B1_clean_boundary, D1_clean_single_node, D2_new_node_discovery, A2_division_classification, A4_shahid_with_commentary
+  Source:        passage2_fn_canonical.txt — core[2865..3735]
+
+  Core atoms (14):
+    000069 [prose_sentence] role=author_prose
+        تنبيهات: الأول من عيوب فصاحة اللفظة المفردة كونها مبتذلة - أي عامية ساقطة
+        للقالق والشنطار ونحوهما والابتذال ضربان:
+    000070 [prose_sentence] role=author_prose
+        (1) ما استعمله العامة ولم تغيره عن وضعه، فسخف وانحطت رتبته، واصبح استعماله
+        لدى الخاصة معيباً، كلفظة البرسام في قول المتنبي.
+    000071 [verse_evidence] role=evidence
+        إن بعضاً من القريض هراء ليس شيئاً وبعضه إحكام
+    000072 [verse_evidence] role=evidence
+        فيه ما يجلب البراعة والفهم وفيه ما يجلب البرسام
+    000073 [prose_sentence] role=author_prose
+        وكلفظة الخاز باز في قوله:
+    000074 [verse_evidence] role=author_prose
+        ومن الناس من تجوز عليهم شعراء كأنها الخازباز
+    000075 [prose_sentence] role=author_prose
+        (2) ما استعملته العامة دالا على غير ما وضع له، وليس بمستقبح ولا مكروه كقول
+        المتلمس:
+    000076 [verse_evidence] role=evidence
+        وما شَبرقَت من تَنُو فِيَّةٍ … وقد أتناسى الهم عند احتضاره بناج عليه
+        الصيعرية مكدم
+    000077 [prose_sentence] role=author_prose
+        وكقول أبي نواس:
+    000078 [verse_evidence] role=evidence
+        اختصم الجود والجمال فيك فصارا إلى جدال
+    000079 [verse_evidence] role=evidence
+        فقال هذا يمينه لي للعرف والبذل والنوال
+    000080 [verse_evidence] role=author_prose
+        وقال هذاك وجهه لي للظرف والحسن والكمال
+    000081 [verse_evidence] role=evidence
+        فافترقا فيك عن تراض كلاهما صادق المقال
+    000082 [prose_sentence] role=author_prose
+        فوصف في الأول: البعير بالصيعرية، وهي مختصة بالنوق، وفي الثاني: الوجه
+        بالظرف وهو في اللغة مختص بالنطق للفالق والشنطار - ونحوهما.
+
+  Relations (1):
+    has_overview -> jawahir:exc:000003
+
+  Boundary reasoning:
+    GROUPING: Single coherent teaching unit on one subtopic, kept intact
+    (definition/explanation + embedded evidence if any). BOUNDARY: Starts at core atom
+    jawahir:fn:000069 and ends at jawahir:fn:000082. Boundary aligns with the smallest
+    self-contained unit for this subtopic in the footnote layer. ROLES: Author prose
+    carries the explanation; evidence atoms (6) are role=evidence per evidence rule.
+    PLACEMENT: Placed at leaf node '3uyub_alfard_ibtidhal' (taxonomy_version
+    balagha_v0_3) because the core discourse directly teaches/tests this node.
+    CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5, EXC.R1, EXC.R2, EXC.C2 ALTS:
+    Alternative: split into multiple excerpts (definition vs examples) or place under
+    a parent node. Rejected because the author presents this as one continuous unit
+    and placement matches the specific leaf (use __overview only for branch-level
+    content).
+
+=== jawahir:exc:000081 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          3uyub_alfard_ibham
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: الألفاظ المبهمة عند إرادة التعيين
+  Cases:         C1_scholarly_footnote, B1_clean_boundary, D1_clean_single_node, D2_new_node_discovery
+  Source:        passage2_fn_canonical.txt — core[3736..3837]
+
+  Core atoms (1):
+    000083 [prose_sentence] role=author_prose
+        (الثاني) لا تستعمل الألفاظ المبهمة إذا كان غرضك التعيين واحضار صورة الشيء،
+        أو المعنى المراد في الذهن.
+
+  Relations (1):
+    has_overview -> jawahir:exc:000003
+
+  Boundary reasoning:
+    GROUPING: Single coherent teaching unit on one subtopic, kept intact
+    (definition/explanation + embedded evidence if any). BOUNDARY: Starts at core atom
+    jawahir:fn:000083 and ends at jawahir:fn:000083. Boundary aligns with the smallest
+    self-contained unit for this subtopic in the footnote layer. ROLES: All core atoms
+    are role=author_prose (author explanation). PLACEMENT: Placed at leaf node
+    '3uyub_alfard_ibham' (taxonomy_version balagha_v0_3) because the core discourse
+    directly teaches/tests this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1, EXC.C5,
+    EXC.R1, EXC.R2, EXC.C2 ALTS: Alternative: split into multiple excerpts (definition
+    vs examples) or place under a parent node. Rejected because the author presents
+    this as one continuous unit and placement matches the specific leaf (use
+    __overview only for branch-level content).
+
+=== jawahir:exc:000082 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          3uyub_alfard_ishtirak_bila_qarina
+  Path:          مقدمات > الفصاحة > فصاحة المفرد > عيوب المفرد: استعمال المشترك بلا قرينة
+  Cases:         C1_scholarly_footnote, B1_clean_boundary, D1_clean_single_node, D2_new_node_discovery
+  Source:        passage2_fn_canonical.txt — core[3838..3913]
+
+  Core atoms (1):
+    000084 [prose_sentence] role=author_prose
+        (الثالث) لا تستعمل اللفظ المشترك الامع قرينة تبين المراد من معانيه
+        المشتركة
+
+  Relations (1):
+    has_overview -> jawahir:exc:000003
+
+  Boundary reasoning:
+    GROUPING: Single coherent teaching unit on one subtopic, kept intact
+    (definition/explanation + embedded evidence if any). BOUNDARY: Starts at core atom
+    jawahir:fn:000084 and ends at jawahir:fn:000084. Boundary aligns with the smallest
+    self-contained unit for this subtopic in the footnote layer. ROLES: All core atoms
+    are role=author_prose (author explanation). PLACEMENT: Placed at leaf node
+    '3uyub_alfard_ishtirak_bila_qarina' (taxonomy_version balagha_v0_3) because the
+    core discourse directly teaches/tests this node. CHECKLIST: EXC.B1, EXC.B6,
+    EXC.L1, EXC.C5, EXC.R1, EXC.R2, EXC.C2 ALTS: Alternative: split into multiple
+    excerpts (definition vs examples) or place under a parent node. Rejected because
+    the author presents this as one continuous unit and placement matches the specific
+    leaf (use __overview only for branch-level content).
+
+=== jawahir:exc:000083 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          fasahat_alkalam__overview
+  Path:          مقدمات > الفصاحة > فصاحة الكلام > تعريف فصاحة الكلام وإجمال عيوبه
+  Cases:         C1_scholarly_footnote, B1_clean_boundary, D1_clean_single_node, D4_cross_science, D2_new_node_discovery
+  Cross-science: nahw
+  Source:        passage2_fn_canonical.txt — core[5762..6716]
+
+  Core atoms (2):
+    000097 [prose_sentence] role=author_prose
+        (1) المراد بفصاحة الكلام تكونه من كلمات فصيحة يسهل على اللسان النطق بها
+        لتآلفها،، ويسهل على العقل فهمها لترتيب ألفاظها وفق ترتيب المعاني.
+    000098 [prose_sentence] role=author_prose
+        ومرجع ذلك الذوق السليم والالمام بقواعد النحو، بحيث يكون واضح المعنى، سهل
+        اللفظ، حسن السبك- ولذلك يجب أن تكون كل لفظة من ألفاظه واضحة الدلالة على
+        المقصود منها، جارية على القياس الصرفي، عذبة سلسلة، كما يكون تركيب الكلمات
+        جار يا على القواعد النحوية خاليا من تنافر الكلمات مع بعضها، ومن التعقيد
+        فمرجع الفصاحة سواء في اللفظة المفردة، أو في الجمل المركبة إلى أمرين
+        (مراعات القواعد - والذوق السليم) وتختلف فصاحة الكلام أحيانا باختلاف
+        التعبير عما يدور بالنفس من المعاني اختلافا ظاهرا، فتجد في عبارات الأدباء
+        من الحسن والجودة ما لا تجد في تعبير غيرهم، مع اتحاد المعنى الذي يعبر عنه،
+        ويختلف الأدباء أنفسهم في أساليبهم: فقد يعلو بعضهم في أسلوبه، فتراه يسيل
+        رقة وعذوبة، ويصل إلى القلوب فيبلغ منها ما يشاء أن يبلغ، وذلك نوع من البيان
+        يكاد يكون سحرا، وقد يكون دون هذه المنزلة قليلا أو كثيرا - وهو مع ذلك من
+        فصيح القول وحسن البيان.
+
+  Relations (1):
+    footnote_supports -> jawahir:exc:000068
+
+  Boundary reasoning:
+    GROUPING: Single coherent teaching unit on one subtopic, kept intact
+    (definition/explanation + embedded evidence if any). BOUNDARY: Starts at core atom
+    jawahir:fn:000097 and ends at jawahir:fn:000098. Boundary aligns with the smallest
+    self-contained unit for this subtopic in the footnote layer. ROLES: All core atoms
+    are role=author_prose (author explanation). PLACEMENT: Placed at leaf node
+    'fasahat_alkalam__overview' (taxonomy_version balagha_v0_3) because the core
+    discourse directly teaches/tests this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R1, EXC.R2, EXC.C2 ALTS: Alternative: split into multiple excerpts
+    (definition vs examples) or place under a parent node. Rejected because the author
+    presents this as one continuous unit and placement matches the specific leaf (use
+    __overview only for branch-level content).
+
+=== jawahir:exc:000084 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          fasahat_alkalam__overview
+  Path:          مقدمات > الفصاحة > فصاحة الكلام > تعريف فصاحة الكلام وإجمال عيوبه
+  Cases:         C1_scholarly_footnote, B1_clean_boundary, D1_clean_single_node, D2_new_node_discovery
+  Source:        passage2_fn_canonical.txt — core[6717..6930]
+
+  Core atoms (2):
+    000099 [prose_sentence] role=author_prose
+        (2) (كثرة التكرار: وتتابع الاضافات) أقول الحق - أن هذين العيبين قد احترز
+        عنهما بالتنافر.
+    000100 [prose_sentence] role=author_prose
+        على أن بعضهم أجازهما لوقوعهما في القرآن كما في قوله تعالى «ونفس وما سواها»
+        الآيات - وفي قوله تعالى «ذكر رحمت ربك عبده زكريا»
+
+  Relations (1):
+    footnote_explains -> jawahir:exc:000068
+
+  Boundary reasoning:
+    GROUPING: Single coherent teaching unit on one subtopic, kept intact
+    (definition/explanation + embedded evidence if any). BOUNDARY: Starts at core atom
+    jawahir:fn:000099 and ends at jawahir:fn:000100. Boundary aligns with the smallest
+    self-contained unit for this subtopic in the footnote layer. ROLES: All core atoms
+    are role=author_prose (author explanation). PLACEMENT: Placed at leaf node
+    'fasahat_alkalam__overview' (taxonomy_version balagha_v0_3) because the core
+    discourse directly teaches/tests this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R1, EXC.R2, EXC.C2 ALTS: Alternative: split into multiple excerpts
+    (definition vs examples) or place under a parent node. Rejected because the author
+    presents this as one continuous unit and placement matches the specific leaf (use
+    __overview only for branch-level content).
+
+=== jawahir:exc:000085 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          3uyub_alkalam_tanafur_kalimat
+  Path:          مقدمات > الفصاحة > فصاحة الكلام > عيوب الكلام: تنافر الكلمات
+  Cases:         C1_scholarly_footnote, B1_clean_boundary, D1_clean_single_node
+  Source:        passage2_fn_canonical.txt — core[6931..7251]
+
+  Core atoms (1):
+    000101 [prose_sentence] role=author_prose
+        (3) حرب بن أمية: قتله قائل هذا البيت، وهو هاتف من الجن صاح عليه (وقفر) خال
+        من الماء والكلأ، وقبر اسم ليس مؤخر، وقرب خبرها مقدم - قبل إن هذا البيت لا
+        يمكن إنشاده ثلاث مرات متوالية ألا ويغلط المنشد فيه، لأن نفس اجتماع كلماته
+        وقرب مخارج حروفها، يحدثان ثقلا ظاهراً، مع أن كل كلمة منه لو أخذت وحدها ما
+        كانت مستكرهة ولا ثقيلة.
+
+  Relations (1):
+    footnote_explains -> jawahir:exc:000069
+
+  Boundary reasoning:
+    GROUPING: Single coherent teaching unit on one subtopic, kept intact
+    (definition/explanation + embedded evidence if any). BOUNDARY: Starts at core atom
+    jawahir:fn:000101 and ends at jawahir:fn:000101. Boundary aligns with the smallest
+    self-contained unit for this subtopic in the footnote layer. ROLES: All core atoms
+    are role=author_prose (author explanation). PLACEMENT: Placed at leaf node
+    '3uyub_alkalam_tanafur_kalimat' (taxonomy_version balagha_v0_3) because the core
+    discourse directly teaches/tests this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R1, EXC.R2, EXC.C2 ALTS: Alternative: split into multiple excerpts
+    (definition vs examples) or place under a parent node. Rejected because the author
+    presents this as one continuous unit and placement matches the specific leaf (use
+    __overview only for branch-level content).
+
+=== jawahir:exc:000086 ===================================================================
+  Kind:          teaching
+  Layer:         footnote
+  Node:          3uyub_alkalam_tanafur_kalimat
+  Path:          مقدمات > الفصاحة > فصاحة الكلام > عيوب الكلام: تنافر الكلمات
+  Cases:         C1_scholarly_footnote, B1_clean_boundary, D1_clean_single_node
+  Source:        passage2_fn_canonical.txt — core[7252..7642]
+
+  Core atoms (1):
+    000102 [prose_sentence] role=author_prose
+        (4) أي هو كريم، وإذا مدحته وافقني الناس على مدحه، ويمدحونه معي، لإسداء
+        إحسانه إليهم كاسدائه إلى، وإذا لمته لا يوافقني أحد على لومه، لعدم وجود
+        المقتضى للوم فيه - وآثر لمته على هجوته مع أنه مقابل المدح إشارة إلى أنه لا
+        يستحق الهجو ولو فرط منه شيء فإنما يلام عليه فقط، والثقل في قوله «أمدحه»
+        لما بين الحاء والهاء من التنافر، للجمع بينهما: وهما من حروف الحلق - كما
+        ذكره الصاحب اسماعيل بن عباد..
+
+  Relations (1):
+    footnote_explains -> jawahir:exc:000069
+
+  Boundary reasoning:
+    GROUPING: Single coherent teaching unit on one subtopic, kept intact
+    (definition/explanation + embedded evidence if any). BOUNDARY: Starts at core atom
+    jawahir:fn:000102 and ends at jawahir:fn:000102. Boundary aligns with the smallest
+    self-contained unit for this subtopic in the footnote layer. ROLES: All core atoms
+    are role=author_prose (author explanation). PLACEMENT: Placed at leaf node
+    '3uyub_alkalam_tanafur_kalimat' (taxonomy_version balagha_v0_3) because the core
+    discourse directly teaches/tests this node. CHECKLIST: EXC.B1, EXC.B6, EXC.L1,
+    EXC.C5, EXC.R1, EXC.R2, EXC.C2 ALTS: Alternative: split into multiple excerpts
+    (definition vs examples) or place under a parent node. Rejected because the author
+    presents this as one continuous unit and placement matches the specific leaf (use
+    __overview only for branch-level content).
+
+
+==========================================================================================
+EXCLUSION RECORDS
+==========================================================================================
+
+  heading_structural (7 atoms):
+    000083 [matn] تمرين
+    000088 [matn] تمرين (ب)
+    000102 [matn] تمرين
+    000106 [matn] تطبيق
+    000121 [matn] تدريب
+    000130 [matn] تدريب
+    000138 [matn] فصاحة الكلام
+
+  footnote_apparatus (30 atoms):
+    000039 [footnote] (3) - الماء العذب الصافي
+    000042 [footnote] (1) - يريد بقوله جفنة صحفة كبيرة ملأى تشبع عشرة، والمثعنجرة السائلة...
+    000043 [footnote] (2) يريد اللحم والماء الخالص
+    000044 [footnote] (3) احبنطي انتفخ بطنه.
+    000045 [footnote] (4) دهياء.
+    000046 [footnote] (5) عذبا.
+    000047 [footnote] (6) يتبع ويسيل.
+    000052 [footnote] (2) لوط لازق والاوالس النياق.
+    000053 [footnote] (3) ضرب من القلائد.
+    000054 [footnote] (4) المثعنجر لنمظة متنافر والمعنى إن علمي مقيس إلى علمك كالغدير الص...
+    000055 [footnote] (5) القريض الشعر، والهراء الكلام الفاسد الذي لا نظام له، وأحكام جمع...
+    000056 [footnote] (6) الخازباز صوت الذباب - وتجوز: تروح وتقبل.
+    000057 [footnote] (7) الرأس الصمعمعه: الصغيرة.
+    000058 [footnote] (8) الرسوم آثار الديار.
+    000059 [footnote] (9) أزور: أعرض وعاف: كره. وعافى العرف: طالب المعروف.
+    000060 [footnote] (10) للمغفور له أحمد شوقي، والمحل: الجدب.
+    000061 [footnote] (11) أناخ بكلكله: هبط بمقدم صدره، وينسب البيت للمرحوم الشيخ حمزة فت...
+    000062 [footnote] (12) النصاح: الخيط، وذات السم الابرة، والخيفانة: الفرس الطويلة، وال...
+    000063 [footnote] (13) أ - لابن الرومي - واللبيس: الملوس والاخلاق: البلى، والجدة: صفة...
+    000064 [footnote] لا نَسبَ اليومَ ولَا خُلَّة … ب- اللوط: الخفيف السريع - والأوالس: ا...
+    000085 [footnote] (2) الأرقال: الاسراع: الهمرجلة، الناقة السريقة، الشيظم، الطويل الجس...
+    000086 [footnote] (1) الهبق، الظليم (ذكر النعام) شام البرق نظر إليه أين يقصد، واين يم...
+    000087 [footnote] (2) الدمية، الصورة المنقوشة المزينة فيها حمرة كالدم، تضرب مثلا في ا...
+    000090 [footnote] (3) الهضبة: الرابية، أجأ، جبلن. القدم - الغليظ الجافي - وصف الشيم ب...
+    000091 [footnote] (1) الشكة: الخصلة، الباسل، الشجا..
+    000092 [footnote] (2) قائلة الفرزدق. الضريب الشبيه والمثيل، سروات البيت، أعاليه، مندف...
+    000093 [footnote] (3) الثائر الذي لا يبقى على شيء حتى يدرك ثأره.
+    000094 [footnote] (4) قائلة المتنبي، ملمومة، كتيبة مجتمعة، سيفية، نسبة لسيف الدولة، ر...
+    000095 [footnote] (5) قائله امرؤ القيس، الغبيطن الأرض المطمئنة، وقبل الواسعة المستوبة...
+    000096 [footnote] (6) القنوع، المسئلة، يقال قنع قنوعا، إذا سأل - والمراد القناعة.
+
+  duplicate_content (2 atoms):
+    000088 [footnote] (1) النصاح: الخيط، وذات السم الابرة، والخيفانة: الفرس الطويلة، والق...
+    000089 [footnote] (2) الدمية، الصورة المنقوشة المزينة فيها حمرة كالدم، تضرب مثلا في ا...
+
+
+==========================================================================================
+RELATION GRAPH
+==========================================================================================
+
+  jawahir:exc:000022 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000023 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000024 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000025 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000026 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000027 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000028 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000029 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000030 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000032 --[belongs_to_exercise_set]--> jawahir:exc:000031
+  jawahir:exc:000033 --[belongs_to_exercise_set]--> jawahir:exc:000031
+  jawahir:exc:000034 --[belongs_to_exercise_set]--> jawahir:exc:000031
+  jawahir:exc:000036 --[belongs_to_exercise_set]--> jawahir:exc:000035
+  jawahir:exc:000037 --[belongs_to_exercise_set]--> jawahir:exc:000035
+  jawahir:exc:000038 --[belongs_to_exercise_set]--> jawahir:exc:000035
+  jawahir:exc:000039 --[belongs_to_exercise_set]--> jawahir:exc:000035
+  jawahir:exc:000040 --[belongs_to_exercise_set]--> jawahir:exc:000035
+  jawahir:exc:000041 --[belongs_to_exercise_set]--> jawahir:exc:000035
+  jawahir:exc:000042 --[belongs_to_exercise_set]--> jawahir:exc:000035
+  jawahir:exc:000043 --[belongs_to_exercise_set]--> jawahir:exc:000035
+  jawahir:exc:000044 --[belongs_to_exercise_set]--> jawahir:exc:000035
+  jawahir:exc:000046 --[belongs_to_exercise_set]--> jawahir:exc:000045
+  jawahir:exc:000047 --[belongs_to_exercise_set]--> jawahir:exc:000045
+  jawahir:exc:000049 --[belongs_to_exercise_set]--> jawahir:exc:000048
+  jawahir:exc:000050 --[belongs_to_exercise_set]--> jawahir:exc:000048
+  jawahir:exc:000051 --[belongs_to_exercise_set]--> jawahir:exc:000048
+  jawahir:exc:000052 --[belongs_to_exercise_set]--> jawahir:exc:000048
+  jawahir:exc:000053 --[belongs_to_exercise_set]--> jawahir:exc:000048
+  jawahir:exc:000054 --[belongs_to_exercise_set]--> jawahir:exc:000048
+  jawahir:exc:000055 --[belongs_to_exercise_set]--> jawahir:exc:000048
+  jawahir:exc:000056 --[belongs_to_exercise_set]--> jawahir:exc:000048
+  jawahir:exc:000058 --[belongs_to_exercise_set]--> jawahir:exc:000057
+  jawahir:exc:000059 --[belongs_to_exercise_set]--> jawahir:exc:000057
+  jawahir:exc:000060 --[belongs_to_exercise_set]--> jawahir:exc:000057
+  jawahir:exc:000062 --[belongs_to_exercise_set]--> jawahir:exc:000061
+  jawahir:exc:000063 --[belongs_to_exercise_set]--> jawahir:exc:000061
+  jawahir:exc:000064 --[belongs_to_exercise_set]--> jawahir:exc:000061
+  jawahir:exc:000065 --[belongs_to_exercise_set]--> jawahir:exc:000061
+  jawahir:exc:000066 --[belongs_to_exercise_set]--> jawahir:exc:000061
+  jawahir:exc:000067 --[belongs_to_exercise_set]--> jawahir:exc:000061
+  jawahir:exc:000069 --[has_overview]--> jawahir:exc:000068
+  jawahir:exc:000070 --[answers_exercise_item]--> jawahir:exc:000022
+  jawahir:exc:000070 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000071 --[answers_exercise_item]--> jawahir:exc:000023
+  jawahir:exc:000071 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000072 --[answers_exercise_item]--> jawahir:exc:000024
+  jawahir:exc:000072 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000073 --[answers_exercise_item]--> jawahir:exc:000024
+  jawahir:exc:000073 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000074 --[answers_exercise_item]--> jawahir:exc:000026
+  jawahir:exc:000074 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000075 --[answers_exercise_item]--> jawahir:exc:000026
+  jawahir:exc:000075 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000076 --[answers_exercise_item]--> jawahir:exc:000026
+  jawahir:exc:000076 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000077 --[answers_exercise_item]--> jawahir:exc:000026
+  jawahir:exc:000077 --[belongs_to_exercise_set]--> jawahir:exc:000013
+  jawahir:exc:000079 --[answers_exercise_item]--> jawahir:exc:000050
+  jawahir:exc:000079 --[answers_exercise_item]--> jawahir:exc:000051
+  jawahir:exc:000079 --[answers_exercise_item]--> jawahir:exc:000052
+  jawahir:exc:000079 --[belongs_to_exercise_set]--> jawahir:exc:000048
+  jawahir:exc:000080 --[has_overview]--> jawahir:exc:000003
+  jawahir:exc:000081 --[has_overview]--> jawahir:exc:000003
+  jawahir:exc:000082 --[has_overview]--> jawahir:exc:000003
+  jawahir:exc:000083 --[footnote_supports]--> jawahir:exc:000068
+  jawahir:exc:000084 --[footnote_explains]--> jawahir:exc:000068
+  jawahir:exc:000085 --[footnote_explains]--> jawahir:exc:000069
+  jawahir:exc:000086 --[footnote_explains]--> jawahir:exc:000069
