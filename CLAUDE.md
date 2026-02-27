@@ -2,21 +2,26 @@
 
 ## What This Is
 
-A pipeline that transforms Shamela HTML exports of classical Arabic books into structured excerpts placed in taxonomy trees. Four sciences: إملاء (orthography), صرف (morphology), نحو (syntax), بلاغة (rhetoric).
+ABD extracts structured excerpts from classical Arabic books (Shamela HTML exports) and places them in taxonomy trees. It covers four sciences: إملاء (orthography), صرف (morphology), نحو (syntax), بلاغة (rhetoric). Each science has its own independent taxonomy tree.
 
-**Downstream consumer:** The excerpts collected at each taxonomy leaf node are fed to an **external synthesis LLM** (outside this repo's scope) that produces encyclopedia entries. ABD's job ends at producing well-structured, accurately placed excerpts. Synthesis is not a stage of this application — but structural decisions within ABD (excerpt boundaries, taxonomy granularity, metadata richness, relation chains) must be made with that downstream LLM consumer in mind.
+**The big picture:** Multiple books contribute excerpts to the same taxonomy tree. At each leaf node, excerpts from different authors accumulate. An **external synthesis LLM** (outside this repo) then reads all excerpts at a leaf and produces a single encyclopedia article aimed at **Arabic-language students**. When authors disagree — different madhabs, different eras, different grammatical schools — the synthesis LLM presents all scholarly positions and attributes each to its author.
+
+**Why this matters for ABD:** Every structural decision in this pipeline exists to serve that downstream synthesis. Excerpt boundaries must be clean enough that the synthesis LLM can understand each excerpt in isolation. Metadata must be rich enough that the synthesis LLM can attribute opinions to specific authors and resolve conflicting views. Relation chains (`split_continues_in`, `split_continued_from`) must be intact so the synthesis LLM can reconstruct multi-passage arguments. The `case_types`, `boundary_reasoning`, roles, and taxonomy placement all help the synthesis LLM understand *what kind of content* it's looking at and *where it fits* in the topic.
+
+**Author context is critical:** Because multiple books from different scholars feed the same taxonomy leaf, author identity matters. Each book's `intake_metadata.json` carries a `scholarly_context` block (author death date, fiqh madhab, grammatical school, geographic origin) — but these fields are currently sparse (mostly auto-extracted). The enrichment step (`tools/enrich.py`) is intended to fill them with researched mini-biographies. This is a known gap: intake captures basic metadata, but deep scholarly context (madhab, school affiliation, era, intellectual lineage) needs to be extended into an intelligent research system.
 
 ## Pipeline Stages
 
 | Stage | Tool | Status | Tests |
 |-------|------|--------|-------|
 | 0 Intake | `tools/intake.py` | ✅ Complete | `tests/test_intake.py` |
+| 0.5 Enrichment | `tools/enrich.py` | 🟡 Basic | `tests/test_enrich.py` |
 | 1 Normalization | `tools/normalize_shamela.py` | ✅ Complete | `tests/test_normalization.py` |
 | 2 Structure Discovery | `tools/discover_structure.py` | ✅ Complete | `tests/test_structure_discovery.py` |
 | 3+4 Extraction | `tools/extract_passages.py` | ✅ Complete | `tests/test_extraction.py` |
 | 5 Taxonomy Placement | (implicit in Stage 3+4) | ✅ Complete | — |
 
-**Note:** There is no Stage 6 in this application. Synthesis is handled by an external LLM that consumes the excerpts at each taxonomy leaf. See "Downstream consumer" above.
+There is no synthesis stage in ABD. The external synthesis LLM consumes excerpts at each taxonomy leaf to produce one encyclopedia article per leaf, targeting Arabic-language students.
 
 ## Running Things
 
@@ -47,7 +52,7 @@ python tools/extract_passages.py \
   --output-dir output/imlaa_extraction \
   --passage-ids P004
 
-# Extraction with API (full book, ~$1.50)
+# Extraction with API (full book, ~$3–5)
 # Same command without --passage-ids
 ```
 
@@ -88,9 +93,11 @@ Python 3.11+ required. No virtual env needed for simple runs; use `pip install -
 
 ## Architecture Patterns
 
-**Stage I/O chain:** Each stage reads the previous stage's JSONL output. Books are registered in `books/` with `intake_metadata.json`. Normalization produces `pages.jsonl`. Structure discovery produces `passages.jsonl` + `divisions.json`. Extraction produces `atoms` + `excerpts` per passage. The final output — excerpts grouped by taxonomy leaf — is the handoff point to the external synthesis LLM. Structural decisions (excerpt boundaries, metadata fields, relation chains) are made to serve that downstream consumer.
+**Stage I/O chain:** Each stage reads the previous stage's JSONL output. Books are registered in `books/` with `intake_metadata.json` (includes `scholarly_context` for author madhab, school, era). Normalization produces `pages.jsonl`. Structure discovery produces `passages.jsonl` + `divisions.json`. Extraction produces `atoms` + `excerpts` per passage. The final output — excerpts grouped by taxonomy leaf, with full author/book metadata — is the handoff point to the external synthesis LLM.
 
-**LLM calls:** Tools call Claude/OpenAI APIs directly via httpx. API key passed as CLI arg or env var `ANTHROPIC_API_KEY`. LLM-dependent stages gracefully degrade if API fails mid-run (e.g., Stage 2 Pass 3b uses whatever Pass 3a produced).
+**Multi-book convergence:** Multiple books from different authors feed excerpts into the same taxonomy tree (one tree per science). The synthesis LLM at each leaf must reconcile differing scholarly opinions. This means every excerpt must carry enough context (book_id, author identity via intake_metadata, source_layer, roles, case_types) for the synthesis LLM to attribute views correctly.
+
+**LLM calls:** Tools call Claude APIs directly via httpx. API key passed as CLI arg or env var `ANTHROPIC_API_KEY`. LLM-dependent stages gracefully degrade if API fails mid-run (e.g., Stage 2 Pass 3b uses whatever Pass 3a produced).
 
 **Validation:** Each tool has built-in validation. Extraction validates 17 invariants across 3 severity levels (errors, warnings, info) covering atom coverage, reference integrity, leaf placement, bonding trigger presence, role validation, case_types, layer isolation, and more. Failed validation triggers an automatic correction retry loop (up to 2 retries). Structure discovery validates range monotonicity, overlap, coverage.
 
@@ -106,26 +113,29 @@ Python 3.11+ required. No virtual env needed for simple runs; use `pip install -
 - Markdown for human review reports
 - All tools are standalone scripts in `tools/`, importable as modules
 - Test with `python -m pytest`, not `pytest` directly (ensures correct path)
+- All file I/O uses `encoding="utf-8"` explicitly (Windows defaults to cp1252)
 
 ## Current State and What to Work On
 
-Stages 0–4 are complete and tested. The extraction tool has been rewritten against the binding decisions and gold standard schema v0.3.3, with 17-check validation, post-processing, and a correction retry loop. End-to-end verification on 5 diverse passages (P004, P005, P006, P010, P020) all pass with 0 errors and 0 retries.
+Stages 0–5 are complete and tested. The extraction tool has been rewritten against the binding decisions and gold standard schema v0.3.3, with 17-check validation, post-processing, and a correction retry loop. End-to-end verification on 5 diverse passages (P004, P005, P006, P010, P020) all pass with 0 errors and 0 retries.
 
 **Immediate priorities (in order):**
 1. Run full book extraction on قواعد الإملاء (46 passages, ~$3–5) and review quality
 2. Run the pipeline on شذا العرف (صرف science) to test cross-science generalization
-3. Scale to full corpus
+3. Extend intake enrichment — author scholarly context (`scholarly_context` in intake_metadata.json) needs deep, researched metadata (madhab, grammatical school, intellectual lineage) so the synthesis LLM can properly attribute opinions
+4. Scale to full corpus
 
 **Do NOT spend time on:**
 - Perfecting Stage 2 edge cases (600+ heading chunking, structureless books, etc.) — wait until a book actually needs them
 - Multi-judge consensus — single-pass extraction quality is sufficient for now
 - Building review UIs — markdown review reports are good enough
+- Building synthesis tooling — synthesis is external to this repo
 
 ## Registered Books
 
 ```
 books/
-├── imla/          # قواعد الإملاء (77p, إملاء) — vertical slice target
+├── imla/          # قواعد الإملاء (77p, إملاء) — first full extraction target
 ├── shadha/        # شذا العرف (187p, صرف) — next test target
 ├── jawahir/       # جواهر البلاغة (بلاغة) — gold baseline source
 ├── qatr/          # قطر الندى (نحو)
@@ -146,3 +156,5 @@ books/
 - **Gold baselines are for بلاغة only**: The jawahir baselines are hand-crafted for بلاغة. إملاء has a simpler discourse structure (rules + examples, minimal scholarly disputes).
 - **`__overview` leaves**: Parent taxonomy nodes that receive overview/framing content need `__overview` companion leaves (convention from the vertical slice).
 - **Passage boundaries are guidance**: Stage 2 passages are structural suggestions. Extraction may find content that spans passage boundaries (prose_tail detection handles this).
+- **One taxonomy tree per science**: إملاء, صرف, نحو, بلاغة each have independent trees. Books within a science share the same tree. Multiple books' excerpts converge at the same leaf nodes.
+- **Author context gap**: `intake_metadata.json` has a `scholarly_context` block but most fields are null/auto. The enrichment tool needs extension to research and populate author madhab, grammatical school, era, and intellectual lineage — critical for the synthesis LLM to attribute opinions.

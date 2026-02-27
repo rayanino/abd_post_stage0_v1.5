@@ -4,6 +4,8 @@
 
 A complete pipeline from Shamela HTML → structured excerpts for one book (قواعد الإملاء, 77 pages, إملاء science). The tool (`tools/extract_passages.py`, 1389 lines) handles atomization, excerpting, taxonomy placement, post-processing, validation (17 checks), and correction retries in a single automated pass per passage.
 
+The excerpts produced here accumulate at taxonomy leaf nodes alongside excerpts from other إملاء books. An external synthesis LLM (outside this repo) then reads all excerpts at each leaf to produce a single encyclopedia article for Arabic-language students. Quality of excerpt boundaries, metadata richness, and relation chains directly affects synthesis quality.
+
 ## Pipeline Status
 
 | Stage | Status | Output |
