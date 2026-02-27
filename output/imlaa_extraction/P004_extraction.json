@@ -1,0 +1,91 @@
+{
+  "atoms": [
+    {
+      "atom_id": "qimlaa:matn:000001",
+      "type": "prose_tail",
+      "role": "examples_continuation",
+      "text": "ونَحْوُ: امْرِئٍ، مُتَهَيِّئٍ، مُبْرِئٍ، يُهَيِّئُ، يُبْرِئُ، مُهَيِّئاً، مُبْرِئاً؛ ونَحْوُ: مُهَيَّأ، مُبْرَأ، يُهَيَّأ، يَبْرَأ، يَنْشَأ.",
+      "note": "Continuation of P003 examples from previous page. Belongs to the PREVIOUS passage's excerpt. Excluded from P004 excerpts."
+    },
+    {
+      "atom_id": "qimlaa:matn:000002",
+      "type": "heading",
+      "role": "structural",
+      "text": "الْهَمْزَةُ وَسَطَ الْكَلِمَةِ",
+      "note": "Section heading. Metadata only — excluded from excerpts, used in heading_path."
+    },
+    {
+      "atom_id": "qimlaa:matn:000003",
+      "type": "prose_sentence",
+      "role": "author_prose",
+      "text": "لِلْهَمْزَةِ فِي وَسَطِ الْكَلِمَةِ خَمْسُ حَالَاتٍ:"
+    },
+    {
+      "atom_id": "qimlaa:matn:000004",
+      "type": "heading",
+      "role": "structural",
+      "text": "الْحَالَةُ الْأُولَى: تُرْسَمُ أَلِفًا فِي مَوْضِعَيْنِ:",
+      "note": "Sub-heading for this specific حالة. Metadata only."
+    },
+    {
+      "atom_id": "qimlaa:matn:000005",
+      "type": "bonded_cluster",
+      "role": "author_prose",
+      "text": "1 - أَنْ تُسَكَّنَ أَوْ تُفْتَحَ وَلَوْ مُشَدَّدَةً بَعْدَ مَفْتُوحٍ وَلَوْ مُشَدَّداً، نَحْوُ: يَأْمُرُ، آخِر؛ وَنَحْوُ: مَلْجَآن، مَنْشآن، تَذَاَّب، سَأّل، تَبَوَّأَها؛ وَنَحْوُ: قَرَأَا، لَمْ يَقْرَأَا، يَقْرَأَانِ.",
+      "bonding_trigger": "T5_rule_then_examples",
+      "bonding_reason": "Rule statement with inline examples form a single teaching unit"
+    }
+  ],
+  "excerpts": [
+    {
+      "excerpt_id": "qimlaa:exc:000001",
+      "excerpt_title": "حالات الهمزة وسط الكلمة — تقسيم عام (ص ٩)",
+      "source_layer": "matn",
+      "excerpt_kind": "teaching",
+      "taxonomy_node_id": "al_hamza_wasat_al_kalima__overview",
+      "taxonomy_path": "إملاء > الهمزة > الهمزة وسط الكلمة > نظرة عامة على حالات الهمزة وسط الكلمة",
+      "heading_path": [
+        "الْبَابُ الْأَوَّلُ",
+        "الْهَمْزَةُ وَسَطَ الْكَلِمَةِ"
+      ],
+      "core_atoms": [
+        "qimlaa:matn:000003"
+      ],
+      "context_atoms": [],
+      "boundary_reasoning": "GROUPING: Overview sentence announcing that medial hamza has five cases. This is structural framing for the entire section, not teaching any specific case. BOUNDARY: Single atom (000003) that opens the section. PLACEMENT: Goes to parent overview node (al_hamza_wasat_al_kalima__overview) because it describes the organizational structure of the section, not any specific حالة.",
+      "content_type": "prose"
+    },
+    {
+      "excerpt_id": "qimlaa:exc:000002",
+      "excerpt_title": "الحالة الأولى: ترسم ألفاً — الموضع الأول (ص ٩)",
+      "source_layer": "matn",
+      "excerpt_kind": "teaching",
+      "taxonomy_node_id": "al_hala_1_tursam_alifan",
+      "taxonomy_path": "إملاء > الهمزة > الهمزة وسط الكلمة > الحالة الأولى: ترسم ألفاً",
+      "heading_path": [
+        "الْبَابُ الْأَوَّلُ",
+        "الْهَمْزَةُ وَسَطَ الْكَلِمَةِ",
+        "الْحَالَةُ الْأُولَى: تُرْسَمُ أَلِفًا فِي مَوْضِعَيْنِ"
+      ],
+      "core_atoms": [
+        "qimlaa:matn:000005"
+      ],
+      "context_atoms": [],
+      "boundary_reasoning": "GROUPING: First موضع of الحالة الأولى — medial hamza written as alif when it is quiescent or fatha'd (even if doubled) after a fatha'd letter (even if doubled). Rule + inline examples bonded as single teaching unit. BOUNDARY: Opens at atom 000005 which contains complete rule + examples. The heading (000004) announces two مواضع but this excerpt covers only the first. PLACEMENT: Goes to leaf node al_hala_1_tursam_alifan which encompasses all sub-conditions of الحالة الأولى.",
+      "content_type": "prose"
+    }
+  ],
+  "footnote_excerpts": [
+    {
+      "excerpt_id": "qimlaa:exc:fn:000001",
+      "excerpt_title": "تعليل اجتماع الألفين مع المثنى (ص ٩)",
+      "source_layer": "footnote",
+      "excerpt_kind": "teaching",
+      "taxonomy_node_id": "al_hala_1_tursam_alifan",
+      "taxonomy_path": "إملاء > الهمزة > الهمزة وسط الكلمة > الحالة الأولى: ترسم ألفاً",
+      "linked_matn_excerpt": "qimlaa:exc:000002",
+      "text": "وأجازوا اجتماع الألفين هنا لئلا يلتبس الفعل بالمسند إلى الواحد فِي الماضي، والمضارع المحذوف النون",
+      "note": "Author footnote explaining why two alifs are permitted in dual verb forms (قَرَأَا، يَقْرَأَانِ) — to avoid confusion with singular forms in past tense and jussive mood."
+    }
+  ]
+}

@@ -61,11 +61,12 @@ Break the passage text into atoms following these rules:
    - T6: Condition+consequence spanning sentence boundary
 3. **Headings**: Short phrases with no verb and no predication. Type=heading. Excluded from excerpts but used in heading_path.
 4. **Continuation tails**: Text at the start of a page that completes the previous passage's thought. Mark as type=prose_tail, exclude from this passage's excerpts.
-5. **Text is verbatim**: Copy exactly from source. Never correct, normalize, or edit.
+5. **Placeholders**: Pure ellipses (…, ...), isolated punctuation, or fragments under 3 characters with no Arabic letters are type=placeholder. Exclude from excerpts (like headings/tails). Add a note explaining the gap.
+6. **Text is verbatim**: Copy exactly from source. Never correct, normalize, or edit.
 
 Each atom gets:
 - `atom_id`: format "{book_id}:matn:NNNNNN" (6-digit sequential, starting from {atom_start_seq})
-- `type`: one of heading, prose_sentence, bonded_cluster, prose_tail, verse_evidence
+- `type`: one of heading, prose_sentence, bonded_cluster, prose_tail, verse_evidence, placeholder
 - `role`: one of structural, author_prose, examples_continuation
 - `text`: verbatim text
 - If bonded: `bonding_trigger` and `bonding_reason`
@@ -99,15 +100,19 @@ Use ONLY leaf nodes (_leaf: true) from this taxonomy:
 {taxonomy_yaml}
 ```
 
+IMPORTANT: The `taxonomy_node_id` must be the BARE key name immediately before `_leaf: true` in the YAML. Do NOT construct path-style IDs with colons or use parent node keys. For example, use `ta3rif_hamzat_al_wasl`, NOT `imlaa:al_hamza:hamzat_al_wasl:ta3rif_hamzat_al_wasl` and NOT `hamzat_al_wasl`.
+
 If no existing leaf fits, set taxonomy_node_id to "_unmapped" and explain why in boundary_reasoning.
 
 ## Critical Rules
-- NEVER skip content. Every non-heading, non-tail atom must appear in exactly one excerpt as core.
+- NEVER skip content. Every non-heading, non-tail, non-placeholder atom MUST appear in exactly one excerpt as core. If no taxonomy leaf fits, use taxonomy_node_id="_unmapped" rather than leaving an atom uncovered.
 - NEVER invent text. Atoms are verbatim copies.
 - NEVER merge content from genuinely different topics into one excerpt.
 - Overview/framing sentences go to the PARENT node if one exists, not a child.
 - When a numbered list (1 - ..., 2 - ...) describes sub-cases of one rule, each item MAY be its own excerpt IF the taxonomy has a leaf for it, OR they stay together at the parent leaf.
 - Passage boundaries from Stage 2 are guidance. If text at the start clearly continues the previous passage, mark it as prose_tail.
+- If a prose_tail contains substantive examples or content (not just a connecting phrase), create a small excerpt for it at the most likely taxonomy leaf, with a relation pointing to the previous passage. Do NOT leave substantive continuation atoms uncovered.
+- Author colophons, closing prayers, or meta-commentary about the book itself must be excerpted with taxonomy_node_id="_unmapped". NEVER leave atoms uncovered.
 
 ## Output Format
 Respond with ONLY a JSON object. No markdown fences, no preamble.
@@ -142,13 +147,13 @@ Now atomize and excerpt the current passage. Output JSON only."""
 # ---------------------------------------------------------------------------
 
 def load_jsonl(path: str) -> list[dict]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
 
 
 def load_taxonomy_yaml(path: str) -> str:
     """Load taxonomy YAML as raw text for prompt injection."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 
@@ -156,7 +161,7 @@ def load_gold_example(path: str | None) -> str:
     """Load gold example and format as few-shot section."""
     if not path or not os.path.exists(path):
         return ""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         gold = json.load(f)
     # Extract just the atoms and excerpts for the prompt
     compact = {
@@ -210,6 +215,21 @@ def get_context_head(passages: list, idx: int, page_by_seq: dict, chars: int = 3
     return text[:chars] if len(text) > chars else text
 
 
+def repair_truncated_json(text: str) -> str:
+    """Attempt to repair truncated JSON by closing unclosed strings, brackets, and braces."""
+    repair = text
+    # Close any open strings
+    if repair.count('"') % 2 == 1:
+        repair += '"'
+    # Count open brackets/braces
+    open_brackets = repair.count("[") - repair.count("]")
+    opens = repair.count("{") - repair.count("}")
+    # Close brackets then braces
+    repair += "]" * max(0, open_brackets)
+    repair += "}" * max(0, opens)
+    return repair
+
+
 def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
     """Call Claude API and return parsed JSON response."""
     import httpx
@@ -260,19 +280,8 @@ def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
     except json.JSONDecodeError as e:
         # If truncated (hit max_tokens), try to repair
         if stop_reason == "max_tokens" or "Unterminated" in str(e):
-            # Try closing open structures
-            repair = text
-            # Count open braces/brackets
-            opens = repair.count("{") - repair.count("}")
-            open_brackets = repair.count("[") - repair.count("]")
-            # Close any open strings
-            if repair.count('"') % 2 == 1:
-                repair += '"'
-            # Close brackets then braces
-            repair += "]" * max(0, open_brackets)
-            repair += "}" * max(0, opens)
             try:
-                parsed = json.loads(repair)
+                parsed = json.loads(repair_truncated_json(text))
             except json.JSONDecodeError:
                 raise RuntimeError(
                     f"JSON parse failed even after repair (stop_reason={stop_reason}). "
@@ -302,7 +311,7 @@ def validate_extraction(result: dict, passage_id: str, taxonomy_leaves: set) -> 
     atom_ids = {a["atom_id"] for a in atoms}
     non_excluded_ids = {
         a["atom_id"] for a in atoms
-        if a.get("type") not in ("heading", "prose_tail")
+        if a.get("type") not in ("heading", "prose_tail", "placeholder")
     }
 
     # Check: all atoms have required fields
@@ -321,6 +330,7 @@ def validate_extraction(result: dict, passage_id: str, taxonomy_leaves: set) -> 
         for aid in exc.get("context_atoms", []):
             if aid not in atom_ids:
                 issues.append(f"Excerpt {exc.get('excerpt_id','???')} context references unknown atom {aid}")
+            covered_atoms.add(aid)  # context atoms count as covered too
 
     # Check: every non-excluded atom is covered
     uncovered = non_excluded_ids - covered_atoms
@@ -337,13 +347,18 @@ def validate_extraction(result: dict, passage_id: str, taxonomy_leaves: set) -> 
                 )
             core_seen[aid] = exc.get("excerpt_id", "???")
 
-    # Check: taxonomy placement
+    # Check: taxonomy placement (auto-fix path-style IDs by extracting final segment)
     for exc in excerpts:
         node = exc.get("taxonomy_node_id", "")
         if node != "_unmapped" and node not in taxonomy_leaves:
-            issues.append(
-                f"Excerpt {exc.get('excerpt_id','???')} placed at non-leaf '{node}'"
-            )
+            # Try extracting the final segment after last colon (LLM sometimes emits full paths)
+            final_segment = node.rsplit(":", 1)[-1] if ":" in node else ""
+            if final_segment and final_segment in taxonomy_leaves:
+                exc["taxonomy_node_id"] = final_segment  # auto-fix
+            else:
+                issues.append(
+                    f"Excerpt {exc.get('excerpt_id','???')} placed at non-leaf '{node}'"
+                )
 
     # Check: required excerpt fields
     for exc in excerpts:
@@ -406,7 +421,7 @@ def generate_review_md(
     lines.append(f"## Atoms")
     for a in result.get("atoms", []):
         typ = a.get("type", "?")
-        marker = {"heading": "📌", "prose_tail": "⏮", "bonded_cluster": "🔗", "prose_sentence": "📝", "verse_evidence": "📜"}.get(typ, "❓")
+        marker = {"heading": "📌", "prose_tail": "⏮", "bonded_cluster": "🔗", "prose_sentence": "📝", "verse_evidence": "📜", "placeholder": "⬜"}.get(typ, "❓")
         text_preview = a.get("text", "")[:120]
         lines.append(f"- {marker} `{a['atom_id']}` [{typ}] {text_preview}")
         if a.get("bonding_trigger"):
@@ -546,7 +561,7 @@ def run_extraction(args):
         if args.dry_run:
             # Save prompt for inspection
             prompt_path = outdir / f"{pid}_prompt.md"
-            with open(prompt_path, "w") as f:
+            with open(prompt_path, "w", encoding="utf-8") as f:
                 f.write(f"# SYSTEM\n\n{system}\n\n# USER\n\n{user}")
             print(f"  DRY RUN: prompt saved to {prompt_path}")
             print(f"  System prompt: {len(system)} chars")
@@ -574,7 +589,7 @@ def run_extraction(args):
             print(f"  ERROR: {e}")
             # Save error info
             err_path = outdir / f"{pid}_error.txt"
-            with open(err_path, "w") as f:
+            with open(err_path, "w", encoding="utf-8") as f:
                 f.write(str(e))
             continue
 
@@ -594,7 +609,7 @@ def run_extraction(args):
 
         # Save raw result
         raw_path = outdir / f"{pid}_extraction.json"
-        with open(raw_path, "w") as f:
+        with open(raw_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         # Generate review report
@@ -603,7 +618,7 @@ def run_extraction(args):
             {"input_tokens": in_tok, "output_tokens": out_tok, "total_cost": cost},
         )
         review_path = outdir / f"{pid}_review.md"
-        with open(review_path, "w") as f:
+        with open(review_path, "w", encoding="utf-8") as f:
             f.write(review)
 
         all_results.append({
@@ -631,7 +646,7 @@ def run_extraction(args):
 
     # Save summary
     summary_path = outdir / "extraction_summary.json"
-    with open(summary_path, "w") as f:
+    with open(summary_path, "w", encoding="utf-8") as f:
         json.dump({
             "book_id": args.book_id,
             "book_title": args.book_title,
