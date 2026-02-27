@@ -1,8 +1,8 @@
 # Arabic Book Digester — Repository Map
 
-**Purpose:** Extract tagged excerpts from 788 classical Arabic books (Shamela HTML exports) and place them in taxonomy trees for four sciences: بلاغة, صرف, نحو, إملاء. The excerpts at each taxonomy leaf are consumed by an external synthesis LLM (outside this repo) to produce encyclopedia entries.
+**Purpose:** Extract tagged excerpts from 788 classical Arabic books (Shamela HTML exports) and place them in taxonomy trees — one independent tree per science (إملاء, صرف, نحو, بلاغة). Multiple books contribute excerpts to the same tree, converging at leaf nodes. An external synthesis LLM (outside this repo) reads all excerpts at each leaf and produces a single encyclopedia article for Arabic-language students, presenting and attributing all scholarly positions.
 
-**Pipeline:** Intake → Normalization → Structure Discovery → Extraction (atomization + excerpting + taxonomy placement) → *external synthesis*
+**Pipeline:** Intake (+ enrichment) → Normalization → Structure Discovery → Extraction (atomization + excerpting + taxonomy placement) → *external synthesis (out of scope)*
 
 ---
 
@@ -110,10 +110,12 @@ spec/
 books/
 ├── books_registry.yaml              — registry of all intaken books
 ├── {book_id}/                       — per-book directory (7 books intaken)
-│   ├── intake_metadata.json         — frozen metadata (schema v0.2)
+│   ├── intake_metadata.json         — frozen metadata (schema v0.2), includes scholarly_context
 │   └── source/                      — frozen source HTML (read-only)
-└── Other Books/                     — raw Shamela exports (788 files, not yet intaken)
+└── Other Books/                     — raw Shamela exports (788 files, not yet intaked)
 ```
+
+Each `intake_metadata.json` carries a `scholarly_context` block (author death/birth dates, fiqh madhab, grammatical school, geographic origin). These fields are critical for the downstream synthesis LLM to attribute opinions — but currently most are sparse/auto-extracted. The enrichment tool (`tools/enrich.py`) is intended to fill them via research.
 
 ### Tests
 
