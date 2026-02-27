@@ -1,5 +1,7 @@
 # Arabic Book Digester — Repository Map
 
+> **Note:** This file may be outdated. For the current project state, read `CLAUDE.md` first.
+
 **Purpose:** Extract tagged excerpts from 788 classical Arabic books (Shamela HTML exports) and place them in taxonomy trees for four sciences: بلاغة, صرف, نحو, إملاء.
 
 **Pipeline:** Intake → Normalization → Structure Discovery → Atomization → Excerpting → Taxonomy Placement

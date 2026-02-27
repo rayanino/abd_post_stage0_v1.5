@@ -125,9 +125,12 @@ books/
 
 ## Gotchas
 
+- **`2_atoms_and_excerpts/` is NOT Stage 2.** Despite the numbering, it's a precision rules folder (binding decisions, checklists, gold baselines) from the manual workflow. Stage 2 is `2_structure_discovery/`. See its README.md. Several tools have hardcoded paths to it — don't rename.
+- **`3_atomization/` and `3_extraction/` both exist.** `3_atomization/` is the old spec for manual atomization. `3_extraction/` is the new automated extraction (vertical slice). The automated tool (`tools/extract_passages.py`) combines atomization + excerpting into one pass.
+- **`archive/` contains dead docs.** Old orientation files (READ_FIRST, PROJECT_PROMPT, SESSION_CONTEXT) and deprecated precision versions. Ignore entirely.
 - **Shamela HTML is uniform**: All 788 files use the same template. No structural variants.
 - **Page numbering**: Multi-volume books may restart numbering per volume or use continuous pagination. `seq_index` is always monotonic.
-- **Binding decisions override specs**: If `00_BINDING_DECISIONS_v0.3.16.md` says X and a stage spec says Y, binding decisions win.
+- **Binding decisions override specs**: If `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` says X and a stage spec says Y, binding decisions win.
 - **Gold baselines are for بلاغة only**: The jawahir baselines are hand-crafted for بلاغة. إملاء has a simpler discourse structure (rules + examples, minimal scholarly disputes).
 - **`__overview` leaves**: Parent taxonomy nodes that receive overview/framing content need `__overview` companion leaves (convention from the vertical slice).
 - **Passage boundaries are guidance**: Stage 2 passages are structural suggestions. Extraction may find content that spans passage boundaries (prose_tail detection handles this).
