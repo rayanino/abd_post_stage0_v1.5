@@ -223,11 +223,11 @@ def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
         },
         json={
             "model": model,
-            "max_tokens": 8192,
+            "max_tokens": 16384,
             "system": system,
             "messages": [{"role": "user", "content": user}],
         },
-        timeout=120.0,
+        timeout=180.0,
     )
 
     if resp.status_code != 200:
@@ -252,10 +252,40 @@ def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
     text = text.strip()
 
     usage = data.get("usage", {})
+    stop_reason = data.get("stop_reason", "unknown")
+
+    # Try to parse JSON, with repair for truncated output
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as e:
+        # If truncated (hit max_tokens), try to repair
+        if stop_reason == "max_tokens" or "Unterminated" in str(e):
+            # Try closing open structures
+            repair = text
+            # Count open braces/brackets
+            opens = repair.count("{") - repair.count("}")
+            open_brackets = repair.count("[") - repair.count("]")
+            # Close any open strings
+            if repair.count('"') % 2 == 1:
+                repair += '"'
+            # Close brackets then braces
+            repair += "]" * max(0, open_brackets)
+            repair += "}" * max(0, opens)
+            try:
+                parsed = json.loads(repair)
+            except json.JSONDecodeError:
+                raise RuntimeError(
+                    f"JSON parse failed even after repair (stop_reason={stop_reason}). "
+                    f"First 200 chars: {text[:200]}... Last 200 chars: ...{text[-200:]}"
+                )
+        else:
+            raise
+
     return {
-        "parsed": json.loads(text),
+        "parsed": parsed,
         "input_tokens": usage.get("input_tokens", 0),
         "output_tokens": usage.get("output_tokens", 0),
+        "stop_reason": stop_reason,
     }
 
 
