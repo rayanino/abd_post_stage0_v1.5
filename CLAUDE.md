@@ -123,11 +123,11 @@ provenance tracking, taxonomy version control
 | 1 Normalization | `tools/normalize_shamela.py` | ✅ Complete | `tests/test_normalization.py` |
 | 2 Structure Discovery | `tools/discover_structure.py` | ✅ Complete | `tests/test_structure_discovery.py` |
 | 3+4 Extraction | `tools/extract_passages.py` | 🟡 Single-model, no consensus | `tests/test_extraction.py` |
-| 5 Taxonomy Trees | `taxonomy/*.yaml` | 🟡 إملاء only | — |
+| 5 Taxonomy Trees | `taxonomy/*.yaml` | ✅ All 4 sciences (892 leaves) | — |
 | 6 Taxonomy Evolution | — | ❌ Not built | — |
 | 7 Assembly + Distribution | — | ❌ Not built | — |
 
-**Extraction verified on إملاء only.** The 5-passage verification (P004, P005, P006, P010, P020) used قواعد الإملاء with the إملاء taxonomy. Other sciences are untested — their taxonomy trees don't exist yet.
+**Extraction verified on إملاء only.** The 5-passage verification (P004, P005, P006, P010, P020) used قواعد الإملاء with the إملاء taxonomy. Other sciences have taxonomy trees now but extraction is untested against them.
 
 **Not yet built:**
 - Multi-model consensus (currently single-model extraction with correction retries)
@@ -209,9 +209,11 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required), `OPENAI_
 - `3_extraction/gold/P004_gold_excerpt.json` — gold for إملاء extraction
 
 **Taxonomy:**
-- `taxonomy/imlaa_v0.1.yaml` — إملاء taxonomy (44 leaves)
-- `taxonomy/balagha/balagha_v0_4.yaml` — بلاغة taxonomy (143 leaves)
-- صرف and نحو trees: not yet created
+- `taxonomy/imlaa/imlaa_v1_0.yaml` — إملاء taxonomy (105 leaves)
+- `taxonomy/sarf/sarf_v1_0.yaml` — صرف taxonomy (226 leaves)
+- `taxonomy/nahw/nahw_v1_0.yaml` — نحو taxonomy (226 leaves)
+- `taxonomy/balagha/balagha_v1_0.yaml` — بلاغة taxonomy (335 leaves)
+- Historical: `imlaa_v0.1.yaml` (44 leaves), `balagha_v0_2` through `v0_4` (143 leaves)
 
 ## Architecture Patterns
 
@@ -246,11 +248,10 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required), `OPENAI_
 **What exists and works:**
 - Stages 0–2 complete and tested (intake, enrichment, normalization, structure discovery)
 - Extraction tool built and tested (1389 lines, 80 tests, 17-check validation, correction retry loop) — but single-model only, verified on إملاء only
-- إملاء taxonomy tree (44 leaves)
+- All 4 taxonomy trees complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves
 
 **What needs to be built (in priority order):**
-1. Taxonomy trees for صرف, نحو, بلاغة (base outlines to be provided, then evolve with books)
-2. Multi-model consensus for extraction (Claude + GPT-4o)
+1. Multi-model consensus for extraction (Claude + GPT-4o)
 3. Taxonomy evolution engine (detect need, propose changes, redistribute, human gate)
 4. Self-contained excerpt assembly + folder distribution
 5. Human gate with feedback persistence and correction learning
@@ -296,4 +297,4 @@ books/
 - **Taxonomy is alive**: Trees evolve as books reveal finer distinctions. The tree serves excerpts, not the other way around.
 - **Excerpting is content-driven**: Taxonomy has zero influence on excerpt boundaries. Excerpt first, place second, evolve third.
 - **Author context gap**: `intake_metadata.json` `scholarly_context` fields are mostly null/auto. Enrichment needs extension.
-- **Extraction verified on إملاء only**: Other sciences untested — taxonomy trees don't exist yet.
+- **Extraction verified on إملاء only**: All 4 taxonomy trees exist now, but extraction is only tested against إملاء.

@@ -1,0 +1,881 @@
+taxonomy:
+  id: nahw_v1_0
+  title: علم النحو
+  language: ar
+  policy:
+    leaf_atomic: true
+    single_core_node_per_excerpt: true
+    exclude_cross_science_nodes: true
+    allow_rhetorical_treatment_only: false
+  nodes:
+  - id: muqaddimat
+    title: مقدمات علم النحو
+    children:
+    - id: ta3rif_alnahw
+      title: تعريف النحو وموضوعه وغايته
+      children:
+      - id: ta3rif_alnahw_lugha
+        title: تعريف النحو لغة
+        leaf: true
+      - id: ta3rif_alnahw_istilah
+        title: تعريف النحو اصطلاحا
+        children:
+        - id: ta3rif_alnahw_istilah__ta3rif_3ilmi
+          title: التعريف العلمي للنحو (صياغات الحدّ)
+          leaf: true
+        - id: ta3rif_alnahw_istilah__ta3rif_3amali
+          title: التعريف العملي للنحو (وظيفته التطبيقية)
+          leaf: true
+        - id: ta3rif_alnahw_istilah__ajza2_alta3rif
+          title: تفكيك عناصر التعريف الاصطلاحي (حدود ومفاهيم)
+          leaf: true
+        - id: ta3rif_alnahw_istilah__qayd_akhir_alkalima
+          title: 'قيد: أواخر الكلمات / علامات الإعراب ضمن التعريف'
+          leaf: true
+        - id: ta3rif_alnahw_istilah__qayd_al3amil
+          title: 'قيد: العامل والمعمول ضمن التعريف'
+          leaf: true
+        - id: ta3rif_alnahw_istilah__furuuq_ta3arif
+          title: فروق بين صيغ التعريف عند النحاة (مقاربات)
+          leaf: true
+      - id: mawdu3_alnahw
+        title: موضوع علم النحو
+        leaf: true
+      - id: ghaya_thamarat_alnahw
+        title: غاية النحو وثمرته
+        leaf: true
+      - id: nisbat_alnahw_ila_ghayrihi
+        title: نسبة النحو إلى غيره من علوم العربية (صرف/إملاء/بلاغة)
+        leaf: true
+    - id: mabahith_3amma
+      title: مباحث عامة (السماع والقياس والعلل والمذاهب)
+      children:
+      - id: alsamaa_walqiyas
+        title: السماع والقياس
+        leaf: true
+      - id: al3illa_alnahwiyya
+        title: العلّة النحوية (أنواعها ووظيفتها)
+        leaf: true
+      - id: madhahib_alnahw
+        title: المذاهب النحوية (بصري/كوفي وما تفرع عنهما)
+        leaf: true
+      - id: alkhilaf_alnahwi
+        title: الخلاف النحوي وأصول الترجيح
+        leaf: true
+      - id: alshahid_alnahwi
+        title: الشاهد النحوي (قرآن/حديث/شعر/نثر) وضوابط الاحتجاج
+        leaf: true
+      - id: alfushaa_wallahajaat
+        title: الفصحى واللهجات وأثرها في الشواهد
+        leaf: true
+    - id: aqsam_alkalima
+      title: أقسام الكلمة (اسم/فعل/حرف) ومباحثها الأساسية
+      children:
+      - id: ta3rif_alism
+        title: تعريف الاسم وعلاماته
+        leaf: true
+      - id: ta3rif_alfi3l
+        title: تعريف الفعل وعلاماته
+        leaf: true
+      - id: ta3rif_alharf
+        title: تعريف الحرف ووظيفته
+        leaf: true
+      - id: aljama3_bayna_3alamat
+        title: اجتماع العلامات وفروق الدلالة (تنبيهات)
+        leaf: true
+    - id: alkalam_waljumla
+      title: الكلام والجملة والإسناد
+      children:
+      - id: ta3rif_alkalam
+        title: تعريف الكلام وشروطه
+        leaf: true
+      - id: alfarq_bayna_alkalam_waljumla
+        title: الفرق بين الكلام والجملة
+        leaf: true
+      - id: anwa3_aljumal
+        title: أنواع الجمل
+        children:
+        - id: aljumla_ismiyya
+          title: الجملة الاسمية
+          leaf: true
+        - id: aljumla_fi3liyya
+          title: الجملة الفعلية
+          leaf: true
+        - id: aljumla_alshartiyya
+          title: الجملة الشرطية
+          leaf: true
+        - id: shibh_aljumla
+          title: شبه الجملة (جار ومجرور/ظرف)
+          leaf: true
+      - id: al_isnad
+        title: الإسناد (المسند والمسند إليه في اصطلاح النحاة)
+        leaf: true
+      - id: ruknayn_aljumla
+        title: ركنا الجملة (عمدة/فضلة) ومآلاتهما
+        leaf: true
+    - id: al3amil_walma3mul
+      title: العامل والمعمول
+      children:
+      - id: ta3rif_al3amil
+        title: تعريف العامل
+        leaf: true
+      - id: ta3rif_alma3mul
+        title: تعريف المعمول
+        leaf: true
+      - id: aqsam_al3awamil
+        title: أقسام العوامل (لفظية/معنوية)
+        leaf: true
+      - id: athar_al3amil
+        title: 'أثر العامل: الرفع والنصب والجر والجزم'
+        leaf: true
+      - id: ta3addud_al3awamil
+        title: تعدد العوامل (التنازع/الاشتغال… مدخل)
+        leaf: true
+      - id: al3amil_alma3nawi
+        title: العامل المعنوي (الابتداء/التجرد…)
+        leaf: true
+  - id: ali3rab_walbina
+    title: الإعراب والبناء (المعرب والمبني والعلامات)
+    children:
+    - id: ta3rif_ali3rab
+      title: تعريف الإعراب
+      leaf: true
+    - id: ta3rif_albina
+      title: تعريف البناء
+      leaf: true
+    - id: alfarq_bayna_ali3rab_walbina
+      title: الفرق بين الإعراب والبناء
+      leaf: true
+    - id: mu3rab_wamabni__overview
+      title: المعرب والمبني إجمالا (في الاسم والفعل والحرف)
+      leaf: true
+    - id: 3alamat_ali3rab
+      title: علامات الإعراب
+      children:
+      - id: 3alamat_raf3
+        title: علامات الرفع
+        leaf: true
+      - id: 3alamat_nasb
+        title: علامات النصب
+        leaf: true
+      - id: 3alamat_jarr
+        title: علامات الجر
+        leaf: true
+      - id: 3alamat_jazm
+        title: علامات الجزم
+        leaf: true
+      - id: 3alamat_asliyya
+        title: العلامات الأصلية
+        leaf: true
+      - id: 3alamat_far3iyya
+        title: العلامات الفرعية (الألف/الواو/الياء/حذف النون…)
+        leaf: true
+    - id: ali3rab_altaqdiri_walmahal
+      title: الإعراب التقديري والمحلي
+      children:
+      - id: ali3rab_taqdiri__asbab
+        title: أسباب الإعراب التقديري
+        leaf: true
+      - id: ali3rab_taqdiri_fi_almaqsur
+        title: الإعراب التقديري في المقصور
+        leaf: true
+      - id: ali3rab_taqdiri_fi_almanqus
+        title: الإعراب التقديري في المنقوص
+        leaf: true
+      - id: ali3rab_taqdiri_fi_almu3tal_akhir
+        title: الإعراب التقديري في المعتل الآخر (الأفعال والأسماء)
+        leaf: true
+      - id: ali3rab_mahalli__ta3rif
+        title: تعريف الإعراب المحلي ومجالاته
+        leaf: true
+  - id: alasmaa
+    title: مباحث الاسم (معارف/مبنيات/ممنوع من الصرف…)
+    children:
+    - id: alma3arif_walnakirat
+      title: المعرفة والنكرة
+      children:
+      - id: ta3rif_alma3rifa_walnakira
+        title: تعريف المعرفة والنكرة
+        leaf: true
+      - id: anwa3_alma3arif
+        title: أنواع المعارف
+        leaf: true
+      - id: ahkam_alnakira
+        title: أحكام النكرة (دلالات/مواضع)
+        leaf: true
+    - id: alasmaa_almabniyya
+      title: الأسماء المبنية
+      children:
+      - id: aldamaa2ir
+        title: الضمائر (منفصلة/متصلة/مستترة)
+        leaf: true
+      - id: asmaa_alishara
+        title: أسماء الإشارة
+        leaf: true
+      - id: alasmaa_almawsula
+        title: الأسماء الموصولة وصلتها
+        leaf: true
+      - id: asmaa_alistifham
+        title: أسماء الاستفهام
+        leaf: true
+      - id: huruf_alistifham
+        title: حروف الاستفهام (هل/همزة…)
+        leaf: true
+      - id: asmaa_alshart
+        title: أسماء الشرط
+        leaf: true
+      - id: asmaa_alaf3al
+        title: أسماء الأفعال
+        leaf: true
+      - id: asmaa_alasmaa
+        title: أسماء الأصوات (إن وردت في المصادر)
+        leaf: true
+    - id: almamnuu3_min_assarf
+      title: الممنوع من الصرف
+      children:
+      - id: ta3rif_almamnuu3_min_assarf
+        title: تعريف الممنوع من الصرف وأثره الإعرابي
+        leaf: true
+      - id: asbab_mana3_assarf
+        title: أسباب منع الصرف (تفصيل)
+        children:
+        - id: mana3_assarf__al3ilmiyya
+          title: العلمية (ومواضعها)
+          leaf: true
+        - id: mana3_assarf__alta2nith
+          title: التأنيث
+          leaf: true
+        - id: mana3_assarf__al3ujma
+          title: العجمة
+          leaf: true
+        - id: mana3_assarf__wazn_fi3l
+          title: وزن الفعل
+          leaf: true
+        - id: mana3_assarf__al3adl
+          title: العدل
+          leaf: true
+        - id: mana3_assarf__altarqib
+          title: التركيب
+          leaf: true
+        - id: mana3_assarf__ziyadat_alalif_walnun
+          title: زيادة الألف والنون
+          leaf: true
+        - id: mana3_assarf__sighat_muntaha_aljumu3
+          title: صيغة منتهى الجموع
+          leaf: true
+        - id: mana3_assarf__wasfiyya
+          title: الوصفية (مع علّة أخرى)
+          leaf: true
+      - id: ma_yunsaraf_ba3d_mana3
+        title: مواضع يُصرف فيها الممنوع من الصرف
+        leaf: true
+    - id: asmaa_khassa
+      title: أبواب اسمية خاصة (إعرابها)
+      children:
+      - id: alasmaa_alkhamsa
+        title: الأسماء الخمسة (الستة) وإعرابها
+        leaf: true
+      - id: almuthanna
+        title: المثنى (إعرابه)
+        leaf: true
+      - id: jam3_almudhakkar_alsalim
+        title: جمع المذكر السالم (إعرابه)
+        leaf: true
+      - id: jam3_almuannath_alsalim
+        title: جمع المؤنث السالم (إعرابه)
+        leaf: true
+      - id: asmaa_almaqsur_walmanqus
+        title: المقصور والمنقوص (إعراب/تقدير)
+        leaf: true
+  - id: alaf3al
+    title: مباحث الفعل (إعراب المضارع والنواصب والجوازم…)
+    children:
+    - id: alaf3al_almaadi_walamr__bina
+      title: بناء الماضي والأمر (من جهة النحو)
+      leaf: true
+    - id: i3rab_almudari3
+      title: إعراب المضارع
+      children:
+      - id: raf3_almudari3
+        title: رفع المضارع
+        leaf: true
+      - id: nasb_almudari3
+        title: نصب المضارع
+        leaf: true
+      - id: jazm_almudari3
+        title: جزم المضارع
+        leaf: true
+      - id: alaf3al_alkhamsa
+        title: الأفعال الخمسة وعلاماتها
+        leaf: true
+      - id: nun_altawkid
+        title: نون التوكيد وأثرها
+        leaf: true
+      - id: nun_alniswa
+        title: نون النسوة وبناء الفعل معها
+        leaf: true
+    - id: nawasiib_almudari3
+      title: نواصب المضارع (الأدوات والأحكام)
+      children:
+      - id: an
+        title: أنْ الناصبة
+        leaf: true
+      - id: lan
+        title: لن
+        leaf: true
+      - id: kay
+        title: كي
+        leaf: true
+      - id: idhan
+        title: إذن
+        leaf: true
+      - id: hatta
+        title: حتى (الناصبة)
+        leaf: true
+      - id: li_anna
+        title: لام التعليل/لام كي
+        leaf: true
+      - id: lam_aljuhud
+        title: لام الجحود
+        leaf: true
+      - id: fa_sababiyya
+        title: فاء السببية (نصب بإضمار أن)
+        leaf: true
+      - id: waw_ma3iyya
+        title: واو المعية (نصب بإضمار أن)
+        leaf: true
+      - id: idmar_an
+        title: إضمار أن (وجوبا/جوازا) وأثره في النصب
+        children:
+        - id: idmar_an__overview
+          title: قاعدة إضمار أن (مدخل)
+          leaf: true
+        - id: idmar_an_wujuban
+          title: مواضع إضمار أن وجوبا
+          leaf: true
+        - id: idmar_an_jawazan
+          title: مواضع إضمار أن جوازا
+          leaf: true
+    - id: jawazim_almudari3
+      title: جوازم المضارع (الأدوات والأحكام)
+      children:
+      - id: lam
+        title: لم
+        leaf: true
+      - id: lamma
+        title: لما
+        leaf: true
+      - id: la_nahiya
+        title: لا الناهية
+        leaf: true
+      - id: lam_alamr
+        title: لام الأمر
+        leaf: true
+      - id: jawazim_alshart
+        title: جوازم الشرط (إجمالا)
+        leaf: true
+      - id: jawazim_ukhra
+        title: جوازم أخرى/أدوات متفرقة (إن وردت)
+        leaf: true
+    - id: alshart
+      title: الشرط (أدواته وجوابه واقتران الجواب)
+      children:
+      - id: adawat_alshart__asmaa
+        title: أدوات الشرط الاسمية
+        leaf: true
+      - id: adawat_alshart__huruf
+        title: أدوات الشرط الحرفية
+        leaf: true
+      - id: jawab_alshart
+        title: جواب الشرط (الأحكام)
+        leaf: true
+      - id: iqtiran_jawab_alshart_bilfa
+        title: اقتران جواب الشرط بالفاء
+        leaf: true
+      - id: idha_walaw_lawla
+        title: إذا/لو/لولا/لوما (أبواب شرطية متفرقة)
+        leaf: true
+  - id: almarfu3at
+    title: المرفوعات
+    children:
+    - id: almubtada_walkhabar
+      title: المبتدأ والخبر
+      children:
+      - id: ta3rif_almubtada_walkhabar
+        title: تعريف المبتدأ والخبر
+        leaf: true
+      - id: shuroot_almubtada
+        title: شروط المبتدأ وأحكامه
+        leaf: true
+      - id: anwa3_alkhabar
+        title: أنواع الخبر (مفرد/جملة/شبه جملة)
+        leaf: true
+      - id: ta3addud_alkhabar
+        title: تعدد الخبر وتعدد المبتدأ
+        leaf: true
+      - id: taqdim_wata2khir_mubtada_khabar
+        title: تقديم وتأخير المبتدأ والخبر (نحويا)
+        leaf: true
+      - id: hadhf_mubtada_khabar
+        title: حذف المبتدأ أو الخبر
+        leaf: true
+      - id: ibtidaa_binnakira
+        title: الابتداء بالنكرة ومسائله
+        leaf: true
+      - id: al2ibham_waltakhssis
+        title: الإبهام والتخصيص في باب المبتدأ والخبر
+        leaf: true
+      - id: khabar_muqaddam_wajib
+        title: مواضع وجوب تقديم الخبر/المبتدأ
+        leaf: true
+    - id: alfa3il_wa_na2ib
+      title: الفاعل ونائب الفاعل
+      children:
+      - id: ta3rif_alfa3il
+        title: تعريف الفاعل وأحكامه
+        leaf: true
+      - id: ta3rif_na2ib_alfa3il
+        title: تعريف نائب الفاعل وأحكامه
+        leaf: true
+      - id: taqdim_takhir_fa3il
+        title: تقديم الفاعل وتأخيره
+        leaf: true
+      - id: hadhf_fa3il
+        title: حذف الفاعل ونائب الفاعل (مواضع)
+        leaf: true
+      - id: fa3il_mustatir
+        title: الفاعل المستتر (مواضعه)
+        leaf: true
+    - id: marfu3at_ukhra
+      title: مرفوعات أخرى
+      children:
+      - id: marfu3at_ukhra__fihris
+        title: فهرس جامع للمرفوعات غير المشهورة (يُملأ بحسب المصادر)
+        leaf: true
+  - id: almansubat
+    title: المنصوبات
+    children:
+    - id: almaf3ulat
+      title: المفاعيل
+      children:
+      - id: maf3ul_bih
+        title: المفعول به
+        children:
+        - id: maf3ul_bih__ta3rif
+          title: تعريف المفعول به
+          leaf: true
+        - id: maf3ul_bih__anwa3
+          title: أنواع المفعول به (صريح/مؤول/جملة…)
+          leaf: true
+        - id: maf3ul_bih__ta3addud
+          title: تعدد المفعول به
+          leaf: true
+        - id: maf3ul_bih__taqdim
+          title: تقديم المفعول به وتأخيره
+          leaf: true
+      - id: maf3ul_mutlaq
+        title: المفعول المطلق
+        children:
+        - id: maf3ul_mutlaq__ta3rif
+          title: تعريف المفعول المطلق
+          leaf: true
+        - id: maf3ul_mutlaq__muakkid
+          title: المفعول المطلق المؤكد لعامله
+          leaf: true
+        - id: maf3ul_mutlaq__mubayyin_naw3
+          title: المفعول المطلق المبين للنوع
+          leaf: true
+        - id: maf3ul_mutlaq__mubayyin_3adad
+          title: المفعول المطلق المبين للعدد
+          leaf: true
+        - id: niyabat_almf3ul_mutlaq
+          title: نيابة المصدر عن فعله / ما ينوب عن المفعول المطلق
+          leaf: true
+      - id: maf3ul_fih
+        title: المفعول فيه (الظرف)
+        children:
+        - id: maf3ul_fih__ta3rif
+          title: تعريف الظرف
+          leaf: true
+        - id: dharf_zaman
+          title: ظرف الزمان
+          leaf: true
+        - id: dharf_makan
+          title: ظرف المكان
+          leaf: true
+        - id: dharf_mubham_mukhtass
+          title: الظرف المبهم والظرف المختص
+          leaf: true
+      - id: maf3ul_lahu
+        title: المفعول له (لأجله)
+        children:
+        - id: maf3ul_lahu__ta3rif
+          title: تعريف المفعول له
+          leaf: true
+        - id: maf3ul_lahu__shuroot
+          title: شروط المفعول له
+          leaf: true
+        - id: maf3ul_lahu__masdar_muawwal
+          title: المصدر المؤول في باب المفعول له (إن ورد)
+          leaf: true
+      - id: maf3ul_ma3ahu
+        title: المفعول معه
+        children:
+        - id: maf3ul_ma3ahu__ta3rif
+          title: تعريف المفعول معه
+          leaf: true
+        - id: waw_alma3iyya__nahw
+          title: واو المعية (تمييزها عن واو العطف)
+          leaf: true
+        - id: farq_ma3tuf_wama3ahu
+          title: الفرق بين المعطوف والمفعول معه
+          leaf: true
+      - id: af3al_tata3adda
+        title: أفعال تتعدى إلى مفعولين/ثلاثة
+        children:
+        - id: maf3ulayn_asluhuma_mubtada_khabar
+          title: مفعولان أصلهما مبتدأ وخبر (ظن وأخواتها)
+          leaf: true
+        - id: maf3ulayn_laysa_asluhuma
+          title: مفعولان ليس أصلهما مبتدأ وخبر (أعطى وأخواتها)
+          leaf: true
+        - id: thalathat_mafa3il
+          title: ثلاثة مفاعيل (أعلم وأرى…)
+          leaf: true
+    - id: alhal
+      title: الحال
+      children:
+      - id: ta3rif_alhal
+        title: تعريف الحال وشروطه
+        leaf: true
+      - id: anwa3_alhal
+        title: أنواع الحال (مفرد/جملة/شبه جملة)
+        leaf: true
+      - id: sahib_alhal
+        title: صاحب الحال
+        leaf: true
+      - id: waw_alhal
+        title: واو الحال
+        leaf: true
+      - id: alhal_muqaddara
+        title: الحال المقدرة والمنتقلة
+        leaf: true
+      - id: alhal_aljamida
+        title: الحال الجامدة وتأويلها
+        leaf: true
+      - id: ta3addud_alhal
+        title: تعدد الحال وتداخلها
+        leaf: true
+    - id: attamyiz
+      title: التمييز
+      children:
+      - id: ta3rif_attamyiz
+        title: تعريف التمييز
+        leaf: true
+      - id: tamyiz_malfuz
+        title: تمييز الملفوظ
+        leaf: true
+      - id: tamyiz_malhuz
+        title: تمييز الملحوظ
+        leaf: true
+      - id: tamyiz_muhawwal
+        title: التمييز المحول (عن فاعل/مفعول/مبتدأ)
+        leaf: true
+      - id: tamyiz_al3adad
+        title: تمييز العدد
+        leaf: true
+    - id: alistithna
+      title: الاستثناء
+      children:
+      - id: adawat_alistithna
+        title: أدوات الاستثناء
+        leaf: true
+      - id: aqsam_alistithna
+        title: أقسام الاستثناء (تام/ناقص، مثبت/منفي…)
+        leaf: true
+      - id: i3rab_almustathna
+        title: إعراب المستثنى
+        leaf: true
+      - id: istithna_bighayr_illa
+        title: الاستثناء بغير (إلا) (غير/سوى/خلا/عدا/حاشا…)
+        leaf: true
+      - id: istithna_mufarragh
+        title: الاستثناء المفرغ
+        leaf: true
+    - id: annida
+      title: النداء
+      children:
+      - id: adawat_annida
+        title: أدوات النداء
+        leaf: true
+      - id: aqsam_almunada
+        title: أقسام المنادى
+        leaf: true
+      - id: i3rab_almunada
+        title: إعراب المنادى
+        leaf: true
+      - id: attarakhim
+        title: الترخيم
+        leaf: true
+      - id: alnudba_walistighatha
+        title: الندبة والاستغاثة
+        leaf: true
+    - id: alighra_waltahdhir
+      title: الإغراء والتحذير
+      children:
+      - id: alighra
+        title: الإغراء
+        leaf: true
+      - id: altahdhir
+        title: التحذير
+        leaf: true
+    - id: la_nafya_liljins
+      title: لا النافية للجنس
+      children:
+      - id: shuroot_3amal_la
+        title: شروط عمل لا النافية للجنس
+        leaf: true
+      - id: ism_la
+        title: اسم لا (مفرد/مضاف/شبيه بالمضاف)
+        leaf: true
+      - id: khabar_la
+        title: خبر لا
+        leaf: true
+      - id: la_mukarrara
+        title: لا المكررة / اختلاف العمل
+        leaf: true
+  - id: almajrurat
+    title: المجرورات
+    children:
+    - id: huruf_aljar
+      title: حروف الجر ومعانيها
+      children:
+      - id: huruf_aljar__overview
+        title: 'حروف الجر: التعريف والقاعدة العامة'
+        leaf: true
+      - id: ma3ani_huruf_aljar
+        title: معاني حروف الجر (تفصيل بحسب الحرف)
+        leaf: true
+      - id: zawaid_huruf_aljar
+        title: حروف الجر الزائدة وشبه الزائدة
+        leaf: true
+      - id: ta3alluq_jar_wamajrur
+        title: تعلّق الجار والمجرور (محل/تقدير)
+        leaf: true
+    - id: al2idafa
+      title: الإضافة
+      children:
+      - id: ta3rif_al2idafa
+        title: تعريف الإضافة
+        leaf: true
+      - id: almudaaf_walmudaaf_ilayh
+        title: المضاف والمضاف إليه (أحكام عامة)
+        leaf: true
+      - id: anwa3_al2idafa
+        title: أنواع الإضافة (محضة/غير محضة)
+        leaf: true
+      - id: ahkam_al2idafa
+        title: أحكام الإضافة
+        leaf: true
+      - id: idafa_lafziyya_ma3nawiyya
+        title: الإضافة اللفظية والمعنوية (تفريق)
+        leaf: true
+      - id: athar_al2idafa_ta3rif
+        title: أثر الإضافة في التعريف والتنكير
+        leaf: true
+  - id: attawabi3
+    title: التوابع
+    children:
+    - id: anna3t
+      title: النعت
+      children:
+      - id: ta3rif_anna3t
+        title: تعريف النعت
+        leaf: true
+      - id: anwa3_anna3t
+        title: أنواع النعت (حقيقي/سببي)
+        leaf: true
+      - id: jumlat_anna3t
+        title: جملة النعت وشروطها
+        leaf: true
+      - id: shibh_jumla_na3t
+        title: شبه الجملة نعتا
+        leaf: true
+      - id: mutaabaqat_anna3t
+        title: المطابقة في النعت (إفراد/تثنية/جمع…)
+        leaf: true
+    - id: al3atf
+      title: العطف
+      children:
+      - id: huruf_al3atf
+        title: حروف العطف ومعانيها (إجمالا)
+        leaf: true
+      - id: huruf_al3atf__tafsil
+        title: تفصيل معاني حروف العطف (ثم/ف/أو/أم/بل/لكن/لا/حتى…)
+        leaf: true
+      - id: 3atf_nasaq
+        title: عطف النسق
+        leaf: true
+      - id: 3atf_bayan
+        title: عطف البيان
+        leaf: true
+      - id: 3atf_3ala_damir
+        title: العطف على الضمير وشروطه
+        leaf: true
+    - id: attawkid
+      title: التوكيد
+      children:
+      - id: tawkid_lafzi
+        title: التوكيد اللفظي
+        leaf: true
+      - id: tawkid_ma3nawi
+        title: التوكيد المعنوي
+        leaf: true
+      - id: alfadh_attawkid
+        title: ألفاظ التوكيد وأحكامها
+        leaf: true
+    - id: albadal
+      title: البدل
+      children:
+      - id: ta3rif_albadal
+        title: تعريف البدل
+        leaf: true
+      - id: anwa3_albadal
+        title: أنواع البدل (كل/بعض/اشتمال/غلط)
+        leaf: true
+      - id: badal_min_damir
+        title: البدل من الضمير (تنبيهات)
+        leaf: true
+  - id: masail_al3amil_waltarkib
+    title: مسائل العامل والتركيب
+    children:
+    - id: bab_alishtighal
+      title: باب الاشتغال
+      leaf: true
+    - id: bab_attanaazu3
+      title: باب التنازع
+      leaf: true
+    - id: al_ishtirak_fi_al3amal
+      title: الاشتراك في العمل وتزاحم العوامل (تنبيهات)
+      leaf: true
+  - id: annawasiikh
+    title: النواسخ (كان/إن/ظن…)
+    children:
+    - id: kana_wa2akhawatuha
+      title: كان وأخواتها
+      children:
+      - id: ta3rif_kana_wa2akhawatuha
+        title: تعريف كان وأخواتها (ناقصة/تامة)
+        leaf: true
+      - id: ma3ani_kana_wa2akhawatuha
+        title: معاني كان وأخواتها
+        leaf: true
+      - id: ism_kana
+        title: اسم كان (أحكامه)
+        leaf: true
+      - id: khabar_kana
+        title: خبر كان (أحكامه)
+        leaf: true
+      - id: kana_tamma
+        title: كان التامة
+        leaf: true
+      - id: laysa
+        title: ليس (بابها وأحكامها)
+        leaf: true
+      - id: ma_zala_wa2akhawat
+        title: ما زال وأخواتها
+        leaf: true
+    - id: inna_wa2akhawatuha
+      title: إن وأخواتها
+      children:
+      - id: ta3rif_inna_wa2akhawatuha
+        title: تعريف إن وأخواتها ومعانيها
+        leaf: true
+      - id: ism_inna_ahkam
+        title: اسم إن وأخواتها
+        leaf: true
+      - id: khabar_inna_ahkam
+        title: خبر إن وأخواتها
+        leaf: true
+      - id: inna_maksura_maftuha
+        title: 'إن/أن: الكسر والفتح ومواضعهما'
+        leaf: true
+      - id: inna_ma
+        title: إنما (إن + ما الكافة)
+        leaf: true
+      - id: lakin_lakinna
+        title: لكن/لكنَّ (تنبيهات)
+        leaf: true
+    - id: dhanna_wa2akhawatuha
+      title: ظن وأخواتها (أفعال القلوب)
+      children:
+      - id: ta3rif_af3al_alqulub
+        title: تعريف أفعال القلوب وما تنصبه
+        leaf: true
+      - id: maf3ulayn_dhanna
+        title: المفعولان في باب ظن (أصلهما مبتدأ وخبر)
+        leaf: true
+      - id: ta3liq_af3al_alqulub
+        title: تعليق أفعال القلوب
+        leaf: true
+      - id: i3mal_wailgha
+        title: الإعمال والإلغاء (إن وردت مباحثه)
+        leaf: true
+  - id: aljumal_walmawaqi3
+    title: الجمل ومواقعها من الإعراب
+    children:
+    - id: jumal_laha_mahal
+      title: الجمل التي لها محل من الإعراب
+      leaf: true
+    - id: jumal_la_mahal_laha
+      title: الجمل التي لا محل لها من الإعراب
+      leaf: true
+    - id: mawaqi3_jumal
+      title: 'مواقع الجمل: خبر/حال/صفة/مفعول به…'
+      leaf: true
+    - id: aljumla_alsila
+      title: جملة الصلة وشروطها
+      leaf: true
+  - id: asaleeb_wamushaqaqat
+    title: أساليب ومسائل جامعة
+    children:
+    - id: al2ikhtisas
+      title: الاختصاص
+      leaf: true
+    - id: alta3ajjub_nahwi
+      title: التعجب (صيغتاه وإعرابه)
+      leaf: true
+    - id: alqasam
+      title: القسم (أدواته وجوابه)
+      leaf: true
+    - id: alnafy_wa2adawat
+      title: النفي وأدواته (ما/لا/لم/لن/ليس…)
+      leaf: true
+    - id: al3adad_walma3dud
+      title: العدد والمعدود
+      leaf: true
+  id_policy:
+    description: Same ID rules as balagha taxonomy to avoid drift.
+    charset: lowercase ASCII letters (a-z), digits (0-9), underscores (_)
+    transliteration_rules:
+      ع: '3'
+      ء_و_ؤ_ئ_إ_أ_آ: dropped
+      ة: dropped from end
+      ال_definite_article: prefixed as al
+      shadda: doubled letter
+      long_vowels: aa / uu / ii
+      ث: th
+      ذ: dh
+      ش: sh
+      ص: s
+      ض: d
+      ط: t
+      ظ: dh
+      غ: gh
+      خ: kh
+      ق: q
+    structure_rules:
+    - Use underscores to separate words
+    - Prefix with parent concept to disambiguate
+    - Use __overview for overview nodes
+    - Once assigned, node IDs are immutable
