@@ -15,14 +15,14 @@ The excerpts produced here are intended to be distributed into a taxonomy folder
 | Stage 0: Intake | ✅ Complete | Book registered, metadata frozen |
 | Stage 1: Normalization | ✅ Complete | `books/imla/stage1_output/pages.jsonl` (77 pages, matn+footnotes separated) |
 | Stage 2: Structure Discovery | ✅ Complete | `books/imla/stage2_output/passages.jsonl` (46 passages) |
-| Stage 3+4: Extraction | ✅ Complete | Tool built, tested (80 tests), verified on 5 passages with real API |
+| Stage 3+4: Extraction | 🟡 Single-model, إملاء only | Tool built, tested (80 tests), verified on 5 إملاء passages. Multi-model consensus not yet implemented. |
 | Stage 5: Taxonomy Trees | 🟡 إملاء done | `taxonomy/imlaa_v0.1.yaml` (44 leaves); صرف/نحو/بلاغة trees still needed |
 
 Synthesis is handled by an external LLM (outside this repo) that reads excerpt files from each taxonomy leaf folder.
 
-## End-to-End Verification Results
+## End-to-End Verification Results (إملاء only)
 
-Tested on 5 diverse passages with real Claude API calls:
+Tested on 5 passages from قواعد الإملاء with single-model Claude API calls. **Other sciences (صرف, نحو, بلاغة) are untested** — their taxonomy trees don't exist yet.
 
 | Passage | Pages | Atoms | Excerpts | Fn Excerpts | Validation | Retries | Cost |
 |---------|-------|-------|----------|-------------|------------|---------|------|
@@ -36,14 +36,16 @@ All pass with 0 errors, 0 warnings, 0 retries.
 
 ## What You Need
 
-1. **API key** with credits (Anthropic). Set it:
+1. **Virtual environment** (to avoid polluting the project):
    ```bash
-   export ANTHROPIC_API_KEY="sk-ant-..."
+   python -m venv .venv
+   source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+   pip install PyYAML httpx
    ```
 
-2. **httpx** installed:
+2. **API key** with credits (Anthropic). Set it:
    ```bash
-   pip install httpx
+   export ANTHROPIC_API_KEY="sk-ant-..."
    ```
 
 3. **Stage 2 outputs** in `books/imla/`:
@@ -196,18 +198,23 @@ When skimming the review reports:
 
 ## Known Limitations
 
-1. **Taxonomy may need growth**: The starter taxonomy covers قواعد الإملاء's main structure. If the LLM maps to `_unmapped`, a new leaf is needed.
-2. **Cross-page content**: Some passages span page boundaries where content flows mid-sentence. The tool handles this via `prose_tail` detection, but edge cases may need manual correction.
-3. **No multi-judge yet**: Single LLM pass per passage (with correction retries). Production should use the multi-judge consensus from the spec.
+1. **Single-model only**: Currently one LLM pass per passage (with correction retries). Multi-model consensus (Claude + GPT-4o) is planned but not built.
+2. **إملاء only**: Verified only on قواعد الإملاء. Other sciences lack taxonomy trees.
+3. **No taxonomy evolution**: If the LLM maps to `_unmapped`, it just flags it. The intelligent evolution engine (detect need, propose sub-nodes, redistribute) is not yet built.
+4. **No self-contained assembly**: Output is raw per-passage JSON with atom ID references. The assembly step (inline text, embed metadata) is not built.
+5. **No human gate**: No feedback persistence or correction learning yet.
+6. **Cross-page content**: `prose_tail` detection handles most cases, edge cases may need manual correction.
 
 ## Next Steps
 
-1. **Run full book extraction** (46 passages) and review quality
-2. **Build taxonomy folder distribution** — convert flat extraction output into the taxonomy folder tree, placing excerpt files at leaf folders
-3. **Build taxonomy trees** for صرف, نحو, بلاغة (only إملاء exists)
-4. **Run on شذا العرف** (صرف science): Test the same pipeline on a different science
+See `CLAUDE.md` for the full priority list. Key items for extraction:
 
-Once excerpt files are distributed into taxonomy leaf folders, they are consumed by an external synthesis LLM (outside this repo) that reads each leaf folder.
+1. **Build taxonomy trees** for صرف, نحو, بلاغة (base outlines to be provided)
+2. **Add multi-model consensus** (Claude + GPT-4o independent extraction, consensus engine)
+3. **Build taxonomy evolution engine** (detect, propose, validate, redistribute, human gate)
+4. **Build self-contained assembly + folder distribution**
+5. **Run full إملاء extraction** (46 passages) as first complete test
+6. **Test on شذا العرف** (صرف science) to validate cross-science generalization
 
 ## Files
 

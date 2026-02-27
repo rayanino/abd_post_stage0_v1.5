@@ -1,6 +1,8 @@
 # Stage 3: Atomization — Specification
 
-**Status:** Draft — precision rules exist (from manual workflow), automation layer underspecified
+> **SUPERSEDED:** This spec describes the manual atomization workflow. Atomization is now handled automatically by `tools/extract_passages.py` (Stage 3+4), which combines atomization + excerpting + taxonomy placement in one LLM pass. The rules below are implemented in the automated tool. Do not follow this spec manually.
+
+**Status:** Superseded by automated extraction tool
 **Precision level:** High for rules (inherited from Binding Decisions + Checklists), Low for LLM prompt design
 **Dependencies:** Stage 2 (Structure Discovery) must be complete. Requires `passages.jsonl` and `pages.jsonl`.
 
