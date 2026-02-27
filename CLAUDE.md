@@ -2,17 +2,119 @@
 
 ## What This Is
 
-ABD extracts structured excerpts from classical Arabic books (Shamela HTML exports) and places them in taxonomy folder trees. It covers four sciences: إملاء (orthography), صرف (morphology), نحو (syntax), بلاغة (rhetoric). Each science has its own independent taxonomy tree.
+ABD is a precision pipeline that transforms classical Arabic books (Shamela HTML exports) into self-contained, accurately-placed excerpts organized in taxonomy folder trees. It covers four sciences: إملاء (orthography), صرف (morphology), نحو (syntax), بلاغة (rhetoric).
 
-**Taxonomy = folder structure:** Each science's taxonomy YAML defines a real directory tree. The root folder is the science name (e.g., `imlaa/`). Branches become nested folders. Leaf folders are the endpoints where excerpt files are saved. "Placing an excerpt at a taxonomy node" means writing the excerpt file into that node's folder. Multiple books contribute excerpt files to the same folder tree, so a leaf folder accumulates excerpts from different authors on the same topic.
+## Core Design Principles
 
-**The downstream consumer:** An **external synthesis LLM** (outside this repo) reads all excerpt files at each leaf folder and produces a single encyclopedia article aimed at **Arabic-language students**. When authors disagree — different madhabs, different eras, different grammatical schools — the synthesis LLM presents all scholarly positions and attributes each to its author.
+**1. Precision above all.** Every operation — excerpting, taxonomy placement, tree evolution — must be surgically accurate. Errors in excerpting propagate to every downstream consumer. The system uses multi-model consensus, cross-validation, human gates with feedback loops, and regression testing to approach flawless output.
 
-**Why this matters for ABD:** Every structural decision in this pipeline exists to serve that downstream synthesis. Excerpt boundaries must be clean enough that the synthesis LLM can understand each excerpt in isolation. Metadata must be rich enough that the synthesis LLM can attribute opinions to specific authors and resolve conflicting views. Relation chains (`split_continues_in`, `split_continued_from`) must be intact so the synthesis LLM can reconstruct multi-passage arguments. The `case_types`, `boundary_reasoning`, roles, and taxonomy placement all help the synthesis LLM understand *what kind of content* it's looking at and *where it fits* in the topic.
+**2. Intelligence over algorithms.** High-stakes content decisions (excerpt boundaries, taxonomy placement, tree evolution) are LLM-driven, not hardcoded. Multiple models work independently and their outputs are compared. Mechanical checks (schema validation, coverage verification, character counts) use algorithms where appropriate, but content understanding always requires LLM intelligence.
 
-**Author context is critical:** Because multiple books from different scholars feed the same taxonomy leaf, author identity matters. Each book's `intake_metadata.json` carries a `scholarly_context` block (author death date, fiqh madhab, grammatical school, geographic origin) — but these fields are currently sparse (mostly auto-extracted). The enrichment step (`tools/enrich.py`) is intended to fill them with researched mini-biographies. This is a known gap: intake captures basic metadata, but deep scholarly context (madhab, school affiliation, era, intellectual lineage) needs to be extended into an intelligent research system.
+**3. Self-containment.** Every excerpt must be independently understandable. When the synthesis LLM receives an excerpt, it must be able to extract everything it needs from that single file — the Arabic text, author identity, scholarly tradition, topic context — without requesting additional files or cross-referencing.
 
-## Pipeline Stages
+**4. Living taxonomy.** The taxonomy tree is not a fixed container — it evolves as new books reveal finer topic distinctions. Excerpts are king; the tree serves them, never the other way around.
+
+**5. Self-improving system.** When a human corrects an error, the full correction cycle is saved. The system traces root causes (prompt ambiguity? definition gap? domain knowledge gap?) and proposes fixes to its own rules. Every fix requires human approval and regression testing before being applied.
+
+## How It Works
+
+### The end goal
+
+For each granular topic (leaf node) within a science, accumulate self-contained excerpts from multiple books by different scholars. Each excerpt independently explains that topic from its author's perspective. An **external synthesis LLM** (outside this repo) reads all excerpts at each leaf folder and synthesizes them into one comprehensive encyclopedia article for **Arabic-language students**, presenting and attributing all scholarly positions.
+
+### Taxonomy = folder structure
+
+Each science's taxonomy YAML defines a real directory tree:
+- Root folder = science name (e.g., `imlaa/`)
+- Branches = nested folders
+- Leaf folders = endpoints where excerpt files are placed
+
+"Placing an excerpt at a taxonomy node" means writing the excerpt file into that node's folder. Multiple books contribute excerpt files to the same tree, so a leaf folder accumulates excerpts from different authors on the same topic.
+
+### Excerpting is purely content-driven
+
+Excerpt boundaries come from the text — what atoms naturally form a self-contained teaching unit. The taxonomy tree has **zero influence** on how excerpting happens. You excerpt first (what is a coherent teaching unit?), place second (where does this belong?), evolve third (is the tree granular enough?). These are three distinct operations.
+
+### Taxonomy evolution
+
+The taxonomy starts from a base outline and grows as books reveal finer distinctions. When a new excerpt reveals that a leaf node covers multiple sub-topics, the tree evolves:
+
+1. The system detects the need for finer granularity (evolution signal)
+2. An LLM proposes new sub-nodes, reading the Arabic text of ALL excerpts at the affected node (including from previously processed books)
+3. Existing excerpts are redistributed to the new sub-nodes based on their content
+4. Safety checks: every excerpt has a home (zero orphans), the new structure makes sense, no progress is lost
+5. Human approves before the evolution is applied
+6. Full rollback capability via taxonomy version control
+
+### One excerpt per book per node (quality preference)
+
+If extraction produces two excerpts from the same book at the same node, that's a signal: either merge them (they're about the same thing) or evolve the node (they cover different sub-aspects). This is a quality preference that drives proper granularity, not a constraint on excerpting itself.
+
+### Multi-model consensus
+
+For precision-critical operations (extraction, taxonomy placement, evolution), multiple models (Claude, GPT-4o, others) work independently on the same input. Where all agree: high confidence. Where they disagree: an arbiter resolves, or the disagreement is flagged for human review.
+
+### Human gates and feedback learning
+
+After major steps, the system pauses for human review:
+- **After extraction:** Excerpts are presented. The user can flag disagreements on specific excerpts with feedback. The flagged excerpt's source passage is re-extracted with the feedback. Once approved, the full correction cycle is saved.
+- **After taxonomy evolution:** The proposed changes are shown as a diff before being applied.
+
+Saved corrections are analyzed for patterns. If the system detects a systemic issue (e.g., "8 of 20 corrections were about bonded clusters"), it proposes a root cause fix (prompt adjustment, definition clarification). The fix requires human approval and regression testing (re-run on previously approved excerpts to ensure no regressions).
+
+### Self-containment in detail
+
+Each excerpt file in a leaf folder must contain everything the synthesis LLM needs:
+- The full Arabic text (core content + context), not atom ID references
+- Author identity and scholarly context (madhab, grammatical school, era)
+- Book title and source page references
+- Taxonomy path and topic context
+- Content type metadata (case_types, roles, boundary_reasoning)
+
+The synthesis LLM reads one excerpt at a time, accumulating understanding. It must never need to say "I need excerpt X too" or "could you provide more context."
+
+### Author context
+
+Because multiple books from different scholars feed the same taxonomy leaf, author identity matters. Each book's `intake_metadata.json` carries a `scholarly_context` block (author death date, fiqh madhab, grammatical school, geographic origin). These fields are currently sparse — the enrichment step (`tools/enrich.py`) needs extension into an intelligent research system to fill them.
+
+## The Pipeline
+
+```
+Phase 1: Book Preparation
+  1. Intake — register book, freeze source HTML
+  2. Enrichment — research author scholarly context
+  3. Normalization — HTML → pages.jsonl (deterministic)
+  4. Structure Discovery — pages → passages (LLM-assisted)
+
+Phase 2: Extraction (per passage → multiple excerpts)
+  5. Multi-model extraction — 3 models independently:
+     - Break passage text into atoms
+     - Group atoms into self-contained excerpts
+     - Assign taxonomy placement per excerpt
+     - Flag evolution signals where placement is imprecise
+  6. Consensus engine — compare outputs, merge agreements, flag disagreements
+  7. Human gate — review excerpts, provide feedback on flagged items
+     → Correction cycle saved, root cause analysis, system self-improvement
+
+Phase 3: Taxonomy Evolution (after full book extraction)
+  8. Analyze all placements + evolution signals
+     - Detect nodes needing finer granularity
+     - Read Arabic text of ALL excerpts at affected nodes (all books)
+     - Propose new sub-nodes (multi-model consensus)
+     - Validate: no orphans, structure makes sense, no progress lost
+  9. Human gate — approve evolution before applying
+     → Checkpoint/snapshot, dry run, rollback capability
+
+Phase 4: Assembly + Distribution
+  10. Assemble self-contained excerpt files (inline text + embed metadata)
+  11. Place in taxonomy folder tree (one file per excerpt per leaf)
+
+Cross-cutting: quality scoring, placement cross-validation,
+self-containment validation, taxonomy coherence checks,
+provenance tracking, taxonomy version control
+```
+
+## Pipeline Stage Status
 
 | Stage | Tool | Status | Tests |
 |-------|------|--------|-------|
@@ -20,19 +122,27 @@ ABD extracts structured excerpts from classical Arabic books (Shamela HTML expor
 | 0.5 Enrichment | `tools/enrich.py` | 🟡 Basic | `tests/test_enrich.py` |
 | 1 Normalization | `tools/normalize_shamela.py` | ✅ Complete | `tests/test_normalization.py` |
 | 2 Structure Discovery | `tools/discover_structure.py` | ✅ Complete | `tests/test_structure_discovery.py` |
-| 3+4 Extraction | `tools/extract_passages.py` | ✅ Complete | `tests/test_extraction.py` |
-| 5 Taxonomy Trees | `taxonomy/*.yaml` | 🟡 إملاء done, 3 sciences remaining | — |
+| 3+4 Extraction | `tools/extract_passages.py` | 🟡 Single-model, no consensus | `tests/test_extraction.py` |
+| 5 Taxonomy Trees | `taxonomy/*.yaml` | 🟡 إملاء only | — |
+| 6 Taxonomy Evolution | — | ❌ Not built | — |
+| 7 Assembly + Distribution | — | ❌ Not built | — |
 
-Taxonomy placement *per excerpt* is handled by the extraction tool (Stage 3+4), which assigns each excerpt a `taxonomy_node_id`. But the taxonomy trees themselves — one per science — must be built before extraction can run on that science. Currently only `taxonomy/imlaa_v0.1.yaml` (44 leaves) exists. صرف, نحو, and بلاغة trees still need to be created and placed in `taxonomy/`.
+**Extraction verified on إملاء only.** The 5-passage verification (P004, P005, P006, P010, P020) used قواعد الإملاء with the إملاء taxonomy. Other sciences are untested — their taxonomy trees don't exist yet.
 
-**Not yet implemented:** Converting the flat extraction output into the taxonomy folder structure (science root → nested topic folders → excerpt files at leaves). Currently extraction saves all results flat in `output_dir/`. A future step must distribute excerpt files into the folder tree defined by the taxonomy YAML.
-
-There is no synthesis stage in ABD. The external synthesis LLM reads excerpt files from each taxonomy leaf folder to produce one encyclopedia article per leaf, targeting Arabic-language students.
+**Not yet built:**
+- Multi-model consensus (currently single-model extraction with correction retries)
+- Taxonomy evolution engine
+- Self-contained excerpt assembly
+- Folder distribution
+- Human gate UI (currently CLI-only; GUI planned but not prioritized)
+- Feedback learning engine
+- Cross-validation layers (placement, self-containment, cross-book consistency)
+- Quality scoring and provenance tracking
 
 ## Running Things
 
 ```bash
-# Tests (463 pass, ~9s)
+# Unit tests (463 pass, ~9s)
 python -m pytest tests/ -q
 
 # Single test file
@@ -57,9 +167,13 @@ python tools/extract_passages.py \
   --gold 3_extraction/gold/P004_gold_excerpt.json \
   --output-dir output/imlaa_extraction \
   --passage-ids P004
+```
 
-# Extraction with API (full book, ~$3–5)
-# Same command without --passage-ids
+**API extraction runs should use a virtual environment** to avoid polluting the project:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+pip install PyYAML httpx
 ```
 
 ## Dependencies
@@ -68,44 +182,49 @@ python tools/extract_passages.py \
 pip install PyYAML httpx
 ```
 
-Python 3.11+ required. No virtual env needed for simple runs; use `pip install --break-system-packages` if on system Python.
+Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required), `OPENAI_API_KEY` (for multi-model consensus).
 
 ## Key Files to Read
 
 **Start here (in order):**
 1. This file
 2. `REPO_MAP.md` — full directory structure explanation
-3. `3_extraction/RUNBOOK.md` — running the extraction pipeline
+3. `4_excerpting/EXCERPT_DEFINITION.md` — **single source of truth** for what an excerpt IS (needs updating to match current vision)
+4. `3_extraction/RUNBOOK.md` — running the extraction pipeline
 
 **Specs (read when working on a specific stage):**
 - `0_intake/INTAKE_SPEC.md`
 - `1_normalization/NORMALIZATION_SPEC_v0.5.md`
 - `2_structure_discovery/STRUCTURE_SPEC.md`
-- `3_atomization/ATOMIZATION_SPEC.md`
-- `4_excerpting/EXCERPT_DEFINITION.md` — the most important spec; defines what an excerpt IS
+- `3_atomization/ATOMIZATION_SPEC.md` (superseded by automated tool — reference only)
+- `4_excerpting/EXCERPT_DEFINITION.md` — the most important spec
 - `4_excerpting/EXCERPTING_SPEC.md`
 
 **Binding authority (overrides stage specs when in conflict):**
 - `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md`
 - `2_atoms_and_excerpts/checklists_v0.4.md`
 
-**Gold baselines (proven ground truth for بلاغة):**
+**Gold baselines (hand-crafted ground truth for بلاغة):**
 - `gold_baselines/jawahir_al_balagha/passage1_v0.3.13/` — 21 excerpts, start here
 - `3_extraction/gold/P004_gold_excerpt.json` — gold for إملاء extraction
 
 **Taxonomy:**
-- `taxonomy/imlaa_v0.1.yaml` — إملاء taxonomy (44 leaves), built from قواعد الإملاء
-- `gold_baselines/jawahir_al_balagha/passage1_v0.3.13/` contains balagha taxonomy snapshots
+- `taxonomy/imlaa_v0.1.yaml` — إملاء taxonomy (44 leaves)
+- `taxonomy/balagha/balagha_v0_4.yaml` — بلاغة taxonomy (143 leaves)
+- صرف and نحو trees: not yet created
 
 ## Architecture Patterns
 
-**Stage I/O chain:** Each stage reads the previous stage's JSONL output. Books are registered in `books/` with `intake_metadata.json` (includes `scholarly_context` for author madhab, school, era). Normalization produces `pages.jsonl`. Structure discovery produces `passages.jsonl` + `divisions.json`. Extraction produces `atoms` + `excerpts` per passage. The final output is a taxonomy folder tree per science, with excerpt files placed at leaf folders — this is the handoff point to the external synthesis LLM.
+**Stage I/O chain:** Each stage reads the previous stage's output. Books are registered in `books/` with `intake_metadata.json`. Normalization produces `pages.jsonl`. Structure discovery produces `passages.jsonl` + `divisions.json`. Extraction produces `atoms` + `excerpts` per passage. Assembly produces self-contained excerpt files. Distribution places them in the taxonomy folder tree.
 
-**Multi-book convergence:** Multiple books from different authors feed excerpt files into the same taxonomy folder tree (one tree per science). A leaf folder may contain excerpts from several books. The synthesis LLM at each leaf folder must reconcile differing scholarly opinions. This means every excerpt must carry enough context (book_id, author identity via intake_metadata, source_layer, roles, case_types) for the synthesis LLM to attribute views correctly.
+**Multi-book convergence:** Multiple books from different authors feed excerpt files into the same taxonomy folder tree (one tree per science). A leaf folder may contain excerpts from several books. Every excerpt must carry enough context for the synthesis LLM to attribute views to specific authors.
 
-**LLM calls:** Tools call Claude APIs directly via httpx. API key passed as CLI arg or env var `ANTHROPIC_API_KEY`. LLM-dependent stages gracefully degrade if API fails mid-run (e.g., Stage 2 Pass 3b uses whatever Pass 3a produced).
+**LLM calls:** Tools call Claude/OpenAI APIs directly via httpx. API keys via env vars `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. LLM-dependent stages gracefully degrade if API fails mid-run.
 
-**Validation:** Each tool has built-in validation. Extraction validates 17 invariants across 3 severity levels (errors, warnings, info) covering atom coverage, reference integrity, leaf placement, bonding trigger presence, role validation, case_types, layer isolation, and more. Failed validation triggers an automatic correction retry loop (up to 2 retries). Structure discovery validates range monotonicity, overlap, coverage.
+**Validation layers:**
+- **Algorithmic checks:** Schema validation, atom coverage, reference integrity, character count verification, range monotonicity — fast, deterministic, catch mechanical errors.
+- **LLM-based validation:** Self-containment verification, placement cross-validation, cross-book consistency, taxonomy coherence — require content understanding.
+- **Human gates:** After extraction and taxonomy evolution. Feedback saved and used for system self-improvement.
 
 **Testing:** pytest, no fixtures framework. Tests are self-contained with inline data. Test files mirror tool files: `test_normalization.py` tests `normalize_shamela.py`.
 
@@ -115,33 +234,39 @@ Python 3.11+ required. No virtual env needed for simple runs; use `pip install -
 
 - Python 3.11+, type hints used but not enforced
 - CLI tools use argparse, not click
-- JSONL for data, YAML for taxonomy, JSON for metadata
+- JSONL for data, YAML for taxonomy, JSON for metadata/excerpts
 - Markdown for human review reports
 - All tools are standalone scripts in `tools/`, importable as modules
 - Test with `python -m pytest`, not `pytest` directly (ensures correct path)
 - All file I/O uses `encoding="utf-8"` explicitly (Windows defaults to cp1252)
+- API extraction runs use a virtual environment (`.venv/`, gitignored)
 
 ## Current State and What to Work On
 
-Extraction tool is complete and tested (1389 lines, 80 tests, 17-check validation, correction retry loop). End-to-end verification on 5 diverse passages (P004, P005, P006, P010, P020) all pass with 0 errors and 0 retries. Output is currently flat per-passage JSON files — the taxonomy folder distribution step is not yet built.
+**What exists and works:**
+- Stages 0–2 complete and tested (intake, enrichment, normalization, structure discovery)
+- Extraction tool built and tested (1389 lines, 80 tests, 17-check validation, correction retry loop) — but single-model only, verified on إملاء only
+- إملاء taxonomy tree (44 leaves)
 
-**Immediate priorities (in order):**
-1. Run full book extraction on قواعد الإملاء (46 passages, ~$3–5) and review quality
-2. Build the taxonomy folder distribution step — convert flat extraction output into the taxonomy folder tree (science root → nested folders → excerpt files at leaves)
-3. Build taxonomy trees for صرف, نحو, بلاغة (only إملاء exists so far)
-4. Run the pipeline on شذا العرف (صرف science) to test cross-science generalization
-5. Extend intake enrichment — author scholarly context (`scholarly_context` in intake_metadata.json) needs deep, researched metadata (madhab, grammatical school, intellectual lineage) so the synthesis LLM can properly attribute opinions
+**What needs to be built (in priority order):**
+1. Taxonomy trees for صرف, نحو, بلاغة (base outlines to be provided, then evolve with books)
+2. Multi-model consensus for extraction (Claude + GPT-4o)
+3. Taxonomy evolution engine (detect need, propose changes, redistribute, human gate)
+4. Self-contained excerpt assembly + folder distribution
+5. Human gate with feedback persistence and correction learning
+6. Cross-validation layers (placement, self-containment, cross-book consistency)
+7. Enrichment extension (intelligent author scholarly context research)
+8. Quality scoring and provenance tracking
 
 **Do NOT spend time on:**
-- Perfecting Stage 2 edge cases (600+ heading chunking, structureless books, etc.) — wait until a book actually needs them
-- Multi-judge consensus — single-pass extraction quality is sufficient for now
-- Building review UIs — markdown review reports are good enough
 - Building synthesis tooling — synthesis is external to this repo
-- Bulk-processing books — the books in `books/` are test cases for tool development, not a production queue
+- Building a GUI — CLI is sufficient for now (GUI is a future goal)
+- Bulk-processing books — `books/` contains test cases for tool development
+- Perfecting Stage 2 edge cases — wait until a book needs them
 
 ## Test Books
 
-The books in `books/` are test cases for developing and validating the pipeline tools. They are not a production queue — the goal is a working extraction tool, not bulk processing.
+The books in `books/` are test cases for developing and validating the pipeline tools. They are not a production queue.
 
 ```
 books/
@@ -157,15 +282,18 @@ books/
 
 ## Gotchas
 
-- **`2_atoms_and_excerpts/` is NOT Stage 2.** Despite the numbering, it's a precision rules folder (binding decisions, checklists, gold baselines) from the manual workflow. Stage 2 is `2_structure_discovery/`. See its README.md. Several tools have hardcoded paths to it — don't rename.
-- **`3_atomization/` and `3_extraction/` both exist.** `3_atomization/` is the old spec for manual atomization. `3_extraction/` is the automated extraction (complete). The automated tool (`tools/extract_passages.py`, 1389 lines) combines atomization + excerpting + taxonomy placement into one LLM pass with post-processing and validation.
-- **`archive/` contains dead docs.** Old orientation files (READ_FIRST, PROJECT_PROMPT, SESSION_CONTEXT) and deprecated precision versions. Ignore entirely.
-- **Shamela HTML is uniform**: All Shamela exports use the same template. No structural variants.
-- **Page numbering**: Multi-volume books may restart numbering per volume or use continuous pagination. `seq_index` is always monotonic.
-- **Binding decisions override specs**: If `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` says X and a stage spec says Y, binding decisions win.
-- **Gold baselines are for بلاغة only**: The jawahir baselines are hand-crafted for بلاغة. إملاء has a simpler discourse structure (rules + examples, minimal scholarly disputes).
-- **`__overview` leaves**: Parent taxonomy nodes that receive overview/framing content need `__overview` companion leaves (convention from the vertical slice).
-- **Passage boundaries are guidance**: Stage 2 passages are structural suggestions. Extraction may find content that spans passage boundaries (prose_tail detection handles this).
-- **Taxonomy YAML = folder structure**: The YAML tree for each science defines a real directory tree. Root folder = science name, branches = nested folders, leaves = folders where excerpt files are placed. Multiple books' excerpts converge as files in the same leaf folders. The folder distribution step (YAML → directories → excerpt files placed) is not yet implemented.
-- **One taxonomy tree per science**: إملاء, صرف, نحو, بلاغة each have independent trees. Books within a science share the same tree.
-- **Author context gap**: `intake_metadata.json` has a `scholarly_context` block but most fields are null/auto. The enrichment tool needs extension to research and populate author madhab, grammatical school, era, and intellectual lineage — critical for the synthesis LLM to attribute opinions.
+- **`2_atoms_and_excerpts/` is NOT Stage 2.** It's the precision rules folder (binding decisions, checklists). Stage 2 is `2_structure_discovery/`. Hardcoded paths — don't rename.
+- **`3_atomization/` and `3_extraction/` both exist.** `3_atomization/` is the old manual spec (superseded). `3_extraction/` is the current automated extraction.
+- **`archive/` contains dead docs.** Old orientation files and deprecated precision versions. **Ignore entirely — reading these will cause confusion** with outdated binding decisions and checklists.
+- **`4_excerpting/EXCERPT_DEFINITION.md` is the single source of truth** for what an excerpt is. It needs updating to match the current vision (self-containment, taxonomy evolution). When updated, it overrides any conflicting information in stage specs.
+- **Shamela HTML is uniform**: All exports use the same template. No structural variants.
+- **Page numbering**: Multi-volume books may restart numbering per volume. `seq_index` is always monotonic.
+- **Binding decisions override specs**: `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` wins over stage specs.
+- **Gold baselines are for بلاغة only**: Hand-crafted for بلاغة. إملاء has simpler discourse structure.
+- **`__overview` leaves**: Parent taxonomy nodes that receive overview content need `__overview` companion leaves.
+- **Passage boundaries are guidance**: Stage 2 passages are structural suggestions. Extraction may find content spanning passage boundaries.
+- **Taxonomy YAML = folder structure**: Root = science name, branches = nested folders, leaves = excerpt file endpoints. Not yet implemented as actual folders.
+- **Taxonomy is alive**: Trees evolve as books reveal finer distinctions. The tree serves excerpts, not the other way around.
+- **Excerpting is content-driven**: Taxonomy has zero influence on excerpt boundaries. Excerpt first, place second, evolve third.
+- **Author context gap**: `intake_metadata.json` `scholarly_context` fields are mostly null/auto. Enrichment needs extension.
+- **Extraction verified on إملاء only**: Other sciences untested — taxonomy trees don't exist yet.
