@@ -132,6 +132,213 @@ def compute_excerpt_text_span(excerpt: dict, atom_lookup: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Atom merging for cross-model consensus
+# ---------------------------------------------------------------------------
+
+def _model_tag(model_name: str) -> str:
+    """Short tag for model name disambiguation in atom IDs."""
+    if "/" in model_name:
+        return model_name.split("/")[-1][:10]
+    return model_name[:10]
+
+
+def _remap_atom_refs(excerpt: dict, remap: dict[str, str]) -> None:
+    """Remap atom IDs in an excerpt's core_atoms and context_atoms in-place."""
+    for field in ("core_atoms", "context_atoms"):
+        entries = excerpt.get(field)
+        if not entries:
+            continue
+        for i, entry in enumerate(entries):
+            if isinstance(entry, dict):
+                old_id = entry.get("atom_id", "")
+                if old_id in remap:
+                    entry["atom_id"] = remap[old_id]
+            elif isinstance(entry, str):
+                if entry in remap:
+                    entries[i] = remap[entry]
+
+
+def _merge_atoms_for_consensus(
+    result_a: dict,
+    result_b: dict,
+    consensus_excerpts: list[dict],
+    model_a: str,
+    model_b: str,
+    winning_model: str,
+) -> list[dict]:
+    """Build merged atom list ensuring all excerpt atom references are valid.
+
+    When the arbiter picks an excerpt from the non-winning model, that
+    excerpt's core_atoms reference atom IDs from a different atom space.
+    This function merges atoms from both models, disambiguating collisions
+    (same ID, different text) by appending a model tag to the non-winning
+    model's atom IDs and updating the excerpt references.
+    """
+    winning_result = result_a if winning_model == model_a else result_b
+    losing_result = result_b if winning_model == model_a else result_a
+    losing_model = model_b if winning_model == model_a else model_a
+
+    winning_atoms = {}
+    for a in winning_result.get("atoms", []):
+        aid = a.get("atom_id", "")
+        if aid:
+            winning_atoms[aid] = a
+
+    losing_atoms = {}
+    for a in losing_result.get("atoms", []):
+        aid = a.get("atom_id", "")
+        if aid:
+            losing_atoms[aid] = a
+
+    # Identify which excerpts come from the losing model
+    losing_excerpts = []
+    for ce in consensus_excerpts:
+        if ce["source_model"] != winning_model:
+            losing_excerpts.append(ce["excerpt"])
+
+    if not losing_excerpts:
+        # All excerpts from winning model — no merge needed
+        return winning_result.get("atoms", [])
+
+    # Collect atom IDs needed by losing model's excerpts
+    needed_ids = set()
+    for exc in losing_excerpts:
+        for entry in (exc.get("core_atoms") or []):
+            aid = _extract_atom_id(entry)
+            if aid:
+                needed_ids.add(aid)
+        for entry in (exc.get("context_atoms") or []):
+            aid = _extract_atom_id(entry)
+            if aid:
+                needed_ids.add(aid)
+
+    # Check for collisions: same ID, different text
+    remap = {}
+    tag = _model_tag(losing_model)
+    for aid in needed_ids:
+        if aid in winning_atoms and aid in losing_atoms:
+            w_text = winning_atoms[aid].get("text", "")
+            l_text = losing_atoms[aid].get("text", "")
+            if w_text != l_text:
+                # Real collision — disambiguate
+                remap[aid] = f"{aid}:{tag}"
+
+    # Build merged atom list
+    merged = list(winning_result.get("atoms", []))
+    added_ids = set(winning_atoms.keys())
+
+    for aid in needed_ids:
+        if aid in remap:
+            # Colliding atom — add with new ID
+            if aid in losing_atoms:
+                atom_copy = dict(losing_atoms[aid])
+                atom_copy["atom_id"] = remap[aid]
+                atom_copy["_source_model"] = losing_model
+                merged.append(atom_copy)
+                added_ids.add(remap[aid])
+        elif aid not in added_ids:
+            # Non-colliding atom missing from winning — add it
+            if aid in losing_atoms:
+                atom_copy = dict(losing_atoms[aid])
+                atom_copy["_source_model"] = losing_model
+                merged.append(atom_copy)
+                added_ids.add(aid)
+
+    # Remap atom references in losing excerpts
+    if remap:
+        for exc in losing_excerpts:
+            _remap_atom_refs(exc, remap)
+
+    return merged
+
+
+# ---------------------------------------------------------------------------
+# Optimal bipartite matching (replaces greedy)
+# ---------------------------------------------------------------------------
+
+def _optimal_assignment(overlap_matrix: list[list[float]],
+                        threshold: float) -> list[tuple[int, int]]:
+    """Find optimal bipartite matching maximizing total overlap.
+
+    Uses DP with bitmask over the smaller dimension. For typical extraction
+    (2-10 excerpts per model), this is instant. Falls back to greedy for
+    n > 20 on the smaller side.
+
+    Returns list of (row, col) index pairs.
+    """
+    n_a = len(overlap_matrix)
+    n_b = len(overlap_matrix[0]) if n_a > 0 else 0
+
+    if n_a == 0 or n_b == 0:
+        return []
+
+    # Ensure bitmask is over the smaller dimension
+    transposed = False
+    matrix = overlap_matrix
+    if n_b > n_a:
+        matrix = [[overlap_matrix[i][j] for i in range(n_a)] for j in range(n_b)]
+        n_a, n_b = n_b, n_a
+        transposed = True
+
+    if n_b > 20:
+        # Fallback: too many columns for bitmask DP
+        return None  # caller uses greedy
+
+    # DP: dp[(row, mask)] = best total overlap from row onwards with mask
+    # of used columns
+    memo = {}
+
+    def dp(row: int, used: int) -> float:
+        if row == n_a:
+            return 0.0
+        key = (row, used)
+        if key in memo:
+            return memo[key]
+        # Option: skip this row
+        best = dp(row + 1, used)
+        # Option: match with available column
+        for col in range(n_b):
+            if used & (1 << col):
+                continue
+            w = matrix[row][col]
+            if w >= threshold:
+                val = w + dp(row + 1, used | (1 << col))
+                if val > best:
+                    best = val
+        memo[key] = best
+        return best
+
+    # Compute optimal value
+    dp(0, 0)
+
+    # Reconstruct assignment
+    pairs = []
+    used = 0
+    for row in range(n_a):
+        optimal_from_here = dp(row, used)
+        skip_val = dp(row + 1, used)
+        # Try each column to see which one achieves optimal
+        matched = False
+        for col in range(n_b):
+            if used & (1 << col):
+                continue
+            w = matrix[row][col]
+            if w >= threshold:
+                val = w + dp(row + 1, used | (1 << col))
+                if abs(val - optimal_from_here) < 1e-9:
+                    if transposed:
+                        pairs.append((col, row))
+                    else:
+                        pairs.append((row, col))
+                    used |= (1 << col)
+                    matched = True
+                    break
+        # If not matched, row is skipped
+
+    return pairs
+
+
+# ---------------------------------------------------------------------------
 # Excerpt matching across models
 # ---------------------------------------------------------------------------
 
@@ -144,8 +351,8 @@ def match_excerpts(
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """Match excerpts between two models by text overlap.
 
-    Uses greedy best-match: pair the highest-overlap pair first, then next,
-    etc. Only pairs above threshold are matched.
+    Uses optimal bipartite matching (DP with bitmask) to maximize total
+    overlap across all pairs. Falls back to greedy for large inputs.
 
     Returns:
         matched: list of dicts with keys:
@@ -158,27 +365,37 @@ def match_excerpts(
     spans_a = [(exc, compute_excerpt_text_span(exc, atoms_a)) for exc in excerpts_a]
     spans_b = [(exc, compute_excerpt_text_span(exc, atoms_b)) for exc in excerpts_b]
 
-    # Compute pairwise overlap matrix
-    overlaps = []
-    for i, (exc_a, text_a) in enumerate(spans_a):
-        for j, (exc_b, text_b) in enumerate(spans_b):
-            ratio = text_overlap_ratio(text_a, text_b)
-            if ratio >= threshold:
-                overlaps.append((ratio, i, j, exc_a, exc_b, text_a, text_b))
+    n_a = len(spans_a)
+    n_b = len(spans_b)
 
-    # Sort by overlap descending for greedy matching
-    overlaps.sort(key=lambda x: x[0], reverse=True)
+    if n_a == 0 or n_b == 0:
+        return [], list(excerpts_a), list(excerpts_b)
 
+    # Build full overlap matrix
+    overlap_matrix = []
+    for i, (_, text_a) in enumerate(spans_a):
+        row = []
+        for j, (_, text_b) in enumerate(spans_b):
+            row.append(text_overlap_ratio(text_a, text_b))
+        overlap_matrix.append(row)
+
+    # Try optimal matching
+    pairs = _optimal_assignment(overlap_matrix, threshold)
+
+    if pairs is None:
+        # Fallback to greedy for large inputs
+        pairs = _greedy_assignment(overlap_matrix, threshold, n_a, n_b)
+
+    # Build result
     matched = []
     used_a = set()
     used_b = set()
 
-    for ratio, i, j, exc_a, exc_b, text_a, text_b in overlaps:
-        if i in used_a or j in used_b:
-            continue
+    for i, j in pairs:
         used_a.add(i)
         used_b.add(j)
-
+        exc_a, text_a = spans_a[i]
+        exc_b, text_b = spans_b[j]
         tax_a = exc_a.get("taxonomy_node_id", "")
         tax_b = exc_b.get("taxonomy_node_id", "")
 
@@ -187,7 +404,7 @@ def match_excerpts(
             "excerpt_b": exc_b,
             "text_a": text_a,
             "text_b": text_b,
-            "text_overlap": ratio,
+            "text_overlap": overlap_matrix[i][j],
             "same_taxonomy": tax_a == tax_b,
             "taxonomy_a": tax_a,
             "taxonomy_b": tax_b,
@@ -197,6 +414,31 @@ def match_excerpts(
     unmatched_b = [exc for j, (exc, _) in enumerate(spans_b) if j not in used_b]
 
     return matched, unmatched_a, unmatched_b
+
+
+def _greedy_assignment(overlap_matrix: list[list[float]],
+                       threshold: float,
+                       n_a: int, n_b: int) -> list[tuple[int, int]]:
+    """Greedy fallback matching for large inputs."""
+    overlaps = []
+    for i in range(n_a):
+        for j in range(n_b):
+            ratio = overlap_matrix[i][j]
+            if ratio >= threshold:
+                overlaps.append((ratio, i, j))
+    overlaps.sort(key=lambda x: x[0], reverse=True)
+
+    pairs = []
+    used_a = set()
+    used_b = set()
+    for ratio, i, j in overlaps:
+        if i in used_a or j in used_b:
+            continue
+        used_a.add(i)
+        used_b.add(j)
+        pairs.append((i, j))
+
+    return pairs
 
 
 # ---------------------------------------------------------------------------
@@ -253,7 +495,7 @@ def compute_coverage_agreement(result_a: dict, result_b: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Footnote excerpt comparison
+# Footnote excerpt comparison + merging
 # ---------------------------------------------------------------------------
 
 def compare_footnote_excerpts(
@@ -269,7 +511,8 @@ def compare_footnote_excerpts(
 
     Returns dict with:
         matched_count, unmatched_a_count, unmatched_b_count,
-        disagreements (list of dicts)
+        disagreements (list of dicts),
+        unmatched_a (list), unmatched_b (list)
     """
     fn_a = result_a.get("footnote_excerpts") or []
     fn_b = result_b.get("footnote_excerpts") or []
@@ -280,6 +523,8 @@ def compare_footnote_excerpts(
             "unmatched_a_count": 0,
             "unmatched_b_count": 0,
             "disagreements": [],
+            "unmatched_a": [],
+            "unmatched_b": [],
         }
 
     # Build text spans for footnote excerpts
@@ -333,7 +578,43 @@ def compare_footnote_excerpts(
         "unmatched_a_count": len(unmatched_a),
         "unmatched_b_count": len(unmatched_b),
         "disagreements": disagreements,
+        "unmatched_a": unmatched_a,
+        "unmatched_b": unmatched_b,
     }
+
+
+def merge_footnote_excerpts(
+    result_a: dict,
+    result_b: dict,
+    model_a: str,
+    model_b: str,
+    winning_model: str,
+    comparison: dict,
+) -> list[dict]:
+    """Merge footnote excerpts: winning model's matched + unmatched from both.
+
+    Ensures footnotes found by either model are included in the output,
+    not silently dropped.
+    """
+    winning_result = result_a if winning_model == model_a else result_b
+    base = list(winning_result.get("footnote_excerpts") or [])
+
+    # Add unmatched footnotes from the OTHER model (winning's unmatched
+    # are already in base)
+    if winning_model == model_a:
+        # Add model B's unmatched
+        for fn in comparison.get("unmatched_b", []):
+            fn_copy = dict(fn)
+            fn_copy["_consensus_flag"] = f"only_found_by_{model_b}"
+            base.append(fn_copy)
+    else:
+        # Add model A's unmatched
+        for fn in comparison.get("unmatched_a", []):
+            fn_copy = dict(fn)
+            fn_copy["_consensus_flag"] = f"only_found_by_{model_a}"
+            base.append(fn_copy)
+
+    return base
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +635,7 @@ def compare_exclusions(
     atoms_a = build_atom_lookup(result_a)
     atoms_b = build_atom_lookup(result_b)
 
-    # Map exclusions by normalized text
+    # Map exclusions by normalized text — use list to handle duplicates
     def _exclusion_texts(result, atoms):
         texts = {}
         for exc in result.get("exclusions") or []:
@@ -363,6 +644,7 @@ def compare_exclusions(
             if atom:
                 norm = normalize_for_comparison(atom.get("text", ""))
                 if norm:
+                    # Keep last reason per text (for simple comparison)
                     texts[norm] = exc.get("exclusion_reason", "unknown")
         return texts
 
@@ -403,6 +685,53 @@ def compare_exclusions(
 
 
 # ---------------------------------------------------------------------------
+# Context atom comparison
+# ---------------------------------------------------------------------------
+
+def compare_context_atoms(
+    matched_pairs: list[dict],
+    atoms_a: dict[str, dict],
+    atoms_b: dict[str, dict],
+) -> list[dict]:
+    """Compare context atom selections for matched excerpt pairs.
+
+    Context atoms affect self-containment — disagreements here mean the
+    models disagree on what surrounding context an excerpt needs.
+    """
+    disagreements = []
+    for m in matched_pairs:
+        ctx_a = m["excerpt_a"].get("context_atoms") or []
+        ctx_b = m["excerpt_b"].get("context_atoms") or []
+
+        # Compare by normalized text since atom IDs differ
+        texts_a = set()
+        for entry in ctx_a:
+            aid = _extract_atom_id(entry)
+            atom = atoms_a.get(aid)
+            if atom:
+                texts_a.add(normalize_for_comparison(atom.get("text", "")))
+
+        texts_b = set()
+        for entry in ctx_b:
+            aid = _extract_atom_id(entry)
+            atom = atoms_b.get(aid)
+            if atom:
+                texts_b.add(normalize_for_comparison(atom.get("text", "")))
+
+        if texts_a != texts_b:
+            disagreements.append({
+                "excerpt_a_id": m["excerpt_a"].get("excerpt_id", "?"),
+                "excerpt_b_id": m["excerpt_b"].get("excerpt_id", "?"),
+                "a_count": len(texts_a),
+                "b_count": len(texts_b),
+                "a_only_count": len(texts_a - texts_b),
+                "b_only_count": len(texts_b - texts_a),
+            })
+
+    return disagreements
+
+
+# ---------------------------------------------------------------------------
 # Arbiter prompt templates
 # ---------------------------------------------------------------------------
 
@@ -434,14 +763,15 @@ They agree on the excerpt content but DISAGREE on taxonomy placement.
 
 ## Your Task
 Analyze the Arabic text and the two proposed taxonomy placements. Determine \
-which placement is CORRECT. Consider:
+which placement is CORRECT, or indicate that NEITHER is correct. Consider:
 1. What topic does this excerpt actually teach?
 2. Which taxonomy leaf most precisely matches that topic?
 3. Is one placement more specific/accurate than the other?
+4. Could BOTH placements be wrong?
 
 Return JSON:
 {{
-  "correct_placement": "{taxonomy_a}" or "{taxonomy_b}",
+  "correct_placement": "{taxonomy_a}" or "{taxonomy_b}" or "neither",
   "reasoning": "detailed explanation of why this placement is correct",
   "confidence": "certain" or "likely" or "uncertain"
 }}
@@ -503,6 +833,22 @@ def _normalize_confidence(raw: str) -> str:
     return "uncertain"
 
 
+def _compute_arbiter_cost(
+    input_tokens: int,
+    output_tokens: int,
+    arbiter_pricing: tuple[float, float] | None = None,
+) -> float:
+    """Compute arbiter cost from token counts and pricing.
+
+    arbiter_pricing: (input_per_1M, output_per_1M) or None for default.
+    """
+    if arbiter_pricing:
+        inp_rate, out_rate = arbiter_pricing
+    else:
+        inp_rate, out_rate = 3.0, 15.0  # default: Claude Sonnet pricing
+    return input_tokens * inp_rate / 1_000_000 + output_tokens * out_rate / 1_000_000
+
+
 # ---------------------------------------------------------------------------
 # Arbiter resolution
 # ---------------------------------------------------------------------------
@@ -515,6 +861,7 @@ def resolve_placement_disagreement(
     call_llm_fn,
     arbiter_model: str,
     arbiter_api_key: str,
+    arbiter_pricing: tuple[float, float] | None = None,
 ) -> dict:
     """Call arbiter LLM to resolve a taxonomy placement disagreement.
 
@@ -559,10 +906,22 @@ def resolve_placement_disagreement(
         parsed = response.get("parsed")
         if not isinstance(parsed, dict):
             raise ValueError(f"Arbiter returned non-dict: {type(parsed)}")
-        cost = response.get("input_tokens", 0) * 3 / 1_000_000 + \
-               response.get("output_tokens", 0) * 15 / 1_000_000
+
+        inp_tok = response.get("input_tokens", 0)
+        out_tok = response.get("output_tokens", 0)
+        cost = _compute_arbiter_cost(inp_tok, out_tok, arbiter_pricing)
 
         raw_placement = parsed.get("correct_placement", "")
+        # Handle "neither" — arbiter says both are wrong
+        if raw_placement == "neither":
+            return {
+                "correct_placement": "neither",
+                "reasoning": str(parsed.get("reasoning", "")),
+                "confidence": _normalize_confidence(parsed.get("confidence", "")),
+                "cost": cost,
+                "input_tokens": inp_tok,
+                "output_tokens": out_tok,
+            }
         # Validate placement is one of the two options
         if raw_placement not in (match["taxonomy_a"], match["taxonomy_b"]):
             raw_placement = match["taxonomy_a"]  # fall back
@@ -572,8 +931,8 @@ def resolve_placement_disagreement(
             "reasoning": str(parsed.get("reasoning", "")),
             "confidence": _normalize_confidence(parsed.get("confidence", "")),
             "cost": cost,
-            "input_tokens": response.get("input_tokens", 0),
-            "output_tokens": response.get("output_tokens", 0),
+            "input_tokens": inp_tok,
+            "output_tokens": out_tok,
         }
     except Exception as e:
         # Arbiter failed -- fall back to preferred model
@@ -596,6 +955,7 @@ def resolve_unmatched_excerpt(
     call_llm_fn,
     arbiter_model: str,
     arbiter_api_key: str,
+    arbiter_pricing: tuple[float, float] | None = None,
 ) -> dict:
     """Call arbiter LLM to decide whether an unmatched excerpt should be kept.
 
@@ -634,8 +994,10 @@ def resolve_unmatched_excerpt(
         parsed = response.get("parsed")
         if not isinstance(parsed, dict):
             raise ValueError(f"Arbiter returned non-dict: {type(parsed)}")
-        cost = response.get("input_tokens", 0) * 3 / 1_000_000 + \
-               response.get("output_tokens", 0) * 15 / 1_000_000
+
+        inp_tok = response.get("input_tokens", 0)
+        out_tok = response.get("output_tokens", 0)
+        cost = _compute_arbiter_cost(inp_tok, out_tok, arbiter_pricing)
 
         raw_verdict = str(parsed.get("verdict", "keep")).strip().lower()
         if raw_verdict not in ("keep", "discard"):
@@ -646,8 +1008,8 @@ def resolve_unmatched_excerpt(
             "reasoning": str(parsed.get("reasoning", "")),
             "confidence": _normalize_confidence(parsed.get("confidence", "")),
             "cost": cost,
-            "input_tokens": response.get("input_tokens", 0),
-            "output_tokens": response.get("output_tokens", 0),
+            "input_tokens": inp_tok,
+            "output_tokens": out_tok,
         }
     except Exception as e:
         # Arbiter failed -- default to keeping the excerpt
@@ -701,6 +1063,7 @@ def build_consensus(
     arbiter_api_key: str | None = None,
     taxonomy_yaml: str = "",
     passage_text: str = "",
+    arbiter_pricing: tuple[float, float] | None = None,
 ) -> dict:
     """Build consensus from two model outputs for the same passage.
 
@@ -714,7 +1077,7 @@ def build_consensus(
     atoms_a = build_atom_lookup(result_a)
     atoms_b = build_atom_lookup(result_b)
 
-    # Match excerpts by text overlap
+    # Match excerpts by text overlap (optimal matching)
     matched, unmatched_a, unmatched_b = match_excerpts(
         result_a.get("excerpts", []),
         result_b.get("excerpts", []),
@@ -782,6 +1145,7 @@ def build_consensus(
                 resolution = resolve_placement_disagreement(
                     m, model_a, model_b, taxonomy_yaml,
                     call_llm_fn, arbiter_model, arbiter_api_key,
+                    arbiter_pricing,
                 )
                 arbiter_cost["input_tokens"] += resolution.get("input_tokens", 0)
                 arbiter_cost["output_tokens"] += resolution.get("output_tokens", 0)
@@ -790,13 +1154,19 @@ def build_consensus(
             # Pick the correct excerpt based on arbiter decision
             if resolution and resolution.get("confidence") != "uncertain":
                 correct_tax = resolution["correct_placement"]
-                if correct_tax == m["taxonomy_a"]:
+                if correct_tax == "neither":
+                    # Arbiter says both are wrong — flag for human review
+                    chosen_exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
+                    source = winning
+                    confidence = "low"
+                elif correct_tax == m["taxonomy_a"]:
                     chosen_exc = m["excerpt_a"]
                     source = model_a
+                    confidence = "high" if resolution["confidence"] == "certain" else "medium"
                 else:
                     chosen_exc = m["excerpt_b"]
                     source = model_b
-                confidence = "high" if resolution["confidence"] == "certain" else "medium"
+                    confidence = "high" if resolution["confidence"] == "certain" else "medium"
             else:
                 # Arbiter unavailable or uncertain -- use preferred model
                 chosen_exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
@@ -812,15 +1182,19 @@ def build_consensus(
             }
             disagreements.append(detail)
 
+            flags = [
+                f"Placement disagreement: {model_a} \u2192 {m['taxonomy_a']}, "
+                f"{model_b} \u2192 {m['taxonomy_b']}"
+            ]
+            if resolution and resolution.get("correct_placement") == "neither":
+                flags.append("Arbiter: BOTH placements are wrong — needs human review")
+
             consensus_excerpts.append({
                 "excerpt": chosen_exc,
                 "source_model": source,
                 "confidence": confidence,
                 "agreement": "placement_disagreement",
-                "flags": [
-                    f"Placement disagreement: {model_a} \u2192 {m['taxonomy_a']}, "
-                    f"{model_b} \u2192 {m['taxonomy_b']}"
-                ],
+                "flags": flags,
                 "disagreement_detail": detail,
             })
 
@@ -832,6 +1206,7 @@ def build_consensus(
                 resolution = resolve_unmatched_excerpt(
                     exc, src_atoms, src_model, other_model_name, passage_text,
                     call_llm_fn, arbiter_model, arbiter_api_key,
+                    arbiter_pricing,
                 )
                 arbiter_cost["input_tokens"] += resolution.get("input_tokens", 0)
                 arbiter_cost["output_tokens"] += resolution.get("output_tokens", 0)
@@ -885,6 +1260,9 @@ def build_consensus(
         result_a, result_b, model_a, model_b
     )
 
+    # Context atom comparison for matched pairs
+    context_atom_disagreements = compare_context_atoms(matched, atoms_a, atoms_b)
+
     # Case types comparison for matched pairs
     case_type_disagreements = []
     for m in matched:
@@ -900,6 +1278,14 @@ def build_consensus(
                 "a_only": sorted(ct_a - ct_b),
                 "b_only": sorted(ct_b - ct_a),
             })
+
+    # Build complete disagreements list BEFORE capturing in metadata
+    # (avoids mutation-after-snapshot bugs)
+    all_disagreements = list(disagreements)  # copy excerpt-level disagreements
+    for d in footnote_comparison.get("disagreements", []):
+        all_disagreements.append(d)
+    for d in exclusion_comparison.get("disagreements", []):
+        all_disagreements.append(d)
 
     # Build consensus metadata
     consensus_meta = {
@@ -924,11 +1310,15 @@ def build_consensus(
         "unmatched_b_count": len(unmatched_b),
         "discarded_excerpts": discarded_excerpts,
         "coverage_agreement": coverage,
-        "footnote_comparison": footnote_comparison,
+        "footnote_comparison": {
+            k: v for k, v in footnote_comparison.items()
+            if k != "unmatched_a" and k != "unmatched_b"
+        },
         "exclusion_comparison": exclusion_comparison,
+        "context_atom_disagreements": context_atom_disagreements,
         "case_type_disagreements": case_type_disagreements,
         "arbiter_cost": arbiter_cost,
-        "disagreements": disagreements,
+        "disagreements": all_disagreements,
         "per_excerpt": [
             {
                 "excerpt_id": ce["excerpt"].get("excerpt_id", "?"),
@@ -941,17 +1331,22 @@ def build_consensus(
         ],
     }
 
-    # Merge footnote/exclusion disagreements into main disagreements list
-    for d in footnote_comparison.get("disagreements", []):
-        disagreements.append(d)
-    for d in exclusion_comparison.get("disagreements", []):
-        disagreements.append(d)
+    # Merge atoms from both models to ensure all excerpt references are valid
+    merged_atoms = _merge_atoms_for_consensus(
+        result_a, result_b, consensus_excerpts,
+        model_a, model_b, winning,
+    )
+
+    # Merge footnote excerpts (winning + unmatched from other model)
+    merged_footnotes = merge_footnote_excerpts(
+        result_a, result_b, model_a, model_b, winning, footnote_comparison,
+    )
 
     return {
         "passage_id": passage_id,
-        "atoms": winning_result.get("atoms", []),
+        "atoms": merged_atoms,
         "excerpts": [ce["excerpt"] for ce in consensus_excerpts],
-        "footnote_excerpts": winning_result.get("footnote_excerpts", []),
+        "footnote_excerpts": merged_footnotes,
         "exclusions": winning_result.get("exclusions", []),
         "notes": winning_result.get("notes", ""),
         "consensus_meta": consensus_meta,
@@ -1021,6 +1416,16 @@ def generate_consensus_review_section(consensus_meta: dict) -> str:
             lines.append(f"- {consensus_meta.get('model_b', 'B')} only: {excl['b_only_count']}")
         lines.append("")
 
+    # Context atom disagreements
+    ctx_dis = consensus_meta.get("context_atom_disagreements", [])
+    if ctx_dis:
+        lines.append("### Context Atom Disagreements")
+        for c in ctx_dis:
+            lines.append(f"- `{c.get('excerpt_a_id', '?')}`: "
+                          f"A has {c.get('a_count', 0)}, B has {c.get('b_count', 0)} "
+                          f"({c.get('a_only_count', 0)} A-only, {c.get('b_only_count', 0)} B-only)")
+        lines.append("")
+
     # Case type disagreements
     ct_dis = consensus_meta.get("case_type_disagreements", [])
     if ct_dis:
@@ -1079,7 +1484,11 @@ def generate_consensus_review_section(consensus_meta: dict) -> str:
             if resolution:
                 lines.append(f"- **Arbiter resolution:**")
                 if "correct_placement" in resolution:
-                    lines.append(f"  - Correct placement: `{resolution['correct_placement']}`")
+                    cp = resolution['correct_placement']
+                    if cp == "neither":
+                        lines.append(f"  - Correct placement: **NEITHER** (both wrong)")
+                    else:
+                        lines.append(f"  - Correct placement: `{cp}`")
                 if "verdict" in resolution:
                     lines.append(f"  - Verdict: {resolution['verdict']}")
                 lines.append(f"  - Confidence: {resolution.get('confidence', '?')}")

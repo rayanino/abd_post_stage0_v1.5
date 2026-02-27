@@ -563,38 +563,69 @@ def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
     }
 
 
+_TRANSIENT_STATUS_CODES = {429, 502, 503, 504}
+_OPENROUTER_MAX_RETRIES = 3
+_OPENROUTER_RETRY_BACKOFF = (2, 5, 10)  # seconds
+
+
 def call_llm_openrouter(system: str, user: str, model: str,
                          api_key: str) -> dict:
     """Call OpenRouter API (OpenAI-compatible) and return parsed JSON response.
 
     Works with any model available on OpenRouter (Anthropic, OpenAI, etc.).
     Returns same format as call_llm: {parsed, input_tokens, output_tokens, stop_reason}.
+
+    Retries up to 3 times on transient failures (429, 502, 503, 504) with
+    exponential backoff.
     """
     import httpx
+    import time
 
-    resp = httpx.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": model,
-            "max_tokens": 16384,
-            "temperature": 0,
-            "response_format": {"type": "json_object"},
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        },
-        timeout=240.0,
-    )
+    last_error = None
+    for attempt in range(_OPENROUTER_MAX_RETRIES + 1):
+        try:
+            resp = httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": 16384,
+                    "temperature": 0,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                },
+                timeout=240.0,
+            )
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+            last_error = e
+            if attempt < _OPENROUTER_MAX_RETRIES:
+                wait = _OPENROUTER_RETRY_BACKOFF[min(attempt, len(_OPENROUTER_RETRY_BACKOFF) - 1)]
+                print(f"  OpenRouter connection error (attempt {attempt + 1}): {e}. "
+                      f"Retrying in {wait}s...")
+                time.sleep(wait)
+                continue
+            raise RuntimeError(
+                f"OpenRouter connection failed after {_OPENROUTER_MAX_RETRIES + 1} attempts: {e}"
+            )
 
-    if resp.status_code != 200:
-        raise RuntimeError(
-            f"OpenRouter API error {resp.status_code}: {resp.text[:500]}"
-        )
+        if resp.status_code in _TRANSIENT_STATUS_CODES and attempt < _OPENROUTER_MAX_RETRIES:
+            wait = _OPENROUTER_RETRY_BACKOFF[min(attempt, len(_OPENROUTER_RETRY_BACKOFF) - 1)]
+            print(f"  OpenRouter {resp.status_code} (attempt {attempt + 1}). "
+                  f"Retrying in {wait}s...")
+            time.sleep(wait)
+            continue
+
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"OpenRouter API error {resp.status_code}: {resp.text[:500]}"
+            )
+        break  # success
 
     data = resp.json()
     choice = data["choices"][0]
@@ -1496,6 +1527,16 @@ def run_extraction(args):
                                                  openrouter_key)
 
                 models = list(per_model_results.keys())
+                if len(models) > 2:
+                    print(f"  WARNING: {len(models)} models succeeded but "
+                          f"consensus only uses first 2: {models[0]}, {models[1]}. "
+                          f"Ignoring: {', '.join(models[2:])}")
+
+                # Get arbiter pricing from MODEL_PRICING if arbiter model known
+                arbiter_pricing = None
+                if arbiter_model:
+                    arbiter_pricing = MODEL_PRICING.get(arbiter_model)
+
                 consensus = build_consensus(
                     passage_id=pid,
                     result_a=per_model_results[models[0]],
@@ -1511,6 +1552,7 @@ def run_extraction(args):
                     arbiter_api_key=openrouter_key or args.api_key,
                     taxonomy_yaml=taxonomy_yaml,
                     passage_text=passage_text,
+                    arbiter_pricing=arbiter_pricing,
                 )
 
                 # Use consensus result
