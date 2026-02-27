@@ -10,6 +10,9 @@ books/*/source/
 # intake. Not processed through the pipeline yet.
 books/Other Books/
 
+# ─── Pipeline outputs (regeneratable) ────────────────────────────────
+output/
+
 # ─── Python ──────────────────────────────────────────────────────────
 __pycache__/
 *.pyc

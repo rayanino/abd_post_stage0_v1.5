@@ -9,8 +9,8 @@ A complete pipeline from Shamela HTML → structured excerpts for one book (قو
 | Stage | Status | Output |
 |-------|--------|--------|
 | Stage 0: Intake | ✅ Complete | Book registered, metadata frozen |
-| Stage 1: Normalization | ✅ Complete | `/tmp/imlaa_full.jsonl` (77 pages, matn+footnotes separated) |
-| Stage 2: Structure Discovery | ✅ Complete | `/tmp/imlaa_stage2_v3/qawaid_imlaa_passages.jsonl` (46 passages) |
+| Stage 1: Normalization | ✅ Complete | `books/imla/stage1_output/pages.jsonl` (77 pages, matn+footnotes separated) |
+| Stage 2: Structure Discovery | ✅ Complete | `books/imla/stage2_output/passages.jsonl` (46 passages) |
 | Stage 3+4: Extraction | 🟡 Ready to run | Tool built, gold sample created, prompts verified |
 | Stage 5: Taxonomy Placement | 📋 Implicit | Taxonomy node assigned per-excerpt during extraction |
 | Stage 6: Synthesis | ⬜ Future | Uses excerpts as input to produce encyclopedia entries |
@@ -27,11 +27,10 @@ A complete pipeline from Shamela HTML → structured excerpts for one book (قو
    pip install httpx
    ```
 
-3. **Stage 2 outputs** in `/tmp/`:
-   - `/tmp/imlaa_full.jsonl` — normalized pages
-   - `/tmp/imlaa_stage2_v3/qawaid_imlaa_passages.jsonl` — passage boundaries
-
-   If these don't exist, re-run Stage 1+2 normalization and structure discovery first.
+3. **Stage 2 outputs** in `books/imla/`:
+   - `books/imla/stage1_output/pages.jsonl` — normalized pages (77 pages)
+   - `books/imla/stage2_output/passages.jsonl` — passage boundaries (46 passages)
+   - `books/imla/stage2_output/divisions.json` — structural divisions
 
 ## How to Run
 
@@ -41,14 +40,14 @@ A complete pipeline from Shamela HTML → structured excerpts for one book (قو
 cd ABD
 
 python tools/extract_passages.py \
-  --passages /tmp/imlaa_stage2_v3/qawaid_imlaa_passages.jsonl \
-  --pages /tmp/imlaa_full.jsonl \
+  --passages books/imla/stage2_output/passages.jsonl \
+  --pages books/imla/stage1_output/pages.jsonl \
   --taxonomy taxonomy/imlaa_v0.1.yaml \
   --book-id qimlaa \
   --book-title "قواعد الإملاء" \
   --science imlaa \
   --gold 3_extraction/gold/P004_gold_excerpt.json \
-  --output-dir /tmp/imlaa_extraction \
+  --output-dir output/imlaa_extraction \
   --passage-ids P004,P010
 ```
 
@@ -56,14 +55,14 @@ python tools/extract_passages.py \
 
 ```bash
 python tools/extract_passages.py \
-  --passages /tmp/imlaa_stage2_v3/qawaid_imlaa_passages.jsonl \
-  --pages /tmp/imlaa_full.jsonl \
+  --passages books/imla/stage2_output/passages.jsonl \
+  --pages books/imla/stage1_output/pages.jsonl \
   --taxonomy taxonomy/imlaa_v0.1.yaml \
   --book-id qimlaa \
   --book-title "قواعد الإملاء" \
   --science imlaa \
   --gold 3_extraction/gold/P004_gold_excerpt.json \
-  --output-dir /tmp/imlaa_extraction
+  --output-dir output/imlaa_extraction
 ```
 
 ### Option 3: Dry run (inspect prompts, $0)
@@ -75,7 +74,7 @@ Add `--dry-run` to either command. Saves prompts to output dir for inspection.
 For each passage, the tool produces:
 
 ```
-/tmp/imlaa_extraction/
+output/imlaa_extraction/
 ├── P001_extraction.json     # Raw LLM output: atoms + excerpts
 ├── P001_review.md           # Human-reviewable report
 ├── P002_extraction.json

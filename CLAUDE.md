@@ -26,11 +26,11 @@ python -m pytest tests/test_structure_discovery.py -q
 
 # Extraction dry run (no API needed)
 python tools/extract_passages.py \
-  --passages /path/to/passages.jsonl \
-  --pages /path/to/pages.jsonl \
+  --passages books/imla/stage2_output/passages.jsonl \
+  --pages books/imla/stage1_output/pages.jsonl \
   --taxonomy taxonomy/imlaa_v0.1.yaml \
   --book-id qimlaa --book-title "قواعد الإملاء" --science imlaa \
-  --output-dir /tmp/output --dry-run
+  --output-dir output/imlaa_extraction --dry-run
 
 # Extraction with API
 export ANTHROPIC_API_KEY="sk-ant-..."
