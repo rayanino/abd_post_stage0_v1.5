@@ -140,7 +140,7 @@ For each passage with completed atomization:
 
 ### 4.3 CP5: Validation
 
-**Method:** Deterministic schema validation + LLM Judge (Stage 6)
+**Method:** Deterministic schema validation + LLM Judge (validation layer)
 **Checks:**
 - Every atom in the passage is assigned to exactly one excerpt (no orphan atoms, no double-assignment — except B3_interwoven)
 - Excerpt boundaries don't violate bond groups

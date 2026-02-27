@@ -1,13 +1,19 @@
 # Definition and Rules of Excerpting
 
-> ## ERRATA / STATUS (binding override)
-> This file is a **historical draft** and may contain outdated guidance.
-> If any statement in this draft conflicts with the gold standard or binding files, it is overridden by:
-> `00_BINDING_DECISIONS_v0.3.3.md` → schema → glossary → checklists → protocol → baselines.
+> ## STATUS: Single Source of Truth (needs comprehensive update)
+> This file is the **single source of truth** for what an excerpt IS. However, it was written before the current vision was fully developed and needs updating to reflect:
+> - **Self-containment**: every excerpt must be independently understandable by the synthesis LLM
+> - **Taxonomy evolution**: excerpts drive tree growth, not the other way around
+> - **Multi-model consensus**: planned for extraction validation
+> - **Human gates**: feedback loops and self-improving system
+>
+> Until this file is fully rewritten, conflicts are resolved by:
+> `00_BINDING_DECISIONS_v0.3.16.md` → schema v0.3.3 → glossary → checklists → protocol → baselines.
 >
 > **Binding corrections already in effect:**
 > - Heading atoms are **metadata-only** and are never included in excerpts as core or context atoms.
 > - Parent/general content uses the `__overview` leaf convention exclusively.
+> - Each excerpt file must be **self-contained** — the synthesis LLM must understand it without needing other files.
 
 This section defines with precision what an "excerpt" is within this project, how excerpt boundaries are determined, how edge cases are handled, and what metadata accompanies each excerpt. These rules govern the most critical operation in the entire pipeline: the intelligent decomposition of a book into atomic, accurately-placed fragments within the taxonomy tree.
 

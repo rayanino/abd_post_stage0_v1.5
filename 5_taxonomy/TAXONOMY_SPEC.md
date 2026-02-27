@@ -48,10 +48,10 @@ balagha:
 ```
 
 **Current state:**
+- إملاء: `imlaa_v0.1` exists (44 leaves) ✓
 - بلاغة: `balagha_v0_4` exists (202 nodes, 143 leaves) ✓
-- صرف: **Not yet provided** (TODO-001)
-- نحو: **Not yet provided** (TODO-001)
-- إملاء: **Not yet provided** (TODO-001)
+- صرف: **Not yet created** — base outline to be provided
+- نحو: **Not yet created** — base outline to be provided
 
 ---
 
@@ -113,17 +113,43 @@ They are NOT placed in any taxonomy tree. They are preserved for potential futur
 
 ## 5. Taxonomy Evolution Rules
 
-### 5.1 Cumulative growth
+**The taxonomy is alive.** Trees evolve as books reveal finer topic distinctions. The driving principle is **content sovereignty**: excerpts are king, the taxonomy tree serves them — never the reverse. If an excerpt doesn't fit the current tree, the tree changes. Content is never forced into an ill-fitting node.
+
+### 5.1 Evolution triggers
+
+A taxonomy change is triggered when:
+- An excerpt teaches a topic not represented by any existing leaf
+- Multiple excerpts from different books accumulate at the same leaf and reveal subtopic distinctions that warrant splitting
+- A node name doesn't accurately describe the content placed there
+
+**Quality signal:** When a single book contributes multiple excerpts to the same leaf, it may indicate the leaf needs granulation (splitting into sub-leaves). This is a signal to investigate, not a hard rule.
+
+### 5.2 Evolution process
+
+Evolution is LLM-driven with human approval:
+
+1. **Detect need** — During extraction or post-extraction review, identify that the current tree lacks granularity
+2. **Propose change** — Generate a `taxonomy_change` proposal (add leaf, split leaf, rename, move)
+3. **Read Arabic text** — When redistributing excerpts after a split, the LLM must read the actual Arabic text of ALL existing excerpts at the affected node (from all books) to make accurate placement decisions
+4. **Redistribute** — Assign each existing excerpt to its correct new sub-leaf based on content
+5. **Human approval** — All changes are proposed, never auto-applied. The user reviews and approves/rejects
+6. **Version bump** — Approved changes create a new taxonomy version with full change records
+
+### 5.3 Cumulative growth
 
 The taxonomy tree grows across books. Book A may add 5 leaves. Book B may add 3 more. The tree is never pruned automatically.
 
-### 5.2 Version control
+### 5.4 Version control
 
-Each state of the tree is a version. Versions are immutable once sealed. Changes create new versions.
+Each state of the tree is a version. Versions are immutable once sealed. Changes create new versions. Full version history is maintained for rollback capability.
 
-### 5.3 Consistency requirement
+### 5.5 Consistency requirement
 
-When a new node is added, all previously placed excerpts remain valid at their current nodes. A taxonomy change must never invalidate existing placements.
+When a new node is added, all previously placed excerpts remain valid at their current nodes. A taxonomy change must never invalidate existing placements — redistribution must account for every affected excerpt.
+
+### 5.6 Taxonomy = folder structure
+
+Each taxonomy YAML defines a real directory tree. The root folder is the science name (e.g., `imlaa/`). Branches become nested folders. Leaf folders (`_leaf: true`) are the endpoints where excerpt files are placed. Multiple books contribute excerpt files to the same folder tree, so a leaf folder accumulates excerpts from different authors on the same topic. The external synthesis LLM reads all excerpt files at each leaf folder to produce one encyclopedia article.
 
 ---
 
