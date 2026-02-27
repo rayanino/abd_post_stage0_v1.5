@@ -684,9 +684,10 @@ def validate_extraction(result: dict, passage_id: str,
             atom_by_id[aid] = a
     atom_ids = set(atom_by_id.keys())
 
-    # Determine which atoms are excluded (headings and prose_tails)
+    # Determine which atoms are excluded (headings, prose_tails, footnote-layer)
     heading_ids = set()
     prose_tail_ids = set()
+    footnote_atom_ids = set()
     for a in atoms:
         aid = a.get("atom_id", "")
         atype = a.get("atom_type", a.get("type", ""))
@@ -694,7 +695,9 @@ def validate_extraction(result: dict, passage_id: str,
             heading_ids.add(aid)
         if a.get("is_prose_tail"):
             prose_tail_ids.add(aid)
-    excluded_ids = heading_ids | prose_tail_ids
+        if a.get("source_layer") == "footnote":
+            footnote_atom_ids.add(aid)
+    excluded_ids = heading_ids | prose_tail_ids | footnote_atom_ids
 
     # --- Check 1: Atom required fields ---
     for a in atoms:
@@ -1172,7 +1175,7 @@ def run_extraction(args):
         if args.dry_run:
             # Save prompt for inspection
             prompt_path = outdir / f"{pid}_prompt.md"
-            with open(prompt_path, "w") as f:
+            with open(prompt_path, "w", encoding="utf-8") as f:
                 f.write(f"# SYSTEM\n\n{system}\n\n# USER\n\n{user}")
             print(f"  DRY RUN: prompt saved to {prompt_path}")
             print(f"  System prompt: {len(system)} chars")
@@ -1204,7 +1207,7 @@ def run_extraction(args):
         except Exception as e:
             print(f"  ERROR: {e}")
             err_path = outdir / f"{pid}_error.txt"
-            with open(err_path, "w") as f:
+            with open(err_path, "w", encoding="utf-8") as f:
                 f.write(str(e))
             continue
 
@@ -1268,7 +1271,7 @@ def run_extraction(args):
 
         # Save raw result
         raw_path = outdir / f"{pid}_extraction.json"
-        with open(raw_path, "w") as f:
+        with open(raw_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         # Generate review report
@@ -1279,7 +1282,7 @@ def run_extraction(args):
             retries=retries_used,
         )
         review_path = outdir / f"{pid}_review.md"
-        with open(review_path, "w") as f:
+        with open(review_path, "w", encoding="utf-8") as f:
             f.write(review)
 
         total_issue_count = len(issues["errors"]) + len(issues["warnings"])
@@ -1311,7 +1314,7 @@ def run_extraction(args):
 
     # Save summary
     summary_path = outdir / "extraction_summary.json"
-    with open(summary_path, "w") as f:
+    with open(summary_path, "w", encoding="utf-8") as f:
         json.dump({
             "book_id": args.book_id,
             "book_title": args.book_title,

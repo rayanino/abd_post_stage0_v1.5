@@ -601,6 +601,16 @@ class TestValidateCoverage:
         issues = validate_extraction(result, "P001", {"al_madd", "al_hala_1_tursam_alifan"})
         assert not any("qtest:matn:000004" in e for e in issues["errors"])
 
+    def test_footnote_atoms_excluded_from_coverage(self):
+        """Footnote-layer atoms are handled by footnote_excerpts, not main excerpts."""
+        result = _well_formed_result()
+        result["atoms"].append(
+            _make_atom("qtest:fn:000001", "prose_sentence",
+                       "حاشية علمية.", source_layer="footnote")
+        )
+        issues = validate_extraction(result, "P001", {"al_madd", "al_hala_1_tursam_alifan"})
+        assert not any("qtest:fn:000001" in e for e in issues["errors"])
+
 
 class TestValidateMultiCore:
     def test_atom_in_two_excerpts(self):
