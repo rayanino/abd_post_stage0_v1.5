@@ -13,7 +13,8 @@ A complete pipeline from Shamela HTML → structured excerpts for one book (قو
 | Stage 2: Structure Discovery | ✅ Complete | `books/imla/stage2_output/passages.jsonl` (46 passages) |
 | Stage 3+4: Extraction | ✅ Complete | Tool built, tested (80 tests), verified on 5 passages with real API |
 | Stage 5: Taxonomy Placement | ✅ Complete | Taxonomy node assigned per-excerpt during extraction |
-| Stage 6: Synthesis | ⬜ Future | Uses excerpts as input to produce encyclopedia entries |
+
+Synthesis is handled by an external LLM (outside this repo) that consumes the excerpts at each taxonomy leaf.
 
 ## End-to-End Verification Results
 
@@ -171,9 +172,10 @@ When skimming the review reports:
 ## Next Steps
 
 1. **Run full book extraction** (46 passages) and review quality
-2. **Build Stage 6**: Take excerpts for one taxonomy leaf and synthesize an encyclopedia entry
-3. **Run on شذا العرف** (صرف science): Test the same pipeline on a different science
-4. **Scale**: Process the full corpus systematically
+2. **Run on شذا العرف** (صرف science): Test the same pipeline on a different science
+3. **Scale**: Process the full corpus systematically
+
+Once excerpts are produced, they are consumed by an external synthesis LLM (outside this repo) at each taxonomy leaf node.
 
 ## Files
 

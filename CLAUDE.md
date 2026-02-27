@@ -2,7 +2,9 @@
 
 ## What This Is
 
-A pipeline that transforms Shamela HTML exports of classical Arabic books into structured excerpts placed in taxonomy trees. Four sciences: إملاء (orthography), صرف (morphology), نحو (syntax), بلاغة (rhetoric). The excerpts feed a future synthesis LLM that produces encyclopedia entries.
+A pipeline that transforms Shamela HTML exports of classical Arabic books into structured excerpts placed in taxonomy trees. Four sciences: إملاء (orthography), صرف (morphology), نحو (syntax), بلاغة (rhetoric).
+
+**Downstream consumer:** The excerpts collected at each taxonomy leaf node are fed to an **external synthesis LLM** (outside this repo's scope) that produces encyclopedia entries. ABD's job ends at producing well-structured, accurately placed excerpts. Synthesis is not a stage of this application — but structural decisions within ABD (excerpt boundaries, taxonomy granularity, metadata richness, relation chains) must be made with that downstream LLM consumer in mind.
 
 ## Pipeline Stages
 
@@ -13,7 +15,8 @@ A pipeline that transforms Shamela HTML exports of classical Arabic books into s
 | 2 Structure Discovery | `tools/discover_structure.py` | ✅ Complete | `tests/test_structure_discovery.py` |
 | 3+4 Extraction | `tools/extract_passages.py` | ✅ Complete | `tests/test_extraction.py` |
 | 5 Taxonomy Placement | (implicit in Stage 3+4) | ✅ Complete | — |
-| 6 Synthesis | — | ⬜ Not started | — |
+
+**Note:** There is no Stage 6 in this application. Synthesis is handled by an external LLM that consumes the excerpts at each taxonomy leaf. See "Downstream consumer" above.
 
 ## Running Things
 
@@ -85,7 +88,7 @@ Python 3.11+ required. No virtual env needed for simple runs; use `pip install -
 
 ## Architecture Patterns
 
-**Stage I/O chain:** Each stage reads the previous stage's JSONL output. Books are registered in `books/` with `intake_metadata.json`. Normalization produces `pages.jsonl`. Structure discovery produces `passages.jsonl` + `divisions.json`. Extraction produces `atoms` + `excerpts` per passage.
+**Stage I/O chain:** Each stage reads the previous stage's JSONL output. Books are registered in `books/` with `intake_metadata.json`. Normalization produces `pages.jsonl`. Structure discovery produces `passages.jsonl` + `divisions.json`. Extraction produces `atoms` + `excerpts` per passage. The final output — excerpts grouped by taxonomy leaf — is the handoff point to the external synthesis LLM. Structural decisions (excerpt boundaries, metadata fields, relation chains) are made to serve that downstream consumer.
 
 **LLM calls:** Tools call Claude/OpenAI APIs directly via httpx. API key passed as CLI arg or env var `ANTHROPIC_API_KEY`. LLM-dependent stages gracefully degrade if API fails mid-run (e.g., Stage 2 Pass 3b uses whatever Pass 3a produced).
 
@@ -110,8 +113,8 @@ Stages 0–4 are complete and tested. The extraction tool has been rewritten aga
 
 **Immediate priorities (in order):**
 1. Run full book extraction on قواعد الإملاء (46 passages, ~$3–5) and review quality
-2. Build Stage 6: take excerpts at one taxonomy leaf → synthesize an encyclopedia entry
-3. Run the pipeline on شذا العرف (صرف science) to test cross-science generalization
+2. Run the pipeline on شذا العرف (صرف science) to test cross-science generalization
+3. Scale to full corpus
 
 **Do NOT spend time on:**
 - Perfecting Stage 2 edge cases (600+ heading chunking, structureless books, etc.) — wait until a book actually needs them

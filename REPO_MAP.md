@@ -1,8 +1,8 @@
 # Arabic Book Digester — Repository Map
 
-**Purpose:** Extract tagged excerpts from 788 classical Arabic books (Shamela HTML exports) and place them in taxonomy trees for four sciences: بلاغة, صرف, نحو, إملاء.
+**Purpose:** Extract tagged excerpts from 788 classical Arabic books (Shamela HTML exports) and place them in taxonomy trees for four sciences: بلاغة, صرف, نحو, إملاء. The excerpts at each taxonomy leaf are consumed by an external synthesis LLM (outside this repo) to produce encyclopedia entries.
 
-**Pipeline:** Intake → Normalization → Structure Discovery → Extraction (atomization + excerpting + taxonomy placement)
+**Pipeline:** Intake → Normalization → Structure Discovery → Extraction (atomization + excerpting + taxonomy placement) → *external synthesis*
 
 ---
 
