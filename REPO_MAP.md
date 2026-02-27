@@ -1,8 +1,10 @@
 # Arabic Book Digester — Repository Map
 
-**Purpose:** Extract structured excerpts from classical Arabic books (Shamela HTML exports) and place them as files in taxonomy folder trees — one independent folder tree per science (إملاء, صرف, نحو, بلاغة). Each taxonomy YAML defines the folder structure: root = science name, branches = nested folders, leaves = endpoint folders where excerpt files are placed. Multiple books contribute excerpt files to the same tree, converging at leaf folders. An external synthesis LLM (outside this repo) reads all excerpt files at each leaf folder and produces a single encyclopedia article for Arabic-language students, presenting and attributing all scholarly positions.
+**Purpose:** A precision pipeline that transforms classical Arabic books (Shamela HTML exports) into self-contained excerpts placed in taxonomy folder trees — one tree per science (إملاء, صرف, نحو, بلاغة). Each excerpt file is independently understandable. The taxonomy tree is alive: it evolves as new books reveal finer topic distinctions. Multiple books converge at leaf folders. An external synthesis LLM (outside this repo) reads all excerpt files at each leaf folder and produces one encyclopedia article for Arabic-language students, attributing all scholarly positions.
 
-**Pipeline:** Intake (+ enrichment) → Normalization → Structure Discovery → Extraction (atomization + excerpting + taxonomy placement) → Folder Distribution (not yet built) → *external synthesis (out of scope)*
+**Core properties:** Precision (multi-model consensus, human gates, feedback learning) and Intelligence (LLM-driven content decisions, self-improving system). See `CLAUDE.md` for full design principles.
+
+**Pipeline:** Intake → Enrichment → Normalization → Structure Discovery → Multi-Model Extraction → Human Gate → Taxonomy Evolution → Assembly + Folder Distribution → *external synthesis (out of scope)*
 
 ---
 
@@ -16,8 +18,8 @@
 | `1_normalization/` | HTML → structured JSONL | ✅ Complete (spec v0.5) | `NORMALIZATION_SPEC_v0.5.md`, `SHAMELA_HTML_REFERENCE.md`, `CORPUS_SURVEY_REPORT.md`, `gold_samples/` |
 | `2_structure_discovery/` | Detect divisions, build passage boundaries | ✅ Complete | `STRUCTURE_SPEC.md`, `structural_patterns.yaml`, 3 corpus surveys, `STAGE2_GUIDELINES.md` |
 | `3_atomization/` | Break passages into atoms (legacy spec) | Superseded by Stage 3+4 tool | `ATOMIZATION_SPEC.md` (reference only; automated tool implements these rules) |
-| `3_extraction/` | Automated extraction (atoms + excerpts) | ✅ Complete | `RUNBOOK.md`, `gold/P004_gold_excerpt.json` |
-| `4_excerpting/` | Group atoms into excerpts, assign to taxonomy | ✅ Complete (via Stage 3+4 tool) | `EXCERPTING_SPEC.md`, `EXCERPT_DEFINITION.md` |
+| `3_extraction/` | Automated extraction (atoms + excerpts) | 🟡 Single-model, إملاء verified | `RUNBOOK.md`, `gold/P004_gold_excerpt.json` |
+| `4_excerpting/` | Excerpt definition + specs | **`EXCERPT_DEFINITION.md` = single source of truth** (needs update) | `EXCERPTING_SPEC.md`, `EXCERPT_DEFINITION.md` |
 | `5_taxonomy/` | Build taxonomy trees per science, evolve trees | 🟡 إملاء done, صرف/نحو/بلاغة needed | `TAXONOMY_SPEC.md` |
 
 ### Precision Documents (Binding Authority)
@@ -31,7 +33,7 @@ Canonical location: `2_atoms_and_excerpts/`
 | `2_atoms_and_excerpts/extraction_protocol_v2.4.md` | Checkpoint sequence (CP1–CP6) |
 | `project_glossary.md` | Authoritative definitions for all terms |
 
-**Deprecated:** `precision/` contains older versions (v0.3.10, v0.3.15 binding; v0.3 checklists; v2 protocol). Retained for historical baseline reproducibility only.
+**Deprecated:** `archive/precision_deprecated/` contains older versions (v0.3.10, v0.3.15 binding; v0.3 checklists; v2 protocol). **Do not read these — they will cause confusion** with outdated rules. Only the versions in `2_atoms_and_excerpts/` are current.
 
 **Rule:** Stage 3/4 specs say "rules are NOT restated here — canonical source is binding decisions + checklists." When in doubt, `2_atoms_and_excerpts/` overrides stage specs.
 
@@ -76,9 +78,11 @@ taxonomy/
     └── balagha_v0_4.yaml           — latest (202 nodes, 143 leaves)
 ```
 
-**Not yet built:** The step that converts taxonomy YAML → actual folder tree and distributes excerpt files into leaf folders. Currently extraction saves flat JSON per passage.
+**The taxonomy is alive:** Trees evolve as books reveal finer topic distinctions. Evolution is LLM-driven with human approval. See `CLAUDE.md` for the full evolution model.
 
-**Missing:** صرف, نحو trees (not yet created).
+**Not yet built:** Taxonomy evolution engine, folder distribution, self-contained assembly. Currently extraction saves flat JSON per passage.
+
+**Missing:** صرف, نحو trees (not yet created). Base outlines will be provided.
 
 ### Tools
 
@@ -88,7 +92,7 @@ taxonomy/
 | `tools/enrich.py` | ~560 | 0.5 | Scholarly context enrichment (interactive/ترجمة/API) |
 | `tools/normalize_shamela.py` | ~1120 | 1 | HTML → pages.jsonl (deterministic) |
 | `tools/discover_structure.py` | ~1400 | 2 | Passage boundary detection, division hierarchy |
-| `tools/extract_passages.py` | ~1389 | 3+4 | **LLM-based extraction**: atomization + excerpting + taxonomy placement. Includes post-processing, 17-check validation, and correction retry loop. Outputs per-passage JSON + review Markdown. |
+| `tools/extract_passages.py` | ~1389 | 3+4 | **LLM-based extraction**: atomization + excerpting + taxonomy placement. Currently single-model with correction retries. Multi-model consensus planned. Verified on إملاء only. |
 | `tools/extract_clean_input.py` | 234 | 3 (CP1) | Extract clean text from HTML for manual atomization (legacy) |
 | `tools/validate_gold.py` | ~1930 | QA | Validate gold baselines against schema |
 | `tools/render_excerpts_md.py` | 271 | QA | Render excerpts as readable Markdown |
