@@ -11,14 +11,14 @@ A pipeline that transforms Shamela HTML exports of classical Arabic books into s
 | 0 Intake | `tools/intake.py` | ✅ Complete | `tests/test_intake.py` |
 | 1 Normalization | `tools/normalize_shamela.py` | ✅ Complete | `tests/test_normalization.py` |
 | 2 Structure Discovery | `tools/discover_structure.py` | ✅ Complete | `tests/test_structure_discovery.py` |
-| 3+4 Extraction | `tools/extract_passages.py` | 🟡 Vertical slice done | Needs tests |
-| 5 Taxonomy Placement | (implicit in Stage 3+4) | 🟡 Basic | — |
+| 3+4 Extraction | `tools/extract_passages.py` | ✅ Complete | `tests/test_extraction.py` |
+| 5 Taxonomy Placement | (implicit in Stage 3+4) | ✅ Complete | — |
 | 6 Synthesis | — | ⬜ Not started | — |
 
 ## Running Things
 
 ```bash
-# Tests (389 pass, ~20s)
+# Tests (463 pass, ~9s)
 python -m pytest tests/ -q
 
 # Single test file
@@ -30,11 +30,22 @@ python tools/extract_passages.py \
   --pages books/imla/stage1_output/pages.jsonl \
   --taxonomy taxonomy/imlaa_v0.1.yaml \
   --book-id qimlaa --book-title "قواعد الإملاء" --science imlaa \
+  --gold 3_extraction/gold/P004_gold_excerpt.json \
   --output-dir output/imlaa_extraction --dry-run
 
-# Extraction with API
+# Extraction with API (single passage)
 export ANTHROPIC_API_KEY="sk-ant-..."
-# Same command without --dry-run
+python tools/extract_passages.py \
+  --passages books/imla/stage2_output/passages.jsonl \
+  --pages books/imla/stage1_output/pages.jsonl \
+  --taxonomy taxonomy/imlaa_v0.1.yaml \
+  --book-id qimlaa --book-title "قواعد الإملاء" --science imlaa \
+  --gold 3_extraction/gold/P004_gold_excerpt.json \
+  --output-dir output/imlaa_extraction \
+  --passage-ids P004
+
+# Extraction with API (full book, ~$1.50)
+# Same command without --passage-ids
 ```
 
 ## Dependencies
@@ -50,7 +61,7 @@ Python 3.11+ required. No virtual env needed for simple runs; use `pip install -
 **Start here (in order):**
 1. This file
 2. `REPO_MAP.md` — full directory structure explanation
-3. `3_extraction/RUNBOOK.md` — the current work: vertical slice through extraction
+3. `3_extraction/RUNBOOK.md` — running the extraction pipeline
 
 **Specs (read when working on a specific stage):**
 - `0_intake/INTAKE_SPEC.md`
@@ -78,7 +89,7 @@ Python 3.11+ required. No virtual env needed for simple runs; use `pip install -
 
 **LLM calls:** Tools call Claude/OpenAI APIs directly via httpx. API key passed as CLI arg or env var `ANTHROPIC_API_KEY`. LLM-dependent stages gracefully degrade if API fails mid-run (e.g., Stage 2 Pass 3b uses whatever Pass 3a produced).
 
-**Validation:** Each tool has built-in validation. Extraction validates 6 invariants (atom coverage, reference integrity, leaf placement, etc.). Structure discovery validates range monotonicity, overlap, coverage.
+**Validation:** Each tool has built-in validation. Extraction validates 17 invariants across 3 severity levels (errors, warnings, info) covering atom coverage, reference integrity, leaf placement, bonding trigger presence, role validation, case_types, layer isolation, and more. Failed validation triggers an automatic correction retry loop (up to 2 retries). Structure discovery validates range monotonicity, overlap, coverage.
 
 **Testing:** pytest, no fixtures framework. Tests are self-contained with inline data. Test files mirror tool files: `test_normalization.py` tests `normalize_shamela.py`.
 
@@ -95,14 +106,12 @@ Python 3.11+ required. No virtual env needed for simple runs; use `pip install -
 
 ## Current State and What to Work On
 
-The vertical slice through Stages 3+4 proved the pipeline works end-to-end on قواعد الإملاء. Two passages extracted successfully with correct taxonomy placement.
+Stages 0–4 are complete and tested. The extraction tool has been rewritten against the binding decisions and gold standard schema v0.3.3, with 17-check validation, post-processing, and a correction retry loop. End-to-end verification on 5 diverse passages (P004, P005, P006, P010, P020) all pass with 0 errors and 0 retries.
 
 **Immediate priorities (in order):**
-1. Run full book extraction (46 passages, ~$1.50) and review quality
-2. Fix the 2 minor prompt issues found in testing (placeholder atoms, coverage gaps)
-3. Write tests for `extract_passages.py`
-4. Build Stage 6: take excerpts at one taxonomy leaf → synthesize an encyclopedia entry
-5. Run the pipeline on شذا العرف (صرف science) to test cross-science generalization
+1. Run full book extraction on قواعد الإملاء (46 passages, ~$3–5) and review quality
+2. Build Stage 6: take excerpts at one taxonomy leaf → synthesize an encyclopedia entry
+3. Run the pipeline on شذا العرف (صرف science) to test cross-science generalization
 
 **Do NOT spend time on:**
 - Perfecting Stage 2 edge cases (600+ heading chunking, structureless books, etc.) — wait until a book actually needs them
@@ -126,7 +135,7 @@ books/
 ## Gotchas
 
 - **`2_atoms_and_excerpts/` is NOT Stage 2.** Despite the numbering, it's a precision rules folder (binding decisions, checklists, gold baselines) from the manual workflow. Stage 2 is `2_structure_discovery/`. See its README.md. Several tools have hardcoded paths to it — don't rename.
-- **`3_atomization/` and `3_extraction/` both exist.** `3_atomization/` is the old spec for manual atomization. `3_extraction/` is the new automated extraction (vertical slice). The automated tool (`tools/extract_passages.py`) combines atomization + excerpting into one pass.
+- **`3_atomization/` and `3_extraction/` both exist.** `3_atomization/` is the old spec for manual atomization. `3_extraction/` is the automated extraction (complete). The automated tool (`tools/extract_passages.py`, 1389 lines) combines atomization + excerpting + taxonomy placement into one LLM pass with post-processing and validation.
 - **`archive/` contains dead docs.** Old orientation files (READ_FIRST, PROJECT_PROMPT, SESSION_CONTEXT) and deprecated precision versions. Ignore entirely.
 - **Shamela HTML is uniform**: All 788 files use the same template. No structural variants.
 - **Page numbering**: Multi-volume books may restart numbering per volume or use continuous pagination. `seq_index` is always monotonic.
