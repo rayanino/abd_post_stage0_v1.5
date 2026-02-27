@@ -742,14 +742,14 @@ class TestGoldP004Validates:
         if not gold_path.exists():
             pytest.skip("Gold P004 file not found")
 
-        with open(gold_path) as f:
+        with open(gold_path, encoding="utf-8") as f:
             gold = json.load(f)
 
         # Get taxonomy leaves
         tax_path = Path(__file__).resolve().parent.parent / "taxonomy" / "imlaa_v0.1.yaml"
         if not tax_path.exists():
             pytest.skip("Taxonomy file not found")
-        with open(tax_path) as f:
+        with open(tax_path, encoding="utf-8") as f:
             tax_yaml = f.read()
         leaves = extract_taxonomy_leaves(tax_yaml)
 

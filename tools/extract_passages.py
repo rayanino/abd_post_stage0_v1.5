@@ -378,13 +378,13 @@ Return corrected JSON only. Do not change anything that was not flagged.\
 # ---------------------------------------------------------------------------
 
 def load_jsonl(path: str) -> list[dict]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
 
 
 def load_taxonomy_yaml(path: str) -> str:
     """Load taxonomy YAML as raw text for prompt injection."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 
@@ -392,7 +392,7 @@ def load_gold_example(path: str | None) -> str:
     """Load gold example and format as few-shot section."""
     if not path or not os.path.exists(path):
         return ""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         gold = json.load(f)
     # Extract just the atoms and excerpts for the prompt
     compact = {
