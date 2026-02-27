@@ -3,9 +3,11 @@
 > ## STATUS: Single Source of Truth (needs comprehensive update)
 > This file is the **single source of truth** for what an excerpt IS. However, it was written before the current vision was fully developed and needs updating to reflect:
 > - **Self-containment**: every excerpt must be independently understandable by the synthesis LLM
+> - **Folder-based data model**: excerpts are placed as files in taxonomy folder trees (one tree per science). "Placing an excerpt" = writing the file into that node's folder. Multiple books converge at the same leaf. This physical model is not described anywhere in this file.
 > - **Taxonomy evolution**: excerpts drive tree growth, not the other way around
 > - **Multi-model consensus**: planned for extraction validation
 > - **Human gates**: feedback loops and self-improving system
+> - **Blueprint schema (§2)**: ~60 aspirational fields, most not implemented in any tool or gold data
 >
 > Until this file is fully rewritten, conflicts are resolved by:
 > `00_BINDING_DECISIONS_v0.3.16.md` → schema v0.3.3 → glossary → checklists → protocol → baselines.

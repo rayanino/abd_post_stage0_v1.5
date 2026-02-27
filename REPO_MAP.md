@@ -4,7 +4,7 @@
 
 **Core properties:** Precision (multi-model consensus, human gates, feedback learning) and Intelligence (LLM-driven content decisions, self-improving system). See `CLAUDE.md` for full design principles.
 
-**Pipeline:** Intake → Enrichment → Normalization → Structure Discovery → Multi-Model Extraction → Human Gate → Taxonomy Evolution → Assembly + Folder Distribution → *external synthesis (out of scope)*
+**Pipeline:** Intake → Enrichment → Normalization → Structure Discovery → Extraction *(single-model; multi-model planned)* → Taxonomy Trees → Taxonomy Evolution *(not yet built)* → Assembly + Folder Distribution *(not yet built)* → *external synthesis (out of scope)*
 
 ---
 

@@ -386,9 +386,9 @@ Unchanged.
 
 Unchanged.
 
-### BUG-017 🟢 OPEN — Duplicate `LLM_DEFAULT_MODEL` in `discover_structure.py`
+### BUG-017 🟢 ~~OPEN~~ NOT A BUG — ~~Duplicate~~ `LLM_DEFAULT_MODEL` in `discover_structure.py`
 
-Unchanged.
+**False positive.** `LLM_DEFAULT_MODEL` is defined exactly once (line 704) and used once (line 722 as default argument). There is no duplication. The original audit's "grep confirms two identical definitions" claim was incorrect — grep found the definition and the usage, not two definitions.
 
 ### BUG-018 🟢 OPEN — Mixed HTTP Clients (`anthropic` SDK vs raw `httpx`)
 

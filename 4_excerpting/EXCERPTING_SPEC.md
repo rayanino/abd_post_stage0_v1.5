@@ -1,5 +1,26 @@
 # Stage 4: Excerpting — Specification
 
+> ## ⚠️ SCHEMA DRIFT WARNING — DO NOT IMPLEMENT FROM THIS FILE
+>
+> This spec was written before the automated extraction tool existed. The **excerpting rules** (§2–§3) are
+> accurate and still binding. However, the **schema examples and technical details** below contain
+> fabricated or outdated content that **contradicts** the actual gold schema and tools:
+>
+> | What this spec says | What's actually true | Section |
+> |---------------------|---------------------|---------|
+> | Relation types: `prerequisite`, `builds_on`, `contrasts`, `exemplifies`, `cross_reference` | **None exist.** Real types: `footnote_supports`, `footnote_explains`, `has_overview`, `shared_shahid`, `exercise_tests`, etc. (13 types — see glossary §7) | §4.2 |
+> | Flat `"atoms"` array with `role: core/context` | Separate `core_atoms` and `context_atoms` arrays with role vocabularies | §5.2 |
+> | Field `placed_at` | Actual field: `taxonomy_node_id` + `taxonomy_path` | §5.2 |
+> | Excerpt ID format `EXC_001` | Actual format: `{book_id}:exc:{6-digit seq}` (e.g., `jawahir:exc:000003`) | §5.2 |
+> | Atom ID format `A003` | Actual format: `{book_id}:{layer}:{6-digit seq}` (e.g., `jawahir:matn:000004`) | §5.2 |
+> | Fields `science_classification`, `science_classification_reasoning`, `science_classification_confidence`, `cross_science_context` | **Do not exist** in gold schema v0.3.3 or any tool output | §3.6, §5.2 |
+> | Output files: `relations.jsonl`, `excerpt_decisions.jsonl` | Actual output: single `{passage}_excerpts_v02.jsonl` with excerpts + exclusions | §5.1 |
+>
+> **For authoritative schema:** `schemas/gold_standard_schema_v0.3.3.json`
+> **For actual tool behavior:** `tools/extract_passages.py` (~1389 lines) and `3_extraction/RUNBOOK.md`
+> **For relation types:** `project_glossary.md` §7
+> **For ID formats:** `project_glossary.md` §12
+
 **Status:** Draft — rules are the most mature of all stages (extensive manual workflow precision), automation layer underspecified
 **Precision level:** High for rules, Low for LLM automation
 **Dependencies:** Stage 3 (Atomization) must be complete for the target passage.
