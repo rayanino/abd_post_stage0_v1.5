@@ -1,8 +1,8 @@
 # Arabic Book Digester — Repository Map
 
-**Purpose:** Extract tagged excerpts from 788 classical Arabic books (Shamela HTML exports) and place them in taxonomy trees — one independent tree per science (إملاء, صرف, نحو, بلاغة). Multiple books contribute excerpts to the same tree, converging at leaf nodes. An external synthesis LLM (outside this repo) reads all excerpts at each leaf and produces a single encyclopedia article for Arabic-language students, presenting and attributing all scholarly positions.
+**Purpose:** Extract structured excerpts from classical Arabic books (Shamela HTML exports) and place them as files in taxonomy folder trees — one independent folder tree per science (إملاء, صرف, نحو, بلاغة). Each taxonomy YAML defines the folder structure: root = science name, branches = nested folders, leaves = endpoint folders where excerpt files are placed. Multiple books contribute excerpt files to the same tree, converging at leaf folders. An external synthesis LLM (outside this repo) reads all excerpt files at each leaf folder and produces a single encyclopedia article for Arabic-language students, presenting and attributing all scholarly positions.
 
-**Pipeline:** Intake (+ enrichment) → Normalization → Structure Discovery → Extraction (atomization + excerpting + taxonomy placement) → *external synthesis (out of scope)*
+**Pipeline:** Intake (+ enrichment) → Normalization → Structure Discovery → Extraction (atomization + excerpting + taxonomy placement) → Folder Distribution (not yet built) → *external synthesis (out of scope)*
 
 ---
 
@@ -63,6 +63,8 @@ Each passage contains: atoms (matn + footnote), excerpts, decisions log, canonic
 
 ### Taxonomy
 
+Each taxonomy YAML defines a folder structure for one science. The YAML hierarchy maps directly to nested directories: the root key is the science name (= root folder), branches become subfolders, and `_leaf: true` nodes become the endpoint folders where excerpt files are placed. Multiple books' excerpts accumulate as files in the same leaf folder.
+
 ```
 taxonomy/
 ├── taxonomy_registry.yaml          — version registry
@@ -73,6 +75,8 @@ taxonomy/
     ├── balagha_v0_3.yaml           — used by passages 2–3 gold
     └── balagha_v0_4.yaml           — latest (202 nodes, 143 leaves)
 ```
+
+**Not yet built:** The step that converts taxonomy YAML → actual folder tree and distributes excerpt files into leaf folders. Currently extraction saves flat JSON per passage.
 
 **Missing:** صرف, نحو trees (not yet created).
 
@@ -104,7 +108,9 @@ spec/
 └── source_locator_contract_v0.1.md            — source anchor spec
 ```
 
-### Books
+### Books (Test Cases)
+
+The books in `books/` are test cases for developing and validating the pipeline tools. They are not a production queue.
 
 ```
 books/
@@ -112,7 +118,7 @@ books/
 ├── {book_id}/                       — per-book directory (7 books intaken)
 │   ├── intake_metadata.json         — frozen metadata (schema v0.2), includes scholarly_context
 │   └── source/                      — frozen source HTML (read-only)
-└── Other Books/                     — raw Shamela exports (788 files, not yet intaked)
+└── Other Books/                     — raw Shamela exports (additional test candidates)
 ```
 
 Each `intake_metadata.json` carries a `scholarly_context` block (author death/birth dates, fiqh madhab, grammatical school, geographic origin). These fields are critical for the downstream synthesis LLM to attribute opinions — but currently most are sparse/auto-extracted. The enrichment tool (`tools/enrich.py`) is intended to fill them via research.

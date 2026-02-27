@@ -4,7 +4,9 @@
 
 A complete pipeline from Shamela HTML → structured excerpts for one book (قواعد الإملاء, 77 pages, إملاء science). The tool (`tools/extract_passages.py`, 1389 lines) handles atomization, excerpting, taxonomy placement, post-processing, validation (17 checks), and correction retries in a single automated pass per passage.
 
-The excerpts produced here accumulate at taxonomy leaf nodes alongside excerpts from other إملاء books. An external synthesis LLM (outside this repo) then reads all excerpts at each leaf to produce a single encyclopedia article for Arabic-language students. Quality of excerpt boundaries, metadata richness, and relation chains directly affects synthesis quality.
+The excerpts produced here are intended to be distributed into a taxonomy folder tree (science root → nested topic folders → excerpt files at leaf folders), where they accumulate alongside excerpts from other إملاء books. An external synthesis LLM (outside this repo) then reads all excerpt files at each leaf folder to produce a single encyclopedia article for Arabic-language students. Quality of excerpt boundaries, metadata richness, and relation chains directly affects synthesis quality.
+
+**Note:** The folder distribution step (taxonomy YAML → directory tree → excerpt files placed at leaves) is not yet built. Currently extraction saves flat per-passage JSON files in the output directory.
 
 ## Pipeline Status
 
@@ -16,7 +18,7 @@ The excerpts produced here accumulate at taxonomy leaf nodes alongside excerpts 
 | Stage 3+4: Extraction | ✅ Complete | Tool built, tested (80 tests), verified on 5 passages with real API |
 | Stage 5: Taxonomy Trees | 🟡 إملاء done | `taxonomy/imlaa_v0.1.yaml` (44 leaves); صرف/نحو/بلاغة trees still needed |
 
-Synthesis is handled by an external LLM (outside this repo) that consumes the excerpts at each taxonomy leaf.
+Synthesis is handled by an external LLM (outside this repo) that reads excerpt files from each taxonomy leaf folder.
 
 ## End-to-End Verification Results
 
@@ -107,7 +109,9 @@ Add `--dry-run` to any command. Saves the full system+user prompt to the output 
 
 ## What You Get
 
-For each passage, the tool produces:
+### Current output (flat, per-passage)
+
+The extraction tool currently saves all results flat in the output directory:
 
 ```
 output/imlaa_extraction/
@@ -117,6 +121,31 @@ output/imlaa_extraction/
 ├── P002_review.md
 ├── ...
 └── extraction_summary.json  # Totals, costs, issue counts, retry counts
+```
+
+### Intended final output (taxonomy folder tree — not yet built)
+
+A future distribution step will convert the flat output into a folder tree matching the taxonomy YAML. Each excerpt file is placed in its taxonomy leaf folder:
+
+```
+imlaa/                                    # Root = science name
+├── muqaddimat/
+│   ├── ta3rif_al_imlaa/                  # Leaf folder
+│   │   ├── qimlaa_exc_000001.json        # Excerpt from قواعد الإملاء
+│   │   └── {other_book}_exc_000042.json  # Excerpt from another book
+│   └── ahamiyyat_al_imlaa/
+│       └── ...
+├── al_hamza/
+│   ├── ta3rif_al_hamza/
+│   │   └── ...
+│   └── al_hamza_awwal_al_kalima/
+│       ├── al_hamza_awwal_al_kalima__overview/
+│       │   └── ...
+│       ├── hamzat_al_wasl/
+│       │   ├── ta3rif_hamzat_al_wasl/
+│       │   └── mawadi3_hamzat_al_wasl/
+│       └── ...
+└── ...
 ```
 
 ### Extraction JSON structure
@@ -174,10 +203,11 @@ When skimming the review reports:
 ## Next Steps
 
 1. **Run full book extraction** (46 passages) and review quality
-2. **Run on شذا العرف** (صرف science): Test the same pipeline on a different science
-3. **Scale**: Process the full corpus systematically
+2. **Build taxonomy folder distribution** — convert flat extraction output into the taxonomy folder tree, placing excerpt files at leaf folders
+3. **Build taxonomy trees** for صرف, نحو, بلاغة (only إملاء exists)
+4. **Run on شذا العرف** (صرف science): Test the same pipeline on a different science
 
-Once excerpts are produced, they are consumed by an external synthesis LLM (outside this repo) at each taxonomy leaf node.
+Once excerpt files are distributed into taxonomy leaf folders, they are consumed by an external synthesis LLM (outside this repo) that reads each leaf folder.
 
 ## Files
 
