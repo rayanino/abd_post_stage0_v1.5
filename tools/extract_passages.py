@@ -142,13 +142,13 @@ Now atomize and excerpt the current passage. Output JSON only."""
 # ---------------------------------------------------------------------------
 
 def load_jsonl(path: str) -> list[dict]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
 
 
 def load_taxonomy_yaml(path: str) -> str:
     """Load taxonomy YAML as raw text for prompt injection."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 
@@ -156,7 +156,7 @@ def load_gold_example(path: str | None) -> str:
     """Load gold example and format as few-shot section."""
     if not path or not os.path.exists(path):
         return ""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         gold = json.load(f)
     # Extract just the atoms and excerpts for the prompt
     compact = {
@@ -546,7 +546,7 @@ def run_extraction(args):
         if args.dry_run:
             # Save prompt for inspection
             prompt_path = outdir / f"{pid}_prompt.md"
-            with open(prompt_path, "w") as f:
+            with open(prompt_path, "w", encoding="utf-8") as f:
                 f.write(f"# SYSTEM\n\n{system}\n\n# USER\n\n{user}")
             print(f"  DRY RUN: prompt saved to {prompt_path}")
             print(f"  System prompt: {len(system)} chars")
@@ -574,7 +574,7 @@ def run_extraction(args):
             print(f"  ERROR: {e}")
             # Save error info
             err_path = outdir / f"{pid}_error.txt"
-            with open(err_path, "w") as f:
+            with open(err_path, "w", encoding="utf-8") as f:
                 f.write(str(e))
             continue
 
@@ -594,7 +594,7 @@ def run_extraction(args):
 
         # Save raw result
         raw_path = outdir / f"{pid}_extraction.json"
-        with open(raw_path, "w") as f:
+        with open(raw_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         # Generate review report
@@ -603,7 +603,7 @@ def run_extraction(args):
             {"input_tokens": in_tok, "output_tokens": out_tok, "total_cost": cost},
         )
         review_path = outdir / f"{pid}_review.md"
-        with open(review_path, "w") as f:
+        with open(review_path, "w", encoding="utf-8") as f:
             f.write(review)
 
         all_results.append({
@@ -631,7 +631,7 @@ def run_extraction(args):
 
     # Save summary
     summary_path = outdir / "extraction_summary.json"
-    with open(summary_path, "w") as f:
+    with open(summary_path, "w", encoding="utf-8") as f:
         json.dump({
             "book_id": args.book_id,
             "book_title": args.book_title,
