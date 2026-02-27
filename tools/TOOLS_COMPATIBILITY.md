@@ -18,9 +18,17 @@ Current canonical tools support:
   - `schemas/source_locator_schema_v0.1.json`
   - `schemas/checkpoint_state_schema_v0.1.json`
 
-## Checkpoint-1 extractor
+## Extraction tool (Stage 3+4)
+- `tools/extract_passages.py` (~1389 lines) — LLM-based extraction combining atomization, excerpting, and taxonomy placement.
+- Supports: `schemas/gold_standard_schema_v0.3.3.json` (atom, excerpt, exclusion records)
+- Features: post-processing (field normalization, exclusion generation, ID fixup), 17-check validation (errors/warnings/info), correction retry loop (up to `--max-retries`), per-passage review Markdown generation.
+- Gold calibration: `3_extraction/gold/P004_gold_excerpt.json` (schema v0.3.3 format)
+- Tests: `tests/test_extraction.py` (80 tests, 879 lines)
+
+## Checkpoint-1 extractor (legacy)
 - `tools/extract_clean_input.py` emits `{passage}_source_slice.json` as a **source locator** object.
 - Current tool version: **v0.2** (see tool header).
+- Note: This is the legacy manual-workflow extractor. For automated extraction, use `tools/extract_passages.py`.
 
 If schemas advance, tools MUST either:
 - remain backward compatible, or

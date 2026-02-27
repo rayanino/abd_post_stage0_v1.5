@@ -1,10 +1,8 @@
 # Arabic Book Digester — Repository Map
 
-> **Note:** This file may be outdated. For the current project state, read `CLAUDE.md` first.
+**Purpose:** Extract tagged excerpts from 788 classical Arabic books (Shamela HTML exports) and place them in taxonomy trees for four sciences: بلاغة, صرف, نحو, إملاء. The excerpts at each taxonomy leaf are consumed by an external synthesis LLM (outside this repo) to produce encyclopedia entries.
 
-**Purpose:** Extract tagged excerpts from 788 classical Arabic books (Shamela HTML exports) and place them in taxonomy trees for four sciences: بلاغة, صرف, نحو, إملاء.
-
-**Pipeline:** Intake → Normalization → Structure Discovery → Atomization → Excerpting → Taxonomy Placement
+**Pipeline:** Intake → Normalization → Structure Discovery → Extraction (atomization + excerpting + taxonomy placement) → *external synthesis*
 
 ---
 
@@ -16,10 +14,11 @@
 |-----------|-------|----------|-----------|
 | `0_intake/` | Book intake & source freezing | ✅ Complete (v1.6) | `INTAKE_SPEC.md`, `edge_cases.md` |
 | `1_normalization/` | HTML → structured JSONL | ✅ Complete (spec v0.5) | `NORMALIZATION_SPEC_v0.5.md`, `SHAMELA_HTML_REFERENCE.md`, `CORPUS_SURVEY_REPORT.md`, `gold_samples/` |
-| `2_structure_discovery/` | Detect divisions, build passage boundaries | Draft (least mature) | `STRUCTURE_SPEC.md`, `structural_patterns.yaml`, 3 corpus surveys, `STAGE2_GUIDELINES.md` |
-| `3_atomization/` | Break passages into atoms | Draft (rules mature, spec has schema drift) | `ATOMIZATION_SPEC.md` (see ZOOM_BRIEF for drift details) |
-| `4_excerpting/` | Group atoms into excerpts, assign to taxonomy | Draft (most complex, major schema drift) | `EXCERPTING_SPEC.md`, `EXCERPT_DEFINITION.md` |
-| `5_taxonomy/` | Place excerpts in taxonomy trees, evolve trees | Draft | `TAXONOMY_SPEC.md` |
+| `2_structure_discovery/` | Detect divisions, build passage boundaries | ✅ Complete | `STRUCTURE_SPEC.md`, `structural_patterns.yaml`, 3 corpus surveys, `STAGE2_GUIDELINES.md` |
+| `3_atomization/` | Break passages into atoms (legacy spec) | Superseded by Stage 3+4 tool | `ATOMIZATION_SPEC.md` (reference only; automated tool implements these rules) |
+| `3_extraction/` | Automated extraction (atoms + excerpts) | ✅ Complete | `RUNBOOK.md`, `gold/P004_gold_excerpt.json` |
+| `4_excerpting/` | Group atoms into excerpts, assign to taxonomy | ✅ Complete (via Stage 3+4 tool) | `EXCERPTING_SPEC.md`, `EXCERPT_DEFINITION.md` |
+| `5_taxonomy/` | Place excerpts in taxonomy trees, evolve trees | ✅ Complete (implicit in extraction) | `TAXONOMY_SPEC.md` |
 
 ### Precision Documents (Binding Authority)
 
@@ -68,13 +67,14 @@ Each passage contains: atoms (matn + footnote), excerpts, decisions log, canonic
 taxonomy/
 ├── taxonomy_registry.yaml          — version registry
 ├── README.md
+├── imlaa_v0.1.yaml                 — إملاء taxonomy (44 leaves), built from قواعد الإملاء
 └── balagha/
     ├── balagha_v0_2.yaml           — used by passage 1 gold
     ├── balagha_v0_3.yaml           — used by passages 2–3 gold
     └── balagha_v0_4.yaml           — latest (202 nodes, 143 leaves)
 ```
 
-**Missing:** صرف, نحو, إملاء trees (not yet created).
+**Missing:** صرف, نحو trees (not yet created).
 
 ### Tools
 
@@ -83,7 +83,9 @@ taxonomy/
 | `tools/intake.py` | ~1450 | 0 | Book intake, source freezing, metadata extraction |
 | `tools/enrich.py` | ~560 | 0.5 | Scholarly context enrichment (interactive/ترجمة/API) |
 | `tools/normalize_shamela.py` | ~1120 | 1 | HTML → pages.jsonl (deterministic) |
-| `tools/extract_clean_input.py` | 234 | 3 (CP1) | Extract clean text from HTML for atomization |
+| `tools/discover_structure.py` | ~1400 | 2 | Passage boundary detection, division hierarchy |
+| `tools/extract_passages.py` | ~1389 | 3+4 | **LLM-based extraction**: atomization + excerpting + taxonomy placement. Includes post-processing, 17-check validation, and correction retry loop. Outputs per-passage JSON + review Markdown. |
+| `tools/extract_clean_input.py` | 234 | 3 (CP1) | Extract clean text from HTML for manual atomization (legacy) |
 | `tools/validate_gold.py` | ~1930 | QA | Validate gold baselines against schema |
 | `tools/render_excerpts_md.py` | 271 | QA | Render excerpts as readable Markdown |
 | `tools/scaffold_passage.py` | 272 | Util | Create passage directory structure |
@@ -115,7 +117,15 @@ books/
 
 ### Tests
 
-2723 test lines: 665 intake + 118 enrich + 1940 normalization.
+3602 test lines: 665 intake + 118 enrich + 1940 normalization + 879 extraction.
+
+| Test file | Lines | Tests | Covers |
+|-----------|-------|-------|--------|
+| `tests/test_intake.py` | 665 | — | `tools/intake.py` |
+| `tests/test_enrich.py` | 118 | — | `tools/enrich.py` |
+| `tests/test_normalization.py` | 1940 | — | `tools/normalize_shamela.py` |
+| `tests/test_structure_discovery.py` | — | — | `tools/discover_structure.py` |
+| `tests/test_extraction.py` | 879 | 80 | `tools/extract_passages.py` |
 
 ---
 
