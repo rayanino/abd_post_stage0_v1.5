@@ -1,8 +1,9 @@
 # ABD Bug Tracker
 
-> Generated: 2025-02-27  
-> Method: Adversarial code audit across all tools, specs, schemas, data files, and tests.  
-> Scope: Every `.py` tool, every committed output file, every schema, every gold baseline, and cross-file consistency.
+> **Audit 2 — 2026-02-27**
+> Method: Adversarial cross-referencing of all documentation, code, schemas, data files, and tests after docs rewrite (PRs #6–#8).
+> Scope: Every `.py` tool, every committed output file, every schema, every gold baseline, all specs, and cross-file consistency.
+> Previous: Audit 1 (2025-02-27) identified 20 bugs. This audit verifies fix status and adds new findings from the docs overhaul.
 
 ---
 
@@ -16,107 +17,75 @@
 
 ---
 
-## BUG-001 🔴 Taxonomy Format Divergence Breaks Leaf Extraction for بلاغة
+## Status Key
 
-**Location:** `tools/extract_passages.py` → `extract_taxonomy_leaves()` (line ~911)  
-**Also affects:** SYSTEM_PROMPT template (line ~316: "Use ONLY leaf nodes (`_leaf: true`)")
+| Status | Meaning |
+|--------|---------|
+| OPEN | Not yet fixed |
+| FIXED | Verified resolved |
+| NEW | Found in Audit 2 |
 
-**Problem:**  
-The `extract_taxonomy_leaves()` function searches for `_leaf: true` (underscore prefix) via line-by-line text scanning. The إملاء taxonomy (`taxonomy/imlaa_v0.1.yaml`) uses `_leaf: true` and a nested-dict structure — this works. But the بلاغة taxonomy (`taxonomy/balagha/balagha_v0_4.yaml`) uses `leaf: true` (no underscore) and a completely different list-of-nodes structure with explicit `id` fields. Result:
+---
 
-- `extract_taxonomy_leaves()` returns **0 leaves** for بلاغة (should return 143).
-- Every excerpt placement triggers a "non-leaf" validation warning.
-- The retry loop fires on every passage and can never succeed.
-- The SYSTEM_PROMPT tells the LLM to look for `_leaf: true`, further confusing it.
+## Code Bugs (Functional)
 
-**Reproduction:**
+### BUG-001 🔴 OPEN — Taxonomy Format Divergence Breaks Leaf Extraction for بلاغة
+
+**Location:** `tools/extract_passages.py` → `extract_taxonomy_leaves()` (line 911)
+
+**Problem:**
+`extract_taxonomy_leaves()` scans for `_leaf: true` via line-by-line text matching. The إملاء taxonomy uses `_leaf: true` in a nested-dict YAML structure — this works. The بلاغة taxonomy uses `leaf: true` (no underscore) in a list-of-nodes structure with explicit `id` fields. Result: **0 leaves returned** for بلاغة (expected: 143). Every excerpt placement triggers a "non-leaf" validation warning and the retry loop can never succeed.
+
+**Verified:** Audit 2 confirmed function is unchanged.
+
 ```python
 from tools.extract_passages import extract_taxonomy_leaves
 with open('taxonomy/balagha/balagha_v0_4.yaml') as f:
-    text = f.read()
-print(len(extract_taxonomy_leaves(text)))  # → 0 (expected: 143)
+    print(len(extract_taxonomy_leaves(f.read())))  # → 0
 ```
 
-**Impact:** Extraction pipeline is **completely broken** for any science that uses the list-based taxonomy format. Currently only إملاء works.
+**Impact:** Extraction pipeline is completely broken for any science using the list-based taxonomy format.
 
-**Fix:** `extract_taxonomy_leaves()` must handle both formats — either by proper YAML parsing (not line scanning) or by supporting both `_leaf: true` and `leaf: true` markers in both dict-based and list-based structures.
+**Fix:** Parse YAML properly (not line scanning). Handle both `_leaf: true` and `leaf: true` in both dict and list structures.
 
 ---
 
-## BUG-002 🔴 `prose_tail` Atom Type Creates Contradictory State and False Errors
+### BUG-002 🔴 OPEN — `prose_tail` Atom Type Missing from VALID_ATOM_TYPES
 
-**Location:** `tools/extract_passages.py` → `post_process_extraction()` (line ~571) + `validate_extraction()` (line ~667)
+**Location:** `tools/extract_passages.py` → `VALID_ATOM_TYPES` constant + `post_process_extraction()`
 
-**Problem:**  
-The SYSTEM_PROMPT instructs the LLM: *"type it according to its actual form (`prose_sentence` or `bonded_cluster`) but add `is_prose_tail: true`"*. However, in practice the LLM sometimes returns `"type": "prose_tail"` as the atom type (evidenced in committed `output/imlaa_extraction/P004_extraction.json`).
+**Problem:**
+When the LLM returns `"type": "prose_tail"` (which it sometimes does despite prompt instructions), `post_process_extraction()` renames it to `atom_type: "prose_tail"` but sets `is_prose_tail: False` via `setdefault`. Validation then fires two contradictory errors: invalid atom_type WARNING + uncovered atom ERROR. The retry loop sends both back to the LLM, which gets confused.
 
-When this happens, the post-processing chain produces contradictory state:
-1. `post_process_extraction()` renames `type` → `atom_type`, yielding `atom_type: "prose_tail"`
-2. It sets `is_prose_tail: False` via `setdefault` (because the LLM didn't include the field)
-3. `validate_extraction()` Check 3 flags `prose_tail` as an invalid `atom_type` → WARNING
-4. Check 7 (Coverage) sees `is_prose_tail=False`, so the atom is NOT excluded from coverage
-5. The atom isn't in any excerpt's `core_atoms` either (correctly)
-6. Coverage check fires → ERROR: "Uncovered atoms"
+**Verified:** Audit 2 confirmed `VALID_ATOM_TYPES` still equals `{'prose_sentence', 'bonded_cluster', 'quran_quote_standalone', 'list_item', 'heading', 'verse_evidence'}`.
 
-The retry loop then sends both the WARNING and ERROR back to the LLM, which gets confused because it's being told its output format is wrong AND its coverage is wrong, when really the tool should have corrected the atom type.
+**Impact:** Unnecessary retries (~$0.03–0.10 per passage) on every passage with continuation text.
 
-**Reproduction:**
-```python
-from tools.extract_passages import post_process_extraction, validate_extraction
-result = {
-    'atoms': [
-        {'atom_id': 'x:matn:000001', 'type': 'prose_tail', 'text': 'test'},
-        {'atom_id': 'x:matn:000002', 'type': 'prose_sentence', 'text': 'content'},
-    ],
-    'excerpts': [{'excerpt_id': 'x:exc:000001', 'core_atoms': [{'atom_id': 'x:matn:000002', 'role': 'author_prose'}],
-                  'taxonomy_node_id': 'leaf', 'boundary_reasoning': 'x', 'source_layer': 'matn',
-                  'excerpt_title': 'x', 'case_types': ['A1_pure_definition']}],
-    'footnote_excerpts': [],
-}
-p = post_process_extraction(result, 'x', 'imlaa')
-# p['atoms'][0] has atom_type='prose_tail' AND is_prose_tail=False
-v = validate_extraction(p, 'P', {'leaf'})
-# v['errors'] = ['Uncovered atoms...'], v['warnings'] = ['invalid atom_type prose_tail']
-```
-
-**Impact:** Every passage with prose_tail content triggers unnecessary retries (wasting ~$0.03–0.10 per passage) and potentially degrades LLM output quality on retry.
-
-**Fix:** `post_process_extraction()` should detect `atom_type == "prose_tail"` and (a) set `is_prose_tail = True`, (b) change `atom_type` to `"prose_sentence"`. Alternatively, add `"prose_tail"` to `VALID_ATOM_TYPES` and treat it as an excluded type in validation.
+**Fix:** In `post_process_extraction()`, detect `atom_type == "prose_tail"` → set `is_prose_tail = True` and change `atom_type` to `"prose_sentence"`.
 
 ---
 
-## BUG-003 🔴 Committed Extraction Output Is Stale / Pre-Dates Post-Processing
+### BUG-003 🔴 OPEN — Committed Extraction Output Is Stale (Pre-Post-Processing)
 
 **Location:** `output/imlaa_extraction/P004_extraction.json`, `P010_extraction.json`
 
-**Problem:**  
-The committed extraction output files were generated before the current `post_process_extraction()` code existed. They have:
+**Problem:**
+Committed extraction outputs predate the current `post_process_extraction()` code. They use `type` instead of `atom_type`, and are missing `record_type`, `book_id`, `source_layer`, `is_prose_tail`, `bonded_cluster_trigger`, `exclusions`, and `notes`. Additionally, these files are tracked in git despite `output/` being in `.gitignore` (force-added before the gitignore rule existed).
 
-| Field | Expected (current code) | Actual (committed file) |
-|-------|------------------------|------------------------|
-| `atom_type` | present | MISSING (has `type` instead) |
-| `record_type` | `"atom"` | MISSING |
-| `book_id` | `"qimlaa"` | MISSING |
-| `source_layer` | `"matn"` | MISSING |
-| `is_prose_tail` | `true`/`false` | MISSING |
-| `bonded_cluster_trigger` | `null`/object | MISSING |
-| `exclusions` (top-level) | array | MISSING |
-| `notes` (top-level) | string | MISSING |
+**Verified:** Audit 2 confirmed: `P004_extraction.json` atoms have keys `['atom_id', 'note', 'role', 'text', 'type']` — missing all post-processing fields. Excerpts are missing `case_types`, `relations`, `book_id`, `record_type`, `status`, `taxonomy_version`, and 15+ other schema-required fields.
 
-Also, `extraction_summary.json` has `book_id: "qimlaa"` which doesn't match the registry book_id `"imla"`.
+**Impact:** Anyone treating committed output as reference data gets a wrong picture of the tool's current output format.
 
-**Impact:** Anyone using committed output as reference data gets a wrong picture of the tool's current output format. The gold calibration file (`3_extraction/gold/P004_gold_excerpt.json`) also uses a third, different field set — creating three competing "truth" sources.
-
-**Fix:** Re-run extraction for P004 and P010 with current code and recommit. Alternatively, add a clear warning that committed output is from an older tool version.
+**Fix:** Either re-run extraction and recommit, or `git rm` the stale files and add a note that `output/` is gitignored.
 
 ---
 
-## BUG-004 🔴 `book_id` Inconsistency Across Pipeline Stages
+### BUG-004 🔴 OPEN — `book_id` Inconsistency Across Pipeline Stages
 
 **Location:** Cross-cutting: registry, intake, Stage 1, Stage 2, extraction
 
-**Problem:**  
-The same book is identified differently at each stage:
+**Problem:**
+The same book uses three different IDs:
 
 | Source | `book_id` |
 |--------|-----------|
@@ -124,329 +93,346 @@ The same book is identified differently at each stage:
 | `books/imla/intake_metadata.json` | `imla` |
 | `books/imla/stage1_output/pages.jsonl` | `qawaid_imlaa` |
 | `books/imla/stage2_output/passages.jsonl` | `qawaid_imlaa` |
-| `books/imla/stage2_output/divisions.json` | `qawaid_imlaa` |
-| `output/imlaa_extraction/P004_extraction.json` atoms | (none — field missing) |
 | `output/imlaa_extraction/extraction_summary.json` | `qimlaa` |
-| Atom ID prefix in extraction output | `qimlaa:matn:...` |
+| Atom ID prefix in extraction | `qimlaa:matn:...` |
 
-The `imla` vs `qawaid_imlaa` vs `qimlaa` discrepancy means no downstream tool can reliably join data across stages using `book_id`. The Stage 1/2 tools were apparently run with `--id qawaid_imlaa` while the extraction was run with `--book-id qimlaa`.
+**Verified:** Audit 2 confirmed all three IDs still present.
 
-**Impact:** Any pipeline that chains stages (e.g., "find all excerpts for book X") will silently miss data due to ID mismatch.
+**Impact:** Cross-stage joins on `book_id` silently miss data.
 
-**Fix:** Enforce a single canonical book_id from Stage 0 intake metadata and propagate it automatically to all downstream stages. The `--book-id` CLI args should default to reading from intake_metadata.json rather than requiring manual entry.
+**Fix:** Enforce single canonical book_id from Stage 0 intake metadata; propagate automatically to downstream stages.
 
 ---
 
-## BUG-005 🟡 Footnote Preamble Silently Dropped in Extraction
+### BUG-005 🟡 OPEN — Footnote Preamble Silently Dropped in Extraction
 
 **Location:** `tools/extract_passages.py` → `get_passage_footnotes()` (line ~418)
 
-**Problem:**  
-The `get_passage_footnotes()` function collects only the structured `footnotes` array (numbered entries). It completely ignores the `footnote_preamble` field, which contains text that appeared before the first numbered footnote marker.
+**Problem:**
+`get_passage_footnotes()` collects only the structured `footnotes` array (numbered entries). It ignores the `footnote_preamble` field entirely. For pages with `footnote_section_format: "bare_number"` or `"unnumbered"`, the ENTIRE footnote content is captured as preamble, so ALL footnote content on those pages is silently dropped.
 
-In the إملاء book, 4 pages have preamble content (up to 313 chars), and across the full corpus, the Stage 1 analysis found preamble content on thousands of pages. For pages with `footnote_section_format: "bare_number"` or `"unnumbered"`, the ENTIRE footnote section is captured as preamble (since no `(N)` markers were found), meaning all footnote content on those pages is silently dropped.
+**Verified:** Audit 2 confirmed function unchanged — still only reads `pg.get("footnotes", [])`, no mention of `footnote_preamble`.
 
-**Reproduction:**
-```python
-import json
-with open('books/imla/stage1_output/pages.jsonl') as f:
-    pages = [json.loads(l) for l in f if l.strip()]
-# Page at seq_index=20 has 313 chars of preamble
-p = [p for p in pages if p['seq_index'] == 20][0]
-print(p['footnote_preamble'][:100])  # Content exists
-print(len(p['footnotes']))           # 2 numbered footnotes
-# But get_passage_footnotes() only returns the 2 numbered ones
-```
-
-**Impact:** Scholarly footnote content is lost before the LLM ever sees it. For `bare_number` and `unnumbered` formats (24,775+ pages across corpus), ALL footnote text is invisible to extraction.
-
-**Fix:** `get_passage_footnotes()` should prepend `footnote_preamble` to the assembled footnote text when it exists, clearly marked (e.g., `[preamble] ...text...`).
+**Fix:** Include `footnote_preamble` content in the footnote text sent to the LLM.
 
 ---
 
-## BUG-006 🟡 `starts_with_zwnj_heading` Loaded But Never Used in Structure Discovery
-
-**Location:** `tools/discover_structure.py` (lines 101, 681)
-
-**Problem:**  
-The `starts_with_zwnj_heading` field is loaded from `pages.jsonl` into the `PageRecord` dataclass but is never referenced by any of the three discovery passes (Pass 1 HTML, Pass 2 Keyword, Pass 3 LLM). The ZWNJ marker (`\u200c\u200c` at the start of matn text) indicates section headings in many Shamela exports. The corpus analysis documents note this marker appears on 15,000+ pages across the corpus.
-
-**Impact:** A reliable heading signal is captured at Stage 1 but wasted at Stage 2. Books that rely primarily on ZWNJ headings (rather than `<span class="title">` tags) will have degraded structure discovery.
-
-**Fix:** Add a ZWNJ-based heading detection step to Pass 1 or Pass 2. When `starts_with_zwnj_heading` is true, extract the first line (or text up to the first period/paragraph break) as a heading candidate with `confidence: "high"`.
-
----
-
-## BUG-007 🟡 Three Competing Schema Definitions for Atoms/Excerpts
-
-**Location:** Cross-cutting schema drift
-
-**Problem:**  
-There are three mutually incompatible "truth" sources for what an atom/excerpt record looks like:
-
-| Field | Gold Schema v0.3.3 | Extraction Tool Output | Extraction Gold Calibration |
-|-------|-------------------|----------------------|---------------------------|
-| `source_anchor` | REQUIRED (`char_offset_start/end`) | Not produced | Not present |
-| `page_hint` | Present | Not produced | Not present |
-| `canonical_text_sha256` | Present | Not produced | Not present |
-| `footnote_refs` | Present | Not produced | Not present |
-| `internal_tags` | Present | Not produced | Not present |
-| `book_id` on atoms | REQUIRED | Set by post-process | Present |
-| `source_spans` on excerpts | Present in gold | Not produced | Not present |
-| `tests_nodes` on excerpts | Present in gold | Not produced | Not present |
-| `split_discussion` on excerpts | Present in gold | Not produced | Not present |
-| `excerpt_title_reason` | In gold baselines | In prompt but not validated | Present in calibration |
-
-The authoritative gold schema (`schemas/gold_standard_schema_v0.3.3.json`) requires fields like `source_anchor` that no tool produces. The gold baselines have fields like `source_spans` and `tests_nodes` that the extraction tool doesn't generate. The extraction tool's gold calibration file (`3_extraction/gold/P004_gold_excerpt.json`) uses yet another subset.
-
-**Impact:** No single validation can confirm output correctness. Schema validation against `gold_standard_schema_v0.3.3.json` would reject ALL extraction output. Gold baselines can't serve as calibration targets because their field sets don't match what the tool produces.
-
-**Fix:** Decide which schema is authoritative and align the others. Either (a) update the extraction tool to produce all required gold schema fields (including `source_anchor`, which requires character-offset tracking), or (b) create a separate `extraction_schema_v1.0.json` that reflects what the tool actually produces and plan a migration path to the full gold schema.
-
----
-
-## BUG-008 🟡 Page Filtering Creates Non-Contiguous `seq_index` in Output
-
-**Location:** `tools/normalize_shamela.py` → `normalize_multivolume()` (line ~759), `normalize_book_by_id()` (line ~900), `_run_single_html_mode()` (line ~1047)
-
-**Problem:**  
-When `--page-start` or `--page-end` is used, pages are filtered AFTER `seq_index` has been assigned. This means the output JSONL has gaps in `seq_index` (e.g., 0, 5, 6, 7, ... if pages 1-4 were filtered out). Downstream tools (Structure Discovery, extraction) use `range(start_seq_index, end_seq_index + 1)` to iterate pages, which would attempt to look up non-existent seq indices.
-
-Additionally, the normalization report reflects ALL pages (pre-filter), not just the filtered subset, making the report inconsistent with the actual output.
-
-**Impact:** Using `--page-start`/`--page-end` produces output that downstream tools can't correctly consume. Currently mitigated by the fact that nobody uses these flags in production (only full-book runs have been done).
-
-**Fix:** Either (a) reassign `seq_index` after filtering to maintain continuity, or (b) document that filtering is for debugging only and not for pipeline consumption, or (c) filter before seq_index assignment.
-
----
-
-## BUG-009 🟡 `discover_structure.py` LLM Default Model Is Outdated
-
-**Location:** `tools/discover_structure.py` (line ~52)
-
-**Problem:**  
-```python
-LLM_DEFAULT_MODEL = "claude-sonnet-4-20250514"  # discover_structure.py
-```
-vs.
-```python
-default="claude-sonnet-4-5-20250929"             # extract_passages.py
-```
-
-Stage 2 (Structure Discovery) defaults to an older model while Stage 3+4 (Extraction) defaults to a newer one. The Stage 2 constant appears twice in the file (suggesting a copy-paste or merge artifact).
-
-**Impact:** Stage 2 LLM calls use an older model with potentially lower quality, and the duplication could cause confusion when updating.
-
-**Fix:** Update to a consistent model across all tools. Remove the duplicate constant.
-
----
-
-## BUG-010 🟡 Hardcoded Cost Calculation Assumes Sonnet Pricing
-
-**Location:** `tools/extract_passages.py` (line ~1204)
-
-**Problem:**  
-```python
-cost = in_tok * 3 / 1_000_000 + out_tok * 15 / 1_000_000
-```
-
-This is hardcoded for Claude Sonnet pricing ($3/$15 per MTok). If the user passes `--model` with a different model (e.g., Opus at $15/$75, or Haiku at $0.25/$1.25), the cost tracking is silently wrong.
-
-**Impact:** Misleading cost reports when using non-Sonnet models. Low severity since the default is Sonnet and cost is informational only.
-
-**Fix:** Add a model→pricing lookup table, or at minimum note the assumption in the output.
-
----
-
-## BUG-011 🟡 Empty and Duplicate Files Committed to Repository
-
-**Location:** Multiple
-
-**Problem:**  
-Several files are empty, duplicated, or misplaced:
-
-1. `1_normalization/jawahir_normalized.jsonl` — **0 bytes** (empty file committed to git)
-2. `1_normalization/jawahir_normalized_full.jsonl` — 22 pages, has data  
-   `1_normalization/gold_samples/jawahir_normalized_full.jsonl` — duplicate copy (148KB)  
-   `1_normalization/gold_samples/jawahir_normalized.jsonl` — DIFFERENT content (1MB, includes raw HTML)
-3. The `jawahir_normalized_full.jsonl` in `1_normalization/` is missing modern fields (`schema_version`, `footnote_section_format`, `seq_index`, `content_type`, `starts_with_zwnj_heading`) — it was generated by an older version of the normalizer.
-
-**Impact:** Confusion about which file is authoritative. Old normalized output missing critical fields.
-
-**Fix:** Delete the 0-byte file. Decide which jawahir normalization is canonical and remove duplicates. Regenerate with current normalizer if jawahir gold samples need to be maintained.
-
----
-
-## BUG-012 🟡 `requirements.txt` Missing Runtime Dependencies
-
-**Location:** `requirements.txt`
-
-**Problem:**  
-The file lists only `PyYAML>=6.0` but the tools also require:
-- `httpx` — used by `extract_passages.py` for Claude API calls
-- `anthropic` — used by `discover_structure.py` and `enrich.py` for Claude API calls
-
-`CLAUDE.md` correctly documents `pip install PyYAML httpx` but omits `anthropic`. The actual dependency situation:
-
-| Tool | HTTP library | Package needed |
-|------|-------------|----------------|
-| `extract_passages.py` | `httpx` (raw HTTP) | `httpx` |
-| `discover_structure.py` | `anthropic` SDK | `anthropic` |
-| `enrich.py` | `anthropic` SDK | `anthropic` |
-
-**Impact:** `pip install -r requirements.txt` doesn't install all needed packages. LLM-dependent stages fail at runtime with import errors.
-
-**Fix:** Add `httpx>=0.24` and `anthropic>=0.18` to `requirements.txt`.
-
----
-
-## BUG-013 🟡 Normalization Default Output Path Doesn't Match Actual Repository Layout
-
-**Location:** `tools/normalize_shamela.py` → `_run_book_id_mode()` (line ~993)
-
-**Problem:**  
-```python
-out_jsonl = args.out_jsonl or os.path.join(books_dir, book_id, "pages.jsonl")
-```
-
-The default output is `books/{book_id}/pages.jsonl`, but the actual committed output is at `books/imla/stage1_output/pages.jsonl`. There's no `stage1_output/` subdirectory in the default path. This means running the tool with default settings would write to a different location than where Stage 2 expects to find the file.
-
-**Impact:** Re-running normalization with defaults creates the file in the wrong place. Stage 2 would need to be told the correct path explicitly.
-
-**Fix:** Either change the default to `books/{book_id}/stage1_output/pages.jsonl` or document the expected layout.
-
----
-
-## BUG-014 🟡 Gold Schema `divisions_schema_v0.1.json` Has Empty Division Item Definition
+### BUG-014 🟡 OPEN — Gold Schema `divisions_schema_v0.1.json` Has Empty Division Item Definition
 
 **Location:** `schemas/divisions_schema_v0.1.json`
 
-**Problem:**  
-The divisions schema defines required top-level fields but the division item schema has:
-```json
-"items": {
-  "required": [],
-  "properties": {}
-}
-```
+**Problem:**
+Division item schema has `"required": [], "properties": {}` — any object passes validation.
 
-This means ANY object passes validation as a valid division item — the schema provides zero field-level validation for the most important part of its data.
+**Verified:** Audit 2 confirmed unchanged.
 
-**Impact:** Schema validation against `divisions_schema_v0.1.json` is essentially no-op for division records. Invalid divisions would pass silently.
-
-**Fix:** Populate the division item schema with the actual fields and constraints (matching the 23 fields present in committed `divisions.json` data).
+**Fix:** Populate with actual fields from committed `divisions.json` data.
 
 ---
 
-## BUG-015 🟢 Cost Comment in Extraction Uses Sonnet, Model Default Targets Sonnet 4.5
+## Documentation Bugs (Introduced or Persisted After Docs Rewrite)
 
-**Location:** `tools/extract_passages.py` (line ~1203)
+### BUG-021 🔴 NEW — EXCERPTING_SPEC §4.2 Relation Types Are Completely Fabricated
 
-**Problem:**  
-```python
-# Cost estimate (Claude Sonnet pricing)
-cost = in_tok * 3 / 1_000_000 + out_tok * 15 / 1_000_000
-```
+**Location:** `4_excerpting/EXCERPTING_SPEC.md` §4.2 (line ~134)
 
-The comment says "Sonnet" but the default model is `claude-sonnet-4-5-20250929` (Sonnet 4.5). The pricing happens to be the same, but the comment is misleading and will break if pricing changes.
+**Problem:**
+The spec lists 5 relation types: `prerequisite`, `builds_on`, `contrasts`, `exemplifies`, `cross_reference`. **None of these exist in the actual schema.** The real 13 relation types (from `schemas/gold_standard_schema_v0.3.3.json` and `project_glossary.md` §7) are: `footnote_supports`, `footnote_explains`, `footnote_citation_only`, `footnote_source`, `split_continues_in`, `split_continued_from`, `shared_shahid`, `exercise_tests`, `interwoven_sibling`, `cross_layer`, `has_overview`, `answers_exercise_item`, `belongs_to_exercise_set`.
 
-**Fix:** Update comment to reference the specific model and pricing source.
+Zero overlap between the spec's types and the actual types.
 
----
+**Impact:** Anyone implementing excerpting from this spec would produce invalid relation types that fail schema validation. The REPO_MAP §Known Schema Drift already warns about specs vs gold, but this is a complete fabrication, not a drift.
 
-## BUG-016 🟢 `jawahir_normalization_report.json` Has Fewer Fields Than Current Report Schema
-
-**Location:** `1_normalization/jawahir_normalization_report.json`
-
-**Problem:**  
-This report was generated by an older normalizer version and is missing fields that the current `NormalizationReport` dataclass includes:
-- `pages_with_fn_preamble`
-- `pages_with_bare_number_fns`
-- `pages_with_unnumbered_fns`
-- `total_matn_chars` / `total_footnote_chars` / `total_preamble_chars`
-- `pages_with_tables`
-- `pages_image_only`
-- `pages_with_zwnj_heading`
-- `pages_with_duplicate_numbers`
-
-**Impact:** Stale report provides incomplete picture of jawahir book characteristics.
-
-**Fix:** Regenerate when jawahir is next processed.
+**Fix:** Replace §4.2 relation types with the real ones from `project_glossary.md` §7 / schema. Or add a cross-reference: "See project_glossary.md §7 for the authoritative relation type list."
 
 ---
 
-## BUG-017 🟢 `LLM_DEFAULT_MODEL` Defined Twice in `discover_structure.py`
+### BUG-022 🔴 NEW — EXCERPTING_SPEC §5.2 Excerpt Example Uses Wrong Field Names and ID Format
 
-**Location:** `tools/discover_structure.py`
+**Location:** `4_excerpting/EXCERPTING_SPEC.md` §5.2 (line ~173)
 
-**Problem:**  
-The constant `LLM_DEFAULT_MODEL = "claude-sonnet-4-20250514"` appears twice in the file (grep confirms two identical definitions). Same for `LLM_MAX_RETRIES = 3`.
+**Problem:**
+The example excerpt JSON uses:
+- `"excerpt_id": "EXC_001"` — should be `{book_id}:exc:000001` format
+- `"placed_at": "balagha/..."` — field doesn't exist; schema uses `taxonomy_node_id`
+- `"atoms": [{atom_id, role}]` flat array — schema uses separate `core_atoms[]` and `context_atoms[]`
+- Missing 14+ required schema fields (`book_id`, `record_type`, `status`, `taxonomy_version`, `heading_path`, `boundary_reasoning`, `case_types`, etc.)
 
-**Impact:** No functional impact (same value), but suggests a merge or copy-paste error that could cause silent bugs if one is updated and the other isn't.
+**Impact:** Example is misleading; extraction code implementing this example would produce invalid output.
 
-**Fix:** Remove the duplicate definitions.
-
----
-
-## BUG-018 🟢 `discover_structure.py` Uses `anthropic` SDK While `extract_passages.py` Uses Raw `httpx`
-
-**Location:** `tools/discover_structure.py` (line 711), `tools/extract_passages.py` (line 466)
-
-**Problem:**  
-Two tools that both call the Claude API use different HTTP clients:
-- `discover_structure.py`: `import anthropic` → uses the official Anthropic Python SDK
-- `extract_passages.py`: `import httpx` → makes raw HTTP POST requests
-
-This means different error handling, different retry behavior, different request formatting, and two dependencies instead of one.
-
-**Impact:** Maintenance burden. If the API changes, two different call sites need updating. Different error messages for the same underlying failures.
-
-**Fix:** Standardize on one approach. The `anthropic` SDK is generally preferred (handles retries, rate limits, versioning).
+**Fix:** Replace with a real excerpt from gold baselines or update to match `schemas/gold_standard_schema_v0.3.3.json` excerpt_record definition.
 
 ---
 
-## BUG-019 🟢 Page 0 (Title Page) Not Explicitly Excluded from Structure Discovery
+### BUG-023 🔴 NEW — ATOMIZATION_SPEC §5 Atom Example Uses All Wrong Field Names
 
-**Location:** `books/imla/stage2_output/divisions.json`
+**Location:** `3_atomization/ATOMIZATION_SPEC.md` §5 (line ~100)
 
-**Problem:**  
-In the إملاء book, page `seq_index=0` (printed page 1, containing title/publisher metadata) is not covered by any division. The first division starts at `seq_index=1`. While this is correct behavior (title pages shouldn't be in divisions), there's no explicit exclusion record or warning.
+**Problem:**
+Despite being marked "SUPERSEDED", this spec is still listed in CLAUDE.md §Key Files and REPO_MAP as a reference. Its example atom uses:
+- `"atom_id": "A001"` → should be `{book_id}:{layer}:{6-digit}` (e.g., `jawahir:matn:000004`)
+- `"text_ar"` → schema says `text`
+- `"source_page"` → schema says `page_hint` (optional)
+- `"source_locator"` → schema says `source_anchor` (required)
+- `"is_heading"` → schema uses `atom_type` enum (heading is a value, not a boolean)
+- `"bond_group"` / `"bond_reason"` → schema uses `bonded_cluster_trigger` (structured object)
 
-If a book has substantive content before the first HTML heading, this gap would silently drop real content.
+Every single field name is wrong relative to the gold schema v0.3.3.
 
-**Impact:** Low for current data, but could become a problem for books where scholarly content begins before the first tagged heading.
+**Impact:** Although marked superseded, the spec is still referenced. Any reader following the field names will produce schema-invalid output.
 
-**Fix:** Add a "preamble before first heading" detection that either creates a preamble division or emits a warning when `seq_index < first_division_start` contains non-trivial content.
+**Fix:** Either add a prominent field-name mapping table, or replace the example with one matching the current schema, or remove the spec from CLAUDE.md and REPO_MAP references entirely.
 
 ---
 
-## BUG-020 🟢 Gold Baselines Use Separate Atom Files While Extraction Tool Produces Combined Output
+### BUG-024 🟡 NEW — TAXONOMY_SPEC Uses Wrong Field Names and ID Formats
 
-**Location:** `gold_baselines/jawahir_al_balagha/passage*/passage*_matn_atoms_v02.jsonl` + `passage*_fn_atoms_v02.jsonl` vs `output/imlaa_extraction/P004_extraction.json`
+**Location:** `5_taxonomy/TAXONOMY_SPEC.md` §4.1, §4.2
 
-**Problem:**  
-Gold baselines store matn atoms and footnote atoms in separate JSONL files. The extraction tool produces a single JSON file with a combined `atoms` array containing both matn and footnote atoms (distinguished by `source_layer`). The gold baselines also use separate `decisions.jsonl` and `taxonomy_changes.jsonl` files that have no equivalent in the extraction tool output.
+**Problem:**
+- §4.1: Uses `placed_at` field — schema uses `taxonomy_node_id`
+- §4.2: Uses `"triggered_by_excerpt": "EXC_042"` — actual format is `{book_id}:exc:000042`
+- §4.2: `taxonomy_change` example is plausible but doesn't match the schema's `taxonomy_change_record` definition (missing `record_type`, using wrong field names)
 
-**Impact:** Gold baselines cannot be directly used as few-shot examples or validation targets for the extraction tool without format conversion. The gold calibration file (`3_extraction/gold/P004_gold_excerpt.json`) bridges this gap partially but uses yet another format.
+**Fix:** Update field names and ID formats to match schema.
 
-**Fix:** Document the format differences explicitly. Consider adding a conversion utility for gold baselines → extraction format.
+---
+
+### BUG-025 🟡 NEW — RUNBOOK Default Model Claim Doesn't Match Code
+
+**Location:** `3_extraction/RUNBOOK.md` line 109
+
+**Problem:**
+RUNBOOK says: `--model MODEL — Claude model to use (default: claude-sonnet-4-20250514)`
+Actual code default (extract_passages.py line 1367): `default="claude-sonnet-4-5-20250929"`
+
+The RUNBOOK was updated in PR #8 but the model default was not corrected to match the code.
+
+**Fix:** Change RUNBOOK to say `claude-sonnet-4-5-20250929`.
+
+---
+
+### BUG-026 🟡 NEW — RUNBOOK Extraction JSON Description Doesn't Match Committed Output
+
+**Location:** `3_extraction/RUNBOOK.md` §"Extraction JSON structure" (line ~155)
+
+**Problem:**
+RUNBOOK claims extraction JSON contains:
+- `case_types[]` — committed output has `content_type` instead, no `case_types`
+- `relations[]` — committed output has no `relations` field
+- `exclusions[]` — committed output has no `exclusions` key
+- `notes` — committed output has no `notes` key
+
+The RUNBOOK describes the *intended* post-processed output format, but the committed P004/P010 files are pre-post-processing (see BUG-003). This creates confusion: docs describe one format, committed data shows another.
+
+**Fix:** Either re-run extraction to produce current-format output, or add a note that committed output is from an older tool version.
+
+---
+
+### BUG-027 🟡 NEW — CLAUDE.md Test Count Is Wrong
+
+**Location:** `CLAUDE.md` line 145
+
+**Problem:**
+CLAUDE.md says `# Unit tests (463 pass, ~9s)`. Actual result: `469 passed, 7 skipped in 11.99s`.
+
+**Fix:** Update to `476 collected (469 pass, 7 skip, ~12s)`.
+
+---
+
+### BUG-028 🟡 NEW — REPO_MAP Line Counts and Test Totals Are Wrong
+
+**Location:** `REPO_MAP.md` §Tools, §Tests
+
+**Problem:**
+
+| Item | REPO_MAP claims | Actual |
+|------|----------------|--------|
+| `tools/discover_structure.py` | ~1400 lines | 2856 lines |
+| Test total | 3602 lines | 5042 lines |
+| `test_structure_discovery.py` lines | — (blank) | 1440 lines |
+| `test_structure_discovery.py` tests | — (blank) | 86 tests |
+
+The `discover_structure.py` line count is off by 2x — likely the tool was significantly expanded after REPO_MAP was written. The test lines total is also 40% wrong because `test_structure_discovery.py` was omitted from the count.
+
+Additionally, REPO_MAP is missing 4 tools entirely:
+- `tools/check_env.py` (163 lines)
+- `tools/checkpoint_index_lib.py` (203 lines)
+- `tools/generate_checkpoint_index.py` (32 lines)
+- `tools/validate_structure.py` (318 lines)
+
+**Fix:** Update all line counts, add missing tools.
+
+---
+
+### BUG-029 🟡 NEW — Taxonomy Registry Missing إملاء Entry
+
+**Location:** `taxonomy/taxonomy_registry.yaml`
+
+**Problem:**
+The registry only lists بلاغة versions (balagha_v0_2 through v0_4). `imlaa_v0.1` is completely absent despite being the only taxonomy actively used in extraction. CLAUDE.md says "taxonomy/imlaa_v0.1.yaml — إملاء taxonomy (44 leaves)" and the extraction tool uses it, but the "canonical registry" doesn't know it exists.
+
+**Impact:** Any code that resolves taxonomies through the registry (as REPO_MAP instructs: "The production pipeline MUST resolve taxonomy trees through this registry") will find no إملاء tree.
+
+**Fix:** Add `imlaa` science entry with `imlaa_v0.1` version to the registry.
+
+---
+
+### BUG-030 🟡 NEW — CLAUDE.md "What Needs to Be Built" Lists بلاغة Tree as Missing
+
+**Location:** `CLAUDE.md` line 252
+
+**Problem:**
+Line 252 says: *"Taxonomy trees for صرف, نحو, بلاغة (base outlines to be provided, then evolve with books)"*
+But بلاغة already has a 143-leaf taxonomy tree (balagha_v0_4.yaml), actively used by gold baselines. Line 214 correctly says only "صرف and نحو trees: not yet created."
+
+This is contradictory within the same file. The "What needs to be built" list is misleading.
+
+**Fix:** Change line 252 to "Taxonomy trees for صرف, نحو" only. Or clarify that the بلاغة tree exists but hasn't been tested with the automated extraction pipeline.
+
+---
+
+## Repo Hygiene / Data Issues
+
+### BUG-031 🟡 NEW — `output/` Files Tracked in Git Despite `.gitignore` Rule
+
+**Location:** `.gitignore` + `output/imlaa_extraction/`
+
+**Problem:**
+`.gitignore` has `output/` but `git ls-files output/` shows 5 tracked files (P004/P010 extraction + reviews + summary). These were force-added before the gitignore rule was created. Git continues tracking them, so `git status` won't flag them as untracked, and `git diff` will show changes if they're modified.
+
+**Impact:** Confusing: gitignore says "don't track output" but git tracks output. New contributors may not realize these files are stale artifacts.
+
+**Fix:** Either `git rm --cached output/` to untrack them (keeping them locally), or document why they're an intentional exception.
+
+---
+
+### BUG-032 🟡 NEW — 4 Old Normalization Spec Versions Cluttering `1_normalization/`
+
+**Location:** `1_normalization/`
+
+**Problem:**
+Five normalization spec files exist: `NORMALIZATION_SPEC.md` (unnumbered), `_v0.2.md`, `_v0.3.md`, `_v0.4.md`, `_v0.5.md`. Only v0.5 is current. The other four are superseded. Unlike `archive/precision_deprecated/` (which has a `DO_NOT_READ.md` warning), these old specs sit alongside the current one with no warning.
+
+**Impact:** A reader may accidentally read v0.3 or v0.4 instead of v0.5 and follow outdated rules.
+
+**Fix:** Move old versions to `archive/` or add version indicators making it clear only v0.5 is current.
+
+---
+
+### BUG-033 🟢 NEW — `jawahir_normalized.jsonl` Is an Empty File (0 bytes)
+
+**Location:** `1_normalization/jawahir_normalized.jsonl`
+
+**Problem:**
+This file is 0 bytes — completely empty. Its sibling `jawahir_normalized_full.jsonl` (144KB) has content. The empty file appears to be an aborted run or a mistake. Both files are in a spec directory, not a data output directory.
+
+**Fix:** Delete the empty file. Move `jawahir_normalized_full.jsonl` to `books/jawahir/stage1_output/` or delete if stale.
+
+---
+
+### BUG-034 🟢 NEW — Stale Analysis Reports in `1_normalization/`
+
+**Location:** `1_normalization/STAGE1_AUDIT_REPORT.md`, `STAGE1_CRITICAL_ANALYSIS.md`, `STAGE1_ROUND2_ANALYSIS.md`
+
+**Problem:**
+These are one-time analysis documents from Stage 1 development. They reference specific bugs and findings that may have been fixed. They sit alongside active specs without any staleness indicator.
+
+**Impact:** Low — useful as historical reference, but a new reader might treat findings as current issues.
+
+**Fix:** Move to `archive/` or add a header noting they're historical.
+
+---
+
+## Previously Reported (Status Updates)
+
+### BUG-006 🟡 OPEN — ZWNJ Heading Signal Wasted in Extraction
+
+Still unfixed. `get_passage_footnotes()` and the extraction prompt don't use ZWNJ markers.
+
+### BUG-007 🟡 OPEN — Schema Drift Between Gold v0.3.3 and Extraction Output
+
+Still applies. Extraction output has 11 fields; gold schema requires 14+ fields on excerpts. Extraction atoms have 5 fields; schema requires 7+. The REPO_MAP §Known Schema Drift documents this, but nothing has converged.
+
+### BUG-008 🟡 OPEN — Page Filter May Miss Pages Due to seq_index Gaps
+
+Unchanged. `seq_index` uniqueness is not enforced.
+
+### BUG-009 🟡 OPEN — `discover_structure.py` Uses Sonnet 4 While `extract_passages.py` Uses Sonnet 4.5
+
+Partially updated: `extract_passages.py` now defaults to `claude-sonnet-4-5-20250929`, but `discover_structure.py` still uses `claude-sonnet-4-20250514`. The inconsistency remains.
+
+### BUG-010 🟢 OPEN — Hardcoded Sonnet 3.5 Cost Calculation in `extract_passages.py`
+
+Still present at line ~1203. Comment says "Sonnet pricing" but model is now Sonnet 4.5.
+
+### BUG-011 🟢 OPEN — Empty/Duplicate Files in Repository
+
+Unchanged.
+
+### BUG-012 🟡 OPEN — `requirements.txt` Missing `httpx` Dependency
+
+`requirements.txt` only lists `PyYAML>=6.0`. `httpx` is required by `extract_passages.py` and `anthropic` SDK is required by `discover_structure.py`. Neither is listed. CLAUDE.md correctly mentions `pip install PyYAML httpx` but `requirements.txt` is incomplete.
+
+### BUG-013 🟡 OPEN — Normalization Default Output Path Mismatch
+
+Still defaults to `books/{book_id}/pages.jsonl` instead of `books/{book_id}/stage1_output/pages.jsonl`.
+
+### BUG-015 🟢 OPEN — Cost Comment References Wrong Model
+
+Unchanged.
+
+### BUG-016 🟢 OPEN — `jawahir_normalization_report.json` Uses Older Report Schema
+
+Unchanged.
+
+### BUG-017 🟢 OPEN — Duplicate `LLM_DEFAULT_MODEL` in `discover_structure.py`
+
+Unchanged.
+
+### BUG-018 🟢 OPEN — Mixed HTTP Clients (`anthropic` SDK vs raw `httpx`)
+
+Unchanged.
+
+### BUG-019 🟢 OPEN — Page 0 Not Explicitly Excluded from Structure Discovery
+
+Unchanged.
+
+### BUG-020 🟢 OPEN — Gold Baselines vs Extraction Tool Use Different Output Formats
+
+Unchanged.
 
 ---
 
 ## Summary
 
-| Severity | Count | Key Items |
-|----------|-------|-----------|
-| 🔴 CRITICAL | 4 | Taxonomy format breaks بلاغة (BUG-001), prose_tail contradictory state (BUG-002), stale committed output (BUG-003), book_id inconsistency (BUG-004) |
-| 🟡 MODERATE | 10 | Footnote preamble dropped (BUG-005), ZWNJ signal wasted (BUG-006), schema drift (BUG-007), page filter seq gaps (BUG-008), outdated model (BUG-009), hardcoded cost (BUG-010), empty/duplicate files (BUG-011), missing deps (BUG-012), wrong default path (BUG-013), empty division schema (BUG-014) |
-| 🟢 LOW | 6 | Cost comment (BUG-015), stale report (BUG-016), duplicate constant (BUG-017), mixed HTTP clients (BUG-018), page 0 gap (BUG-019), gold format mismatch (BUG-020) |
+| Severity | Count | Open | New in Audit 2 |
+|----------|-------|------|-----------------|
+| 🔴 CRITICAL | 7 | 7 | 3 (BUG-021, 022, 023) |
+| 🟡 MODERATE | 17 | 17 | 8 (BUG-024–031) |
+| 🟢 LOW | 10 | 10 | 2 (BUG-033, 034) |
+| **Total** | **34** | **34** | **13** |
 
-### Recommended Fix Order
+**Zero bugs fixed since Audit 1.** The docs rewrite (PRs #6–#8) improved high-level orientation but introduced 3 new critical doc inconsistencies (fabricated relation types, wrong field names in examples) and did not fix any existing code bugs.
 
+### Recommended Fix Priority
+
+**Tier 1 — Blocks pipeline functionality:**
 1. **BUG-001** (taxonomy format) — blocks all non-إملاء extraction
-2. **BUG-002** (prose_tail) — causes unnecessary retries on every passage with continuations
+2. **BUG-002** (prose_tail) — causes false errors on every passage with continuations
 3. **BUG-004** (book_id) — prevents reliable cross-stage data joins
-4. **BUG-005** (footnote preamble) — silently drops scholarly content
-5. **BUG-007** (schema drift) — prevents any meaningful schema validation
-6. **BUG-012** (requirements.txt) — prevents clean installs
-7. Everything else
+
+**Tier 2 — Causes silent data loss or serious confusion:**
+4. **BUG-021** (fabricated relation types in EXCERPTING_SPEC) — anyone implementing from this spec produces invalid output
+5. **BUG-022 + BUG-023** (wrong field names in spec examples) — same impact
+6. **BUG-005** (footnote preamble dropped) — silently loses scholarly content
+7. **BUG-029** (taxonomy registry missing imlaa) — registry contract broken
+8. **BUG-012** (requirements.txt) — prevents clean installs
+
+**Tier 3 — Degraded docs and data quality:**
+9. **BUG-003 + BUG-031** (stale committed output, tracked despite gitignore) — confusing for new readers
+10. **BUG-024–028** (various doc inaccuracies) — misleading but documented as "specs may drift"
+11. **BUG-032** (old spec versions) — archival cleanup
+
+**Tier 4 — Low priority:**
+12. Everything else (BUG-010, 015–020, 033, 034)
