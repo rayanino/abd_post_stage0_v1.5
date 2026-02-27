@@ -460,6 +460,27 @@ class TestValidateExtraction:
         issues = validate_extraction(result, "P001", self.LEAVES)
         assert len(issues) == 0
 
+    def test_placeholder_excluded_from_coverage(self):
+        """Placeholder atoms (ellipses, OCR gaps) should NOT trigger uncovered-atom issues."""
+        result = make_extraction_result(
+            atoms=[
+                make_atom("a1", atom_type="placeholder", text="…"),
+                make_atom("a2", atom_type="prose_sentence", text="جملة"),
+            ],
+            excerpts=[make_excerpt("e1", ["a2"], "leaf_a")],
+        )
+        issues = validate_extraction(result, "P001", self.LEAVES)
+        assert len(issues) == 0
+
+    def test_context_atom_counts_as_covered(self):
+        """Atoms in context_atoms should count as covered (not trigger uncovered-atom issue)."""
+        result = make_extraction_result(
+            atoms=[make_atom("a1"), make_atom("a2")],
+            excerpts=[make_excerpt("e1", ["a1"], "leaf_a", context_atoms=["a2"])],
+        )
+        issues = validate_extraction(result, "P001", self.LEAVES)
+        assert not any("Uncovered" in i or "uncovered" in i for i in issues)
+
     # --- Invariant 4: No double-counting ---
 
     def test_no_duplication_passes(self):
@@ -501,6 +522,18 @@ class TestValidateExtraction:
         )
         issues = validate_extraction(result, "P001", self.LEAVES)
         assert any("non-leaf" in i.lower() or "nonexistent_parent" in i for i in issues)
+
+    def test_path_style_id_auto_fixed(self):
+        """Path-style IDs like 'root:parent:leaf_a' should be auto-fixed to 'leaf_a'."""
+        result = make_extraction_result(
+            atoms=[make_atom("a1")],
+            excerpts=[make_excerpt("e1", ["a1"], "root:parent:leaf_a")],
+        )
+        issues = validate_extraction(result, "P001", self.LEAVES)
+        # Should NOT report a non-leaf issue (auto-fixed)
+        assert not any("non-leaf" in i.lower() for i in issues)
+        # The node ID should be auto-corrected
+        assert result["excerpts"][0]["taxonomy_node_id"] == "leaf_a"
 
     def test_unmapped_is_allowed(self):
         result = make_extraction_result(
