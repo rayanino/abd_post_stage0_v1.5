@@ -623,7 +623,7 @@ taxonomy:
     charset: lowercase ASCII letters (a-z), digits (0-9), underscores (_)
     transliteration_rules:
       ع: '3'
-      ء_و_ؤ_ئ_إ_أ_آ: dropped (e.g., بلاغة→balagha, إملاء→imla)
+      ء_و_ؤ_ئ_إ_أ_آ: dropped (e.g., بلاغة→balagha, إملاء→imlaa)
       ة: dropped from end (e.g., فصاحة→fasaha), but a→at in construct (إضافة) only
         if ambiguous
       ال_definite_article: prefixed as al (e.g., الفصاحة→alfasaha, البلاغة→albalagha)

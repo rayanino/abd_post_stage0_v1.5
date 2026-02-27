@@ -106,7 +106,7 @@ Add `--dry-run` to any command. Saves the full system+user prompt to the output 
 ### Additional flags
 
 - `--max-retries N` — number of correction retries on validation failure (default 2)
-- `--model MODEL` — Claude model to use (default: `claude-sonnet-4-20250514`)
+- `--model MODEL` — Claude model to use (default: `claude-sonnet-4-5-20250929`)
 - `--passage-ids P004,P010` — comma-separated passage IDs to process
 
 ## What You Get
