@@ -6,14 +6,14 @@ This document defines ABD’s project-specific terminology.
 
 **Who reads this:** The AI software builder that will implement the extraction application, any LLM performing extraction or synthesis, and human annotators creating gold standard passages.
 
-**What this is NOT:** This is not the excerpting rulebook (that is `excerpt_definition_draft.md`, currently being refined through gold standard passages). This is not the step-by-step procedure (that is `extraction_protocol.md`, to be updated after gold passages are finalized). This document defines **what things are**, not how to do them.
+**What this is NOT:** This is not the excerpting rulebook (that is `4_excerpting/EXCERPT_DEFINITION.md`, the single source of truth for what an excerpt IS). This is not the step-by-step procedure (that is `2_atoms_and_excerpts/extraction_protocol_v2.4.md`). This document defines **what things are**, not how to do them.
 
 ---
 
 ## 1. The Project
 
 ### Arabic Book Digester
-The application being built. It takes Arabic books as input, decomposes them into excerpts, places each excerpt at the correct node in a taxonomy tree, and eventually synthesizes all excerpts at each node into encyclopedic entries. The pipeline has four stages: **input preparation** → **atomization** → **excerpting** → **synthesis**.
+The application being built. It takes Arabic books as input, decomposes them into excerpts, and places each excerpt at the correct leaf node in a taxonomy folder tree (one tree per science). The pipeline stages are: **intake** → **normalization** → **structure discovery** → **extraction (atomization + excerpting + placement)**. An external synthesis LLM (outside this repo) reads all excerpt files at each leaf folder and produces encyclopedia articles — ABD's job ends at producing well-structured, accurately placed excerpts.
 
 ### The Four Sciences
 The project covers four classical Arabic linguistic sciences. Each science has its own taxonomy tree. A book typically belongs to one science but may contain content relevant to others.
@@ -41,7 +41,7 @@ When an excerpt involves a science outside these four, the `related_science` fie
 
 **Excerpting:** The core operation. Analyzes the atom sequence to identify **excerpts** — selections of atoms that substantively address exactly one taxonomy leaf node. Assigns each excerpt to its correct position in the taxonomy tree. This is where precision matters most: an error here propagates through everything downstream.
 
-**Synthesis:** (Future, not yet specified.) Uses an LLM to merge all excerpts at each taxonomy node into a single comprehensive encyclopedic entry. The entire upstream pipeline exists to serve this stage — every design decision about atoms, excerpts, metadata, and roles is made with synthesis quality in mind.
+**Synthesis (external):** Handled by an external LLM outside this repo. It reads all excerpt files at each taxonomy leaf folder and produces a single comprehensive encyclopedic entry per leaf, aimed at Arabic-language students. When authors disagree, it presents all scholarly positions and attributes each to its author. Synthesis is NOT a stage of ABD — but every design decision within ABD (excerpt boundaries, metadata richness, roles, relation chains, author context) is made to serve the downstream synthesis LLM.
 
 ---
 
