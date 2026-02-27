@@ -19,7 +19,9 @@ ABD extracts structured excerpts from classical Arabic books (Shamela HTML expor
 | 1 Normalization | `tools/normalize_shamela.py` | ✅ Complete | `tests/test_normalization.py` |
 | 2 Structure Discovery | `tools/discover_structure.py` | ✅ Complete | `tests/test_structure_discovery.py` |
 | 3+4 Extraction | `tools/extract_passages.py` | ✅ Complete | `tests/test_extraction.py` |
-| 5 Taxonomy Placement | (implicit in Stage 3+4) | ✅ Complete | — |
+| 5 Taxonomy Trees | `taxonomy/*.yaml` | 🟡 إملاء done, 3 sciences remaining | — |
+
+Taxonomy placement *per excerpt* is handled by the extraction tool (Stage 3+4). But the taxonomy trees themselves — one per science — must be built before extraction can run on that science. Currently only `taxonomy/imlaa_v0.1.yaml` (44 leaves) exists. صرف, نحو, and بلاغة trees still need to be created and placed in `taxonomy/`.
 
 There is no synthesis stage in ABD. The external synthesis LLM consumes excerpts at each taxonomy leaf to produce one encyclopedia article per leaf, targeting Arabic-language students.
 
@@ -121,9 +123,10 @@ Stages 0–5 are complete and tested. The extraction tool has been rewritten aga
 
 **Immediate priorities (in order):**
 1. Run full book extraction on قواعد الإملاء (46 passages, ~$3–5) and review quality
-2. Run the pipeline on شذا العرف (صرف science) to test cross-science generalization
-3. Extend intake enrichment — author scholarly context (`scholarly_context` in intake_metadata.json) needs deep, researched metadata (madhab, grammatical school, intellectual lineage) so the synthesis LLM can properly attribute opinions
-4. Scale to full corpus
+2. Build taxonomy trees for صرف, نحو, بلاغة (only إملاء exists so far)
+3. Run the pipeline on شذا العرف (صرف science) to test cross-science generalization
+4. Extend intake enrichment — author scholarly context (`scholarly_context` in intake_metadata.json) needs deep, researched metadata (madhab, grammatical school, intellectual lineage) so the synthesis LLM can properly attribute opinions
+5. Scale to full corpus
 
 **Do NOT spend time on:**
 - Perfecting Stage 2 edge cases (600+ heading chunking, structureless books, etc.) — wait until a book actually needs them
