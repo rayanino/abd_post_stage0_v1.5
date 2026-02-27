@@ -59,7 +59,7 @@ balagha:
 
 ### 4.1 Normal case: excerpt maps to existing leaf
 
-The excerpt's `placed_at` field points to a leaf node in the appropriate science's tree.
+The excerpt's `taxonomy_node_id` field points to a leaf node in the appropriate science's tree.
 
 **Validation (PLACE.P rules):**
 - P.1: The target node must exist in the active taxonomy
@@ -76,7 +76,7 @@ When an excerpt teaches a topic not represented in the current tree:
 1. The system generates a `taxonomy_change` proposal:
 ```json
 {
-  "change_type": "add_leaf",
+  "change_type": "node_added",
   "parent_path": "balagha/maani/khabar",
   "new_node_id": "aqsam_al_khabar",
   "new_node_title_ar": "أقسام الخبر",
@@ -85,7 +85,7 @@ When an excerpt teaches a topic not represented in the current tree:
 }
 ```
 
-2. Valid change types: `add_leaf`, `add_branch`, `rename_node`, `move_node`, `split_node`
+2. Valid change types (per glossary §6): `node_added`, `leaf_granulated`, `node_renamed`, `node_moved`
 
 3. Changes are **proposed, not applied**. They accumulate in `taxonomy_changes.jsonl`.
 
