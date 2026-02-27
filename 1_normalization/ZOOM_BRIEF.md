@@ -2,7 +2,7 @@
 
 ## Mandate
 
-This is the most mature stage — existing tooling (`normalize_shamela.py`, 595 lines) and a detailed spec (`NORMALIZATION_SPEC_v0.2.md`) already exist, validated against 1,046 files. The zoom-in should verify completeness, reconcile the two spec files, and ensure the spec is automation-ready.
+This is the most mature stage — existing tooling (`normalize_shamela.py`, ~1120 lines) and a detailed spec (`NORMALIZATION_SPEC_v0.5.md`) already exist, validated against 1,046 files.
 
 ## Document Relationship
 

@@ -91,7 +91,7 @@ taxonomy/
 | `tools/intake.py` | ~1450 | 0 | Book intake, source freezing, metadata extraction |
 | `tools/enrich.py` | ~560 | 0.5 | Scholarly context enrichment (interactive/ترجمة/API) |
 | `tools/normalize_shamela.py` | ~1120 | 1 | HTML → pages.jsonl (deterministic) |
-| `tools/discover_structure.py` | ~1400 | 2 | Passage boundary detection, division hierarchy |
+| `tools/discover_structure.py` | ~2856 | 2 | Passage boundary detection, division hierarchy |
 | `tools/extract_passages.py` | ~1389 | 3+4 | **LLM-based extraction**: atomization + excerpting + taxonomy placement. Currently single-model with correction retries. Multi-model consensus planned. Verified on إملاء only. |
 | `tools/extract_clean_input.py` | 234 | 3 (CP1) | Extract clean text from HTML for manual atomization (legacy) |
 | `tools/validate_gold.py` | ~1930 | QA | Validate gold baselines against schema |
@@ -129,14 +129,14 @@ Each `intake_metadata.json` carries a `scholarly_context` block (author death/bi
 
 ### Tests
 
-3602 test lines: 665 intake + 118 enrich + 1940 normalization + 879 extraction.
+5042 test lines across 5 files (443+ test functions, parametrized tests expand the count).
 
 | Test file | Lines | Tests | Covers |
 |-----------|-------|-------|--------|
-| `tests/test_intake.py` | 665 | — | `tools/intake.py` |
-| `tests/test_enrich.py` | 118 | — | `tools/enrich.py` |
-| `tests/test_normalization.py` | 1940 | — | `tools/normalize_shamela.py` |
-| `tests/test_structure_discovery.py` | — | — | `tools/discover_structure.py` |
+| `tests/test_intake.py` | 665 | 68 | `tools/intake.py` |
+| `tests/test_enrich.py` | 118 | 16 | `tools/enrich.py` |
+| `tests/test_normalization.py` | 1940 | 193 | `tools/normalize_shamela.py` |
+| `tests/test_structure_discovery.py` | 1440 | 86 | `tools/discover_structure.py` |
 | `tests/test_extraction.py` | 879 | 80 | `tools/extract_passages.py` |
 
 ---

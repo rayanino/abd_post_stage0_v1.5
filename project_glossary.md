@@ -13,7 +13,7 @@ This document defines ABD’s project-specific terminology.
 ## 1. The Project
 
 ### Arabic Book Digester
-The application being built. It takes Arabic books as input, decomposes them into excerpts, and places each excerpt at the correct leaf node in a taxonomy folder tree (one tree per science). The pipeline stages are: **intake** → **normalization** → **structure discovery** → **extraction (atomization + excerpting + placement)**. An external synthesis LLM (outside this repo) reads all excerpt files at each leaf folder and produces encyclopedia articles — ABD's job ends at producing well-structured, accurately placed excerpts.
+The application being built. It takes Arabic books as input, decomposes them into excerpts, and places each excerpt at the correct leaf node in a taxonomy folder tree (one tree per science). The pipeline stages are: **intake** → **enrichment** → **normalization** → **structure discovery** → **extraction (atomization + excerpting + placement)** → **taxonomy trees** → **taxonomy evolution** → **assembly + distribution**. An external synthesis LLM (outside this repo) reads all excerpt files at each leaf folder and produces encyclopedia articles — ABD's job ends at producing well-structured, accurately placed excerpts. See the Pipeline Stages section below for details and status of each stage.
 
 ### The Four Sciences
 The project covers four classical Arabic linguistic sciences. Each science has its own taxonomy tree. A book typically belongs to one science but may contain content relevant to others.
@@ -23,7 +23,7 @@ The project covers four classical Arabic linguistic sciences. Each science has i
 | `balagha` | علم البلاغة | Rhetoric | المعاني، البيان، البديع |
 | `nahw` | علم النحو | Syntax | إعراب، تراكيب، عوامل |
 | `sarf` | علم الصرف | Morphology | أوزان، تصريف، أبنية |
-| `imla` | علم الإملاء | Orthography | رسم، همزة، تاء |
+| `imlaa` | علم الإملاء | Orthography | رسم، همزة، تاء |
 
 When an excerpt involves a science outside these four, the `related_science` field uses:
 
@@ -35,11 +35,21 @@ When an excerpt involves a science outside these four, the `related_science` fie
 
 ### Pipeline Stages
 
-**Input preparation:** Transforms raw source material (Shamela HTML exports, ketab-online-sdk output, etc.) into clean, layer-separated, structurally-parsed text. Handles HTML stripping, Unicode normalization, whitespace normalization, and detection of structural markers. Specification for this stage is not yet written — it is the next major specification task after the excerpting chapter is finalized.
+**Intake (Stage 0):** Registers a new book into the project. Freezes the source HTML, creates `intake_metadata.json`, assigns `book_id`, and records scholarly context placeholders. Tool: `tools/intake.py`. ✅ Complete.
 
-**Atomization:** Converts clean parsed text into an ordered sequence of typed, anchored **atoms**. This happens once per source text, before any excerpting logic runs. The output is a finalized sequence of atoms that the excerpting engine operates on without modification.
+**Enrichment (Stage 0.5):** Researches and fills the author's scholarly context — death date, فقه madhab, grammatical school, geographic origin. Tool: `tools/enrich.py`. 🟡 Basic — needs extension into intelligent research.
 
-**Excerpting:** The core operation. Analyzes the atom sequence to identify **excerpts** — selections of atoms that substantively address exactly one taxonomy leaf node. Assigns each excerpt to its correct position in the taxonomy tree. This is where precision matters most: an error here propagates through everything downstream.
+**Normalization (Stage 1):** Transforms raw Shamela HTML into a clean, page-per-line JSONL file (`pages.jsonl`). Handles HTML stripping, Unicode normalization, whitespace normalization, footnote separation, and structural marker detection. Deterministic — no LLM. Tool: `tools/normalize_shamela.py` (~1120 lines). ✅ Complete.
+
+**Structure Discovery (Stage 2):** Discovers the book's internal structural divisions and defines passage boundaries. Uses a three-pass algorithm: Pass 1 extracts HTML-tagged headings (deterministic), Pass 2 applies keyword heuristics (deterministic), Pass 3 uses LLM for gap detection, hierarchy assignment, and digestibility classification. Produces `divisions.json` and `passages.jsonl`. Tool: `tools/discover_structure.py` (~2856 lines). ✅ Complete.
+
+**Extraction (Stages 3+4 combined):** The core operation. For each passage, an LLM atomizes the text (breaks it into typed atoms), groups atoms into self-contained excerpts, assigns taxonomy placement per excerpt, and generates exclusion records. Includes 17-check validation with automatic correction retries. Combines what were originally separate atomization and excerpting stages. Tool: `tools/extract_passages.py` (~1389 lines). 🟡 Single-model complete; multi-model consensus not yet built.
+
+**Taxonomy Trees (Stage 5):** Build and maintain the base taxonomy YAML trees for each science. Each science needs a tree before extraction can place excerpts into it. Trees are stored in `taxonomy/`. 🟡 إملاء exists (`imlaa_v0.1.yaml`, 44 leaves); بلاغة exists (`balagha_v0_4.yaml`, 143 leaves); صرف and نحو not yet created.
+
+**Taxonomy Evolution (Stage 6):** Detects when the taxonomy tree needs finer granularity, proposes new sub-nodes, redistributes existing excerpts, and applies changes with human approval. ❌ Not yet built.
+
+**Assembly + Distribution (Stage 7):** Assembles self-contained excerpt files (inline text + embedded metadata) and places them in the taxonomy folder tree (one file per excerpt per leaf). ❌ Not yet built.
 
 **Synthesis (external):** Handled by an external LLM outside this repo. It reads all excerpt files at each taxonomy leaf folder and produces a single comprehensive encyclopedic entry per leaf, aimed at Arabic-language students. When authors disagree, it presents all scholarly positions and attributes each to its author. Synthesis is NOT a stage of ABD — but every design decision within ABD (excerpt boundaries, metadata richness, roles, relation chains, author context) is made to serve the downstream synthesis LLM.
 
@@ -411,6 +421,18 @@ Each excerpt draws from exactly one source layer. Cross-layer relationships are 
 ### Heading Dual-State Principle
 Heading atoms are simultaneously excluded (as `heading_structural`) AND referenced in `heading_path` on excerpts. This is intentional, not a bug. Headings carry navigational metadata (where in the book?) but not teaching content (what does the author say?). The validator treats heading_path references as structural metadata, not as "usage" for coverage purposes.
 
+### Self-Containment
+Every excerpt must be independently understandable. When the synthesis LLM receives an excerpt, it must be able to extract everything it needs from that single file — the Arabic text, author identity, scholarly tradition, topic context — without requesting additional files or cross-referencing. This is why context atoms exist and why metadata fields are rich. Self-containment is non-negotiable.
+
+### Content-Driven Excerpting
+Excerpt boundaries come from the text — what atoms naturally form a self-contained teaching unit. The taxonomy tree has **zero influence** on how excerpting happens. You excerpt first (what is a coherent teaching unit?), place second (where does this belong?), evolve third (is the tree granular enough?). These are three distinct operations that must never be conflated.
+
+### Living Taxonomy
+Taxonomy trees are not fixed containers — they evolve as new books reveal finer topic distinctions. A tree grows across books (Book A may add 5 leaves, Book B may add 3 more) and is never pruned automatically. Evolution is LLM-driven with human approval. Full version history is maintained for rollback capability. See also Content Sovereignty (§6).
+
+### One Excerpt Per Book Per Node (Quality Preference)
+If extraction produces two excerpts from the same book at the same taxonomy node, that's a signal: either merge them (they're about the same thing) or evolve the node (they cover different sub-aspects). This is a quality preference that drives proper granularity, **not** a hard constraint on excerpting itself.
+
 ### Versioned Vocabularies
 All enumerations (atom types, roles, relation types, exclusion reasons, case_types) are closed within a schema version. New values require a schema version bump with documented justification. This gives strict correctness checking within a version and controlled evolution across versions.
 
@@ -511,9 +533,9 @@ Some terms appear under multiple names in earlier documents or in Arabic scholar
 
 ---
 
-*Version: 1.1.0 — Added data file format (§13) and multi-passage composition (§14). Created alongside gold standard v0.3.1 (Passage 1). Will be updated as new passages introduce new concepts or refine existing definitions.*
+*Version: 1.2.0 — See version history at end of file.*
 
 
 ---
 
-*Glossary version: 1.1.1 — Clarifies interwoven core-duplication policy, split-discussion authority, and relation target integrity.*
+*Glossary version: 1.2.0 — Pipeline Stages rewritten to match implemented 7-stage pipeline. Added Key Principles: Self-Containment, Content-Driven Excerpting, Living Taxonomy, One Excerpt Per Book Per Node. Science ID `imla` corrected to `imlaa`. Previous: 1.1.1 (interwoven core-duplication, split-discussion, relation target integrity).*
