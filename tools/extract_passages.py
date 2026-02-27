@@ -210,6 +210,21 @@ def get_context_head(passages: list, idx: int, page_by_seq: dict, chars: int = 3
     return text[:chars] if len(text) > chars else text
 
 
+def repair_truncated_json(text: str) -> str:
+    """Attempt to repair truncated JSON by closing unclosed strings, brackets, and braces."""
+    repair = text
+    # Close any open strings
+    if repair.count('"') % 2 == 1:
+        repair += '"'
+    # Count open brackets/braces
+    open_brackets = repair.count("[") - repair.count("]")
+    opens = repair.count("{") - repair.count("}")
+    # Close brackets then braces
+    repair += "]" * max(0, open_brackets)
+    repair += "}" * max(0, opens)
+    return repair
+
+
 def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
     """Call Claude API and return parsed JSON response."""
     import httpx
@@ -260,19 +275,8 @@ def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
     except json.JSONDecodeError as e:
         # If truncated (hit max_tokens), try to repair
         if stop_reason == "max_tokens" or "Unterminated" in str(e):
-            # Try closing open structures
-            repair = text
-            # Count open braces/brackets
-            opens = repair.count("{") - repair.count("}")
-            open_brackets = repair.count("[") - repair.count("]")
-            # Close any open strings
-            if repair.count('"') % 2 == 1:
-                repair += '"'
-            # Close brackets then braces
-            repair += "]" * max(0, open_brackets)
-            repair += "}" * max(0, opens)
             try:
-                parsed = json.loads(repair)
+                parsed = json.loads(repair_truncated_json(text))
             except json.JSONDecodeError:
                 raise RuntimeError(
                     f"JSON parse failed even after repair (stop_reason={stop_reason}). "
