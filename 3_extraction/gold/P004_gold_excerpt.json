@@ -1,0 +1,156 @@
+{
+  "_comment": "Gold sample excerpt for vertical slice: قواعد الإملاء passage P004 (page 9)",
+  "_methodology": "Hand-crafted by analyzing raw text, applying EXCERPT_DEFINITION rules",
+  
+  "passage_id": "P004",
+  "passage_title": "الحالة الأولى: ترسم ألفاً",
+  "passage_pages": "9-9",
+  
+  "atoms": [
+    {
+      "atom_id": "qimlaa:matn:000001",
+      "type": "prose_tail",
+      "role": "examples_continuation",
+      "text": "ونَحْوُ: امْرِئٍ، مُتَهَيِّئٍ، مُبْرِئٍ، يُهَيِّئُ، يُبْرِئُ، مُهَيِّئاً، مُبْرِئاً؛ ونَحْوُ: مُهَيَّأ، مُبْرَأ، يُهَيَّأ، يَبْرَأ، يَنْشَأ.",
+      "note": "Continuation of P003 examples from previous page. Belongs to the PREVIOUS passage's excerpt. Excluded from P004 excerpts."
+    },
+    {
+      "atom_id": "qimlaa:matn:000002",
+      "type": "heading",
+      "role": "structural",
+      "text": "الْهَمْزَةُ وَسَطَ الْكَلِمَةِ",
+      "note": "Section heading. Metadata only — excluded from excerpts, used in heading_path."
+    },
+    {
+      "atom_id": "qimlaa:matn:000003",
+      "type": "prose_sentence",
+      "role": "author_prose",
+      "text": "لِلْهَمْزَةِ فِي وَسَطِ الْكَلِمَةِ خَمْسُ حَالَاتٍ:"
+    },
+    {
+      "atom_id": "qimlaa:matn:000004",
+      "type": "heading",
+      "role": "structural",
+      "text": "الْحَالَةُ الْأُولَى: تُرْسَمُ أَلِفًا فِي مَوْضِعَيْنِ:",
+      "note": "Sub-heading for this specific حالة. Metadata only."
+    },
+    {
+      "atom_id": "qimlaa:matn:000005",
+      "type": "bonded_cluster",
+      "role": "author_prose",
+      "text": "1 - أَنْ تُسَكَّنَ أَوْ تُفْتَحَ وَلَوْ مُشَدَّدَةً بَعْدَ مَفْتُوحٍ وَلَوْ مُشَدَّداً، نَحْوُ: يَأْمُرُ، آخِر؛ وَنَحْوُ: مَلْجَآن، مَنْشآن، تَذَاَّب، سَأّل، تَبَوَّأَها؛ وَنَحْوُ: قَرَأَا، لَمْ يَقْرَأَا، يَقْرَأَانِ.",
+      "bonding_trigger": "T5_rule_then_examples",
+      "bonding_reason": "Rule statement with inline examples form a single teaching unit"
+    },
+    {
+      "atom_id": "qimlaa:matn:000006",
+      "type": "bonded_cluster",
+      "role": "author_prose",
+      "text": "2 - أَنْ تُفْتَحَ بَعْدَ سَاكِنٍ صَحِيحٍ وَلَيْسَ بَعْدَهَا أَلِفُ الْمُثَنَّى أَوِ الْأَلِفُ الْمُبْدَلَةُ مِنَ التَّنْوِينِ نَحْوُ: يَسْأَل، تَسْآل، دَفْآنُ، جُزْأَه، جُزْأَيْن، مَسْأَلَة.",
+      "bonding_trigger": "T5_rule_then_examples",
+      "bonding_reason": "Second rule position with examples — note this atom is actually on page 10 (start of P005), but semantically belongs to الحالة الأولى",
+      "note": "BOUNDARY DECISION: This atom starts page 10 but completes الحالة الأولى content. It should be included in this excerpt per comprehensibility principle."
+    }
+  ],
+
+  "excerpts": [
+    {
+      "excerpt_id": "qimlaa:exc:000001",
+      "excerpt_title": "حالات الهمزة وسط الكلمة — تقسيم عام (ص ٩؛ matn 000003)",
+      "source_layer": "matn",
+      "excerpt_kind": "teaching",
+      "taxonomy_node_id": "al_hamza_wasat_al_kalima__overview",
+      "taxonomy_path": "إملاء > الهمزة > الهمزة وسط الكلمة > نظرة عامة",
+      "heading_path": [
+        "الباب الأول: الهمزة",
+        "الهمزة وسط الكلمة"
+      ],
+      "core_atoms": ["qimlaa:matn:000003"],
+      "context_atoms": [],
+      "boundary_reasoning": "GROUPING: Overview sentence listing the five cases of medial hamza. Placed at parent node (al_hamza_wasat_al_kalima) because it describes the overall structure, not any specific case. BOUNDARY: Opens at atom 003, ends before atom 004 (which begins الحالة الأولى). Single-atom excerpt is valid because the sentence is self-contained.",
+      "content_type": "prose",
+      "case_types": ["A1_pure_definition"]
+    },
+    {
+      "excerpt_id": "qimlaa:exc:000002",
+      "excerpt_title": "الحالة الأولى: ترسم ألفاً — الموضع الأول (ص ٩؛ matn 000005)",
+      "source_layer": "matn",
+      "excerpt_kind": "teaching",
+      "taxonomy_node_id": "al_hala_1_tursam_alifan",
+      "taxonomy_path": "إملاء > الهمزة > الهمزة وسط الكلمة > الحالة الأولى: ترسم ألفاً",
+      "heading_path": [
+        "الباب الأول: الهمزة",
+        "الهمزة وسط الكلمة",
+        "الحالة الأولى: ترسم ألفاً في موضعين"
+      ],
+      "core_atoms": ["qimlaa:matn:000005"],
+      "context_atoms": [],
+      "boundary_reasoning": "GROUPING: First rule position for الحالة الأولى — hamza written as alif when quiescent or fatha'd after fatha'd letter. BOUNDARY: Opens at atom 005 (rule + examples). The rule and its examples form a bonded cluster. Ends before atom 006 which is the second موضع. PLACEMENT: Goes to specific leaf node al_hala_1_tursam_alifan.",
+      "content_type": "prose",
+      "case_types": ["A2_rule_with_examples"],
+      "relations": [
+        {
+          "type": "continuation",
+          "target_excerpt": "qimlaa:exc:000003",
+          "note": "The two مواضع together constitute the complete الحالة الأولى"
+        }
+      ]
+    },
+    {
+      "excerpt_id": "qimlaa:exc:000003",
+      "excerpt_title": "الحالة الأولى: ترسم ألفاً — الموضع الثاني (ص ١٠؛ matn 000006)",
+      "source_layer": "matn",
+      "excerpt_kind": "teaching",
+      "taxonomy_node_id": "al_hala_1_tursam_alifan",
+      "taxonomy_path": "إملاء > الهمزة > الهمزة وسط الكلمة > الحالة الأولى: ترسم ألفاً",
+      "heading_path": [
+        "الباب الأول: الهمزة",
+        "الهمزة وسط الكلمة",
+        "الحالة الأولى: ترسم ألفاً في موضعين"
+      ],
+      "core_atoms": ["qimlaa:matn:000006"],
+      "context_atoms": [],
+      "boundary_reasoning": "GROUPING: Second rule position — hamza written as alif when fatha'd after non-waw/yaa quiescent letter without following dual-alif or tanween-alif. BOUNDARY: Atom 006 contains the complete rule + examples. Same leaf node as exc:000002 because both describe sub-conditions of الحالة الأولى. PLACEMENT: Same leaf al_hala_1_tursam_alifan — the two مواضع are sub-rules within the same حالة, not separate taxonomy nodes.",
+      "content_type": "prose",
+      "case_types": ["A2_rule_with_examples"],
+      "relations": [
+        {
+          "type": "continuation",
+          "target_excerpt": "qimlaa:exc:000002",
+          "note": "Completes the two مواضع of الحالة الأولى"
+        }
+      ]
+    }
+  ],
+
+  "footnote_excerpts": [
+    {
+      "excerpt_id": "qimlaa:exc:fn:000001",
+      "excerpt_title": "تعليل اجتماع الألفين مع المثنى (ص ٩؛ fn 000001)",
+      "source_layer": "footnote",
+      "excerpt_kind": "teaching",
+      "taxonomy_node_id": "al_hala_1_tursam_alifan",
+      "taxonomy_path": "إملاء > الهمزة > الهمزة وسط الكلمة > الحالة الأولى: ترسم ألفاً",
+      "linked_matn_excerpt": "qimlaa:exc:000002",
+      "text": "وأجازوا اجتماع الألفين هنا لئلا يلتبس الفعل بالمسند إلى الواحد فِي الماضي، والمضارع المحذوف النون",
+      "note": "Author footnote explaining the rationale for allowing two alifs in dual verb forms (قرأا، يقرأان). Supplements the rule in exc:000002."
+    }
+  ],
+
+  "_design_notes": {
+    "key_decisions": [
+      "Atom 000001 (continuation from page 8) excluded — it belongs to P003's final excerpt about الهمزة آخر الكلمة",
+      "Atom 000003 placed at PARENT node (al_hamza_wasat_al_kalima) as overview, not at any specific حالة",
+      "Atoms 000005-000006 each go to the SAME leaf (al_hala_1_tursam_alifan) because the two مواضع are sub-conditions of one حالة, not separate taxonomy topics",
+      "Atom 000006 crosses the page boundary (page 10) but semantically completes الحالة الأولى — passage boundaries from Stage 2 are guidance, not gospel",
+      "Footnote creates its own mini-excerpt linked to the matn excerpt it annotates"
+    ],
+    "imlaa_patterns_observed": [
+      "Numbered rule positions (1 - ..., 2 - ...) with inline examples (نحو: ...)",
+      "Rules are self-contained: each position states the condition then gives examples",
+      "Very little discourse complexity — no scholarly disputes, digressions, or contrastive introductions",
+      "Headings are clean and descriptive — الحالة الأولى: ترسم ألفاً",
+      "Footnotes are scholarly commentary (تعليل) not textual apparatus"
+    ]
+  }
+}

@@ -1,0 +1,110 @@
+# Arabic Orthography (إملاء) Taxonomy — v0.1
+# Derived from قواعد الإملاء by عبد السلام محمد هارون
+# This is a starter taxonomy that will grow as more books are processed.
+
+imlaa:
+  muqaddimat:  # مقدمات
+    ta3rif_al_imlaa:
+      _leaf: true  # تعريف الإملاء
+    ahamiyyat_al_imlaa:
+      _leaf: true  # أهمية الإملاء
+
+  al_hamza:  # الهمزة
+    ta3rif_al_hamza:
+      _leaf: true  # تعريف الهمزة
+    al_hamza_awwal_al_kalima:  # الهمزة أول الكلمة
+      al_hamza_awwal_al_kalima__overview:
+        _leaf: true  # نظرة عامة على الهمزة أول الكلمة
+      hamzat_al_wasl:  # همزة الوصل
+        ta3rif_hamzat_al_wasl:
+          _leaf: true
+        mawadi3_hamzat_al_wasl:
+          _leaf: true  # مواضع همزة الوصل
+      hamzat_al_qat3:  # همزة القطع
+        ta3rif_hamzat_al_qat3:
+          _leaf: true
+        mawadi3_hamzat_al_qat3:
+          _leaf: true
+      al_huruf_aladdakhila_3ala_al_hamza:
+        _leaf: true  # الحروف الداخلة على الهمزة
+    al_hamza_wasat_al_kalima:  # الهمزة وسط الكلمة
+      al_hamza_wasat_al_kalima__overview:
+        _leaf: true  # نظرة عامة على حالات الهمزة وسط الكلمة
+      al_hala_1_tursam_alifan:
+        _leaf: true  # الحالة الأولى: ترسم ألفاً
+      al_hala_2_tursam_wawan:
+        _leaf: true  # الحالة الثانية: ترسم واواً
+      al_hala_3_tursam_yaan:
+        _leaf: true  # الحالة الثالثة: ترسم ياءً
+      al_hala_4_tursam_mufradata:
+        _leaf: true  # الحالة الرابعة: ترسم مفردة
+      al_hala_5_tursam_3ala_nabra:
+        _leaf: true  # الحالة الخامسة: ترسم على نبرة
+    al_hamza_akhir_al_kalima:
+      _leaf: true  # الهمزة آخر الكلمة
+
+  al_alif_al_layyina:  # الألف اللينة
+    al_alif_al_layyina__overview:
+      _leaf: true  # نظرة عامة على الألف اللينة
+    al_alif_wasatan:
+      _leaf: true  # الألف اللينة وسطاً
+    al_alif_tarafan:  # الألف اللينة طرفاً
+      al_alif_tarafan__overview:
+        _leaf: true  # نظرة عامة: مواضع رسم الألف ياءً
+      al_alif_tarafan_fi_al_asma:
+        _leaf: true  # في الأسماء
+      al_alif_tarafan_fi_al_af3al:
+        _leaf: true  # في الأفعال
+      al_alif_tarafan_fi_al_huruf:
+        _leaf: true  # في الحروف
+    ma3rifat_al_wawi_wal_yaai:
+      _leaf: true  # معرفة الواوي واليائي
+    al_alif_al_mubdala:
+      _leaf: true  # الألف المبدلة
+
+  al_huruf_allati_tuzad:  # الحروف التي تزاد
+    al_huruf_allati_tuzad__overview:
+      _leaf: true  # نظرة عامة على الحروف التي تزاد
+    ziyadat_al_alif:
+      _leaf: true  # زيادة الألف
+    ziyadat_al_waw:
+      _leaf: true  # زيادة الواو
+
+  al_huruf_allati_tunqas:  # الحروف التي تنقص
+    al_huruf_allati_tunqas__overview:
+      _leaf: true  # نظرة عامة على الحروف التي تنقص
+    naqs_al_alif:  # نقص الألف
+      naqs_al_alif__overview:
+        _leaf: true  # نظرة عامة على نقص الألف
+      naqs_al_alif_awwalan:
+        _leaf: true  # نقص الألف أولاً
+      naqs_al_alif_wasatan:
+        _leaf: true  # نقص الألف وسطاً
+      naqs_al_alif_akhiran:
+        _leaf: true  # نقص الألف آخراً
+    naqs_al:
+      _leaf: true  # نقص أل
+    naqs_al_waw:
+      _leaf: true  # نقص الواو
+    naqs_al_yaa:
+      _leaf: true  # نقص الياء
+    naqs_al_nun:
+      _leaf: true  # نقص النون
+    al_naqs_lil_ramz:
+      _leaf: true  # النقص للرمز
+
+  al_fasl_wal_wasl:  # الفصل والوصل
+    al_fasl_wal_wasl__overview:
+      _leaf: true  # القاعدة العامة في الفصل والوصل
+    al_wasl:
+      _leaf: true  # الوصل (قواعد عامة)
+    wasl_man:
+      _leaf: true  # وصل (مَنْ)
+    wasl_ma:
+      _leaf: true  # وصل (ما)
+    wasl_la:
+      _leaf: true  # وصل (لا)
+    al_fasl:
+      _leaf: true  # الفصل
+    haa_al_tanith:
+      _leaf: true  # هاء التأنيث (التاء المربوطة والمبسوطة)
