@@ -1,0 +1,902 @@
+taxonomy:
+  id: sarf_v1_0
+  title: علم الصرف
+  language: ar
+  policy:
+    leaf_atomic: true
+    single_core_node_per_excerpt: true
+    exclude_cross_science_nodes: true
+    allow_rhetorical_treatment_only: false
+  nodes:
+  - id: muqaddimat
+    title: مقدمات علم الصرف
+    children:
+    - id: ta3rif_assarf
+      title: تعريف الصرف وموضوعه وغايته
+      children:
+      - id: ta3rif_assarf_lugha
+        title: تعريف الصرف لغة
+        leaf: true
+      - id: ta3rif_assarf_istilah
+        title: تعريف الصرف اصطلاحا
+        children:
+        - id: ta3rif_assarf_istilah__ta3rif_3ilmi
+          title: التعريف العلمي للصرف (صياغات الحدّ)
+          leaf: true
+        - id: ta3rif_assarf_istilah__ta3rif_3amali
+          title: التعريف العملي للصرف (وظيفته التطبيقية)
+          leaf: true
+        - id: ta3rif_assarf_istilah__ajza2_alta3rif
+          title: تفكيك عناصر التعريف الاصطلاحي (مصطلحات/قيود)
+          leaf: true
+        - id: ta3rif_assarf_istilah__furuuq_ta3arif
+          title: فروق صيغ التعريف عند الصرفيين (مقاربات)
+          leaf: true
+      - id: mawdu3_assarf
+        title: موضوع علم الصرف
+        leaf: true
+      - id: ghaya_thamara_assarf
+        title: غاية الصرف وثمرته
+        leaf: true
+      - id: nisbat_assarf_ila_ghayrihi
+        title: نسبة الصرف إلى النحو والإملاء والبلاغة
+        leaf: true
+    - id: musatalahat_asasiyya
+      title: مصطلحات أساسية (الجذر/الأصل/الزيادة/البنية)
+      children:
+      - id: aljithr_walasal
+        title: الجذر والأصل
+        leaf: true
+      - id: huruf_alasl_walziyadah
+        title: حروف الأصل والزيادة (سألتمونيها) وضوابط الزيادة
+        leaf: true
+      - id: attajrid_walziyadah
+        title: التجريد والزيادة
+        leaf: true
+      - id: alwazn_walbina
+        title: الوزن والبنية (فرق اصطلاحي)
+        leaf: true
+      - id: almasdar_walfi3l
+        title: المصدر وعلاقته بالفعل (أصل/فرع بحسب المدارس)
+        leaf: true
+      - id: aljamid_walmushtaq
+        title: الجامد والمشتق
+        leaf: true
+    - id: almizan_assarfi
+      title: الميزان الصرفي
+      children:
+      - id: almizan__ta3rif_wafaaida
+        title: تعريف الميزان وفائدته
+        leaf: true
+      - id: almizan__qawa3id_3amma
+        title: قواعد عامة في الوزن (فعل/فَعَلَ/فِعْل…)
+        leaf: true
+      - id: almizan__wazn_thulathi_mujarrad
+        title: وزن الثلاثي المجرد
+        leaf: true
+      - id: almizan__wazn_mazid
+        title: وزن المزيد (إثبات حروف الزيادة)
+        leaf: true
+      - id: almizan__wazn_muda33af
+        title: وزن المضعف
+        leaf: true
+      - id: almizan__wazn_mahmuz
+        title: وزن المهموز
+        leaf: true
+      - id: almizan__wazn_mi3tal
+        title: وزن المعتل (مثال/أجوف/ناقص/لفيف)
+        leaf: true
+      - id: almizan__wazn_mulhaq
+        title: وزن الملحق (الإلحاق)
+        leaf: true
+    - id: alilhaaq
+      title: الإلحاق
+      children:
+      - id: ta3rif_alilhaaq
+        title: تعريف الإلحاق وغايته
+        leaf: true
+      - id: awzan_almulhaq
+        title: أوزان الملحق وتمييزها عن الأصل
+        leaf: true
+      - id: alilhaaq_fi_alaf3al_walasmaa
+        title: الإلحاق في الأفعال والأسماء
+        leaf: true
+      - id: farq_alilhaaq_wazziyada
+        title: الفرق بين الإلحاق والزيادة
+        leaf: true
+    - id: alishtiqaq
+      title: الاشتقاق (إن وقع في مصادر الصرف)
+      children:
+      - id: alishtiqaq__ta3rif
+        title: تعريف الاشتقاق وفائدته
+        leaf: true
+      - id: alishtiqaq_alasghar
+        title: الاشتقاق الأصغر
+        leaf: true
+      - id: alishtiqaq_alakbar
+        title: الاشتقاق الأكبر
+        leaf: true
+      - id: alishtiqaq_alkabir
+        title: الاشتقاق الكبير
+        leaf: true
+      - id: nisbat_alishtiqaq_ila_assarf
+        title: نسبة مباحث الاشتقاق إلى الصرف (حدود الإدراج)
+        leaf: true
+  - id: alaf3al__taqsimat
+    title: تقسيمات الفعل الصرفية
+    children:
+    - id: mujarrad_wamazid
+      title: المجرد والمزيد
+      children:
+      - id: mujarrad__ta3rif
+        title: تعريف المجرد
+        leaf: true
+      - id: mazid__ta3rif
+        title: تعريف المزيد
+        leaf: true
+      - id: mujarrad__thulathi_ruba3i
+        title: 'المجرد: ثلاثي ورباعي'
+        leaf: true
+      - id: mazid__thulathi_ruba3i
+        title: 'المزيد: ثلاثي ورباعي'
+        leaf: true
+    - id: sahih_wamu3tal
+      title: الصحيح والمعتل
+      children:
+      - id: sahih__ta3rif
+        title: تعريف الصحيح
+        leaf: true
+      - id: mu3tal__ta3rif
+        title: تعريف المعتل
+        leaf: true
+      - id: sahih__aqsam
+        title: 'أقسام الصحيح: سالم/مهموز/مضعف'
+        leaf: true
+      - id: mu3tal__aqsam
+        title: 'أقسام المعتل: مثال/أجوف/ناقص/لفيف (مقرون/مفروق)'
+        leaf: true
+    - id: lazim_wamuta3addi__sarf
+      title: اللّزوم والتعدية من جهة الأبنية الصرفية (إذا عولجت صرفيا لا نحويا)
+      leaf: true
+    - id: binaa_alfi3l_lilmajhul__sarf
+      title: 'بناء الفعل للمجهول (صرفيا: التحويل الصوتي/الحركي)'
+      leaf: true
+  - id: thulathi_mujarrad
+    title: الثلاثي المجرد
+    children:
+    - id: abwab_thulathi_mujarrad__overview
+      title: أبواب الثلاثي المجرد (ماض/مضارع) — نظرة عامة
+      leaf: true
+    - id: abwab_thulathi_mujarrad
+      title: أبواب الثلاثي المجرد (تفصيل)
+      children:
+      - id: bab_nasara_yansuru
+        title: باب نصر ينصر
+        leaf: true
+      - id: bab_daraba_yadribu
+        title: باب ضرب يضرب
+        leaf: true
+      - id: bab_fataha_yaftahu
+        title: باب فتح يفتح
+        leaf: true
+      - id: bab_sami3a_yasma3u
+        title: باب سمع يسمع
+        leaf: true
+      - id: bab_karuma_yakrumu
+        title: باب كرم يكرم
+        leaf: true
+      - id: bab_hasiba_yahsabu
+        title: باب حسب يحسب (أو ما يقوم مقامه بحسب المصادر)
+        leaf: true
+    - id: masadir_thulathi_mujarrad
+      title: مصادر الثلاثي المجرد (سماعي/قياسي) — قواعد عامة
+      leaf: true
+    - id: sighat_alamr_thulathi
+      title: صياغة الأمر من الثلاثي المجرد
+      leaf: true
+    - id: ism_fa3il_thulathi
+      title: اسم الفاعل من الثلاثي المجرد (قواعد)
+      leaf: true
+    - id: ism_maf3ul_thulathi
+      title: اسم المفعول من الثلاثي المجرد (قواعد)
+      leaf: true
+  - id: thulathi_mazid
+    title: الثلاثي المزيد
+    children:
+    - id: thulathi_mazid__overview
+      title: 'الثلاثي المزيد: حروف الزيادة ومعاني الصيغ — نظرة عامة'
+      leaf: true
+    - id: thulathi_mazid_biharf
+      title: الثلاثي المزيد بحرف
+      children:
+      - id: sighat_af3ala
+        title: أفعل (أَفْعَلَ)
+        children:
+        - id: sighat_af3ala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_af3ala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_af3ala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_af3ala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_af3ala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_fa33ala
+        title: فعّل (فَعَّلَ)
+        children:
+        - id: sighat_fa33ala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_fa33ala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_fa33ala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_fa33ala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_fa33ala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_faa3ala
+        title: فاعل (فَاعَلَ)
+        children:
+        - id: sighat_faa3ala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_faa3ala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_faa3ala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_faa3ala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_faa3ala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+    - id: thulathi_mazid_biharafayn
+      title: الثلاثي المزيد بحرفين
+      children:
+      - id: sighat_infa3ala
+        title: انفعل (اِنْفَعَلَ)
+        children:
+        - id: sighat_infa3ala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_infa3ala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_infa3ala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_infa3ala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_infa3ala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_ifta3ala
+        title: افتعل (اِفْتَعَلَ)
+        children:
+        - id: sighat_ifta3ala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_ifta3ala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_ifta3ala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_ifta3ala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_ifta3ala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_tafa33ala
+        title: تفعّل (تَفَعَّلَ)
+        children:
+        - id: sighat_tafa33ala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_tafa33ala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_tafa33ala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_tafa33ala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_tafa33ala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_tafaa3ala
+        title: تفاعل (تَفَاعَلَ)
+        children:
+        - id: sighat_tafaa3ala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_tafaa3ala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_tafaa3ala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_tafaa3ala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_tafaa3ala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+    - id: thulathi_mazid_bithalatha
+      title: الثلاثي المزيد بثلاثة أحرف
+      children:
+      - id: sighat_istaf3ala
+        title: استفعل (اِسْتَفْعَلَ)
+        children:
+        - id: sighat_istaf3ala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_istaf3ala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_istaf3ala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_istaf3ala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_istaf3ala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_if3alla
+        title: افعلّ (اِفْعَلَّ)
+        children:
+        - id: sighat_if3alla__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_if3alla__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_if3alla__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_if3alla__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_if3alla__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_if3aw3ala
+        title: افعوْعل (اِفْعَوْعَلَ) (إن ورد)
+        children:
+        - id: sighat_if3aw3ala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_if3aw3ala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_if3aw3ala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_if3aw3ala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_if3aw3ala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_istaf3alla
+        title: استفعلّ (صيغة نادرة إن وردت)
+        children:
+        - id: sighat_istaf3alla__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_istaf3alla__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_istaf3alla__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_istaf3alla__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_istaf3alla__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+    - id: tasrif_thulathi_mazid__qawa3id
+      title: قواعد تصريف المزيد من الثلاثي (ماض/مضارع/أمر/مصدر)
+      leaf: true
+  - id: ruba3i_mujarrad_wamazid
+    title: الرباعي المجرد والمزيد
+    children:
+    - id: ruba3i_mujarrad
+      title: الرباعي المجرد (فَعْلَلَ) — الوزن والتصريف
+      leaf: true
+    - id: ruba3i_mazid
+      title: الرباعي المزيد
+      children:
+      - id: sighat_taf3lala
+        title: تفعْلل (تَفَعْلَلَ)
+        children:
+        - id: sighat_taf3lala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_taf3lala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_taf3lala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_taf3lala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_taf3lala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_if3anlala
+        title: افعنلل (اِفْعَنْلَلَ) (إن ورد)
+        children:
+        - id: sighat_if3anlala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_if3anlala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_if3anlala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_if3anlala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_if3anlala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+      - id: sighat_istaf3lala
+        title: استفعلل (اِسْتَفْعَلَلَ)
+        children:
+        - id: sighat_istaf3lala__wazn
+          title: الوزن/البنية
+          leaf: true
+        - id: sighat_istaf3lala__ma3na
+          title: المعاني والدلالات الصرفية
+          leaf: true
+        - id: sighat_istaf3lala__masdar
+          title: مصدر الصيغة (قياس/سماع)
+          leaf: true
+        - id: sighat_istaf3lala__mushtaqat
+          title: مشتقات الصيغة (اسم فاعل/مفعول/زمان/مكان…)
+          leaf: true
+        - id: sighat_istaf3lala__ahkam
+          title: أحكام صرفية خاصة (إعلال/إدغام/إبدال…)
+          leaf: true
+    - id: tasrif_ruba3i__qawa3id
+      title: قواعد تصريف الرباعي (ماض/مضارع/أمر/مصدر)
+      leaf: true
+  - id: tasrif_alfi3l
+    title: تصريف الفعل (بناء الصيغ وإسنادها)
+    children:
+    - id: bina_almaadi__sarf
+      title: بناء الماضي (صرفيا)
+      leaf: true
+    - id: bina_almudari3__sarf
+      title: بناء المضارع (صرفيا)
+      leaf: true
+    - id: bina_alamr__sarf
+      title: بناء الأمر (صرفيا)
+      leaf: true
+    - id: isnad_alfi3l_lildamaa2ir
+      title: إسناد الفعل إلى الضمائر (تصريف الضمائر)
+      leaf: true
+    - id: af3al_al5amsa__sarf
+      title: الأفعال الخمسة (من جهة الصيغ الصرفية)
+      leaf: true
+    - id: nun_altawkid__sarf
+      title: نون التوكيد (أثرها الصرفي)
+      leaf: true
+    - id: nun_alniswa__sarf
+      title: نون النسوة (أثرها الصرفي)
+      leaf: true
+  - id: tasrif_sahih
+    title: تصريف الصحيح (سالم/مهموز/مضعف)
+    children:
+    - id: tasrif_sahih_salim
+      title: تصريف الصحيح السالم (قواعد عامة)
+      leaf: true
+    - id: tasrif_mahmuz
+      title: تصريف المهموز
+      children:
+      - id: mahmuz_alfa
+        title: المهموز الفاء
+        leaf: true
+      - id: mahmuz_al3ayn
+        title: المهموز العين
+        leaf: true
+      - id: mahmuz_allam
+        title: المهموز اللام
+        leaf: true
+      - id: ahkam_hamza_fi_altasrif
+        title: أحكام الهمزة في التصريف (تحقيق/تسهيل/إبدال/حذف)
+        leaf: true
+    - id: tasrif_muda33af
+      title: تصريف المضعف
+      children:
+      - id: muda33af_thulathi
+        title: المضعف الثلاثي (رد/شد…)
+        leaf: true
+      - id: muda33af_ruba3i
+        title: المضعف الرباعي (زلزل… إن ورد)
+        leaf: true
+      - id: fakk_wa_idgham
+        title: فك الإدغام والإدغام في التصريف
+        leaf: true
+  - id: tasrif_mu3tal
+    title: تصريف المعتل (المثال/الأجوف/الناقص/اللفيف)
+    children:
+    - id: tasrif_mithal
+      title: تصريف المثال
+      children:
+      - id: mithal_wawi
+        title: المثال الواوي
+        leaf: true
+      - id: mithal_yaai
+        title: المثال اليائي
+        leaf: true
+      - id: mithal__amr_wamasdar
+        title: أثر العلة في الأمر والمصدر (في المثال)
+        leaf: true
+    - id: tasrif_ajwaf
+      title: تصريف الأجوف
+      children:
+      - id: ajwaf_wawi
+        title: الأجوف الواوي
+        leaf: true
+      - id: ajwaf_yaai
+        title: الأجوف اليائي
+        leaf: true
+      - id: ajwaf__i3lal_fi_alamr
+        title: إعلال الأجوف في الأمر
+        leaf: true
+    - id: tasrif_naqis
+      title: تصريف الناقص
+      children:
+      - id: naqis_wawi
+        title: الناقص الواوي
+        leaf: true
+      - id: naqis_yaai
+        title: الناقص اليائي
+        leaf: true
+      - id: naqis__hadhf_akhir
+        title: حذف حرف العلة في الجزم والأمر (تفصيل)
+        leaf: true
+    - id: tasrif_lafif
+      title: تصريف اللفيف
+      children:
+      - id: lafif_mafruq
+        title: اللفيف المفروق
+        leaf: true
+      - id: lafif_maqrun
+        title: اللفيف المقرون
+        leaf: true
+    - id: qawa3id_amma_fi_tasrif_almuu3tal
+      title: قواعد عامة في تصريف المعتل (موازنة بين الأنواع)
+      leaf: true
+  - id: al_i3lal_walibdal
+    title: الإعلال والإبدال والإدغام والقلب المكاني
+    children:
+    - id: al_i3lal
+      title: الإعلال
+      children:
+      - id: i3lal_bilqalb
+        title: الإعلال بالقلب
+        leaf: true
+      - id: i3lal_bilhadf
+        title: الإعلال بالحذف
+        leaf: true
+      - id: i3lal_binnaql
+        title: الإعلال بالنقل
+        leaf: true
+      - id: i3lal_biliskan
+        title: الإعلال بالإسكان/التسكين
+        leaf: true
+      - id: i3lal_ijtima3_illatayn
+        title: اجتماع علتين (واو/ياء/همزة) وكيفية المعالجة
+        leaf: true
+    - id: alibdal
+      title: الإبدال
+      children:
+      - id: ibdal__ta3rif
+        title: تعريف الإبدال
+        leaf: true
+      - id: ibdal_hamza
+        title: إبدال الهمزة
+        leaf: true
+      - id: ibdal_waw_ya
+        title: إبدال الواو والياء
+        leaf: true
+      - id: ibdal_huruf_ukhra
+        title: إبدال حروف أخرى (تفصيل بحسب المصادر)
+        leaf: true
+    - id: alidgham
+      title: الإدغام
+      children:
+      - id: idgham__ta3rif
+        title: تعريف الإدغام
+        leaf: true
+      - id: idgham_almitlayn
+        title: إدغام المثلين
+        leaf: true
+      - id: idgham_almutajanisayn
+        title: إدغام المتجانسين
+        leaf: true
+      - id: idgham_almutqaribayn
+        title: إدغام المتقاربين
+        leaf: true
+      - id: fakk_alidgham
+        title: فك الإدغام (مواضعه)
+        leaf: true
+    - id: qalb_makani
+      title: القلب المكاني
+      children:
+      - id: qalb_makani__ta3rif
+        title: تعريف القلب المكاني
+        leaf: true
+      - id: qalb_makani__amthila
+        title: أمثلة القلب المكاني وضوابطه
+        leaf: true
+  - id: almushtaqat
+    title: المشتقات (الأسماء المشتقة)
+    children:
+    - id: almasdar
+      title: المصدر
+      children:
+      - id: almasdar__ta3rif
+        title: تعريف المصدر
+        leaf: true
+      - id: almasdar__sama3i_qiyasi
+        title: المصدر السماعي والقياسي
+        leaf: true
+      - id: almasdar_almimi
+        title: المصدر الميمي
+        leaf: true
+      - id: masadir_ghayr_thulathi
+        title: مصادر غير الثلاثي (قياس/سماع) — قواعد
+        leaf: true
+      - id: ism_almarra
+        title: اسم المرة
+        leaf: true
+      - id: ism_alhay2a
+        title: اسم الهيئة
+        leaf: true
+      - id: masdar_sina3i
+        title: المصدر الصناعي (إن ورد)
+        leaf: true
+    - id: ism_alfa3il
+      title: اسم الفاعل
+      children:
+      - id: ism_alfa3il__ta3rif
+        title: تعريف اسم الفاعل
+        leaf: true
+      - id: ism_alfa3il_min_thulathi
+        title: صوغ اسم الفاعل من الثلاثي
+        leaf: true
+      - id: ism_alfa3il_min_ghayr_thulathi
+        title: صوغ اسم الفاعل من غير الثلاثي
+        leaf: true
+      - id: ism_alfa3il_min_mu3tal
+        title: صوغ اسم الفاعل من المعتل (تفصيل)
+        leaf: true
+    - id: ism_almaf3ul
+      title: اسم المفعول
+      children:
+      - id: ism_almaf3ul__ta3rif
+        title: تعريف اسم المفعول
+        leaf: true
+      - id: ism_almaf3ul_min_thulathi
+        title: صوغ اسم المفعول من الثلاثي
+        leaf: true
+      - id: ism_almaf3ul_min_ghayr_thulathi
+        title: صوغ اسم المفعول من غير الثلاثي
+        leaf: true
+      - id: ism_almaf3ul_min_mu3tal
+        title: صوغ اسم المفعول من المعتل (تفصيل)
+        leaf: true
+    - id: assifa_almushabbaha
+      title: الصفة المشبهة
+      children:
+      - id: assifa_almushabbaha__ta3rif
+        title: تعريف الصفة المشبهة
+        leaf: true
+      - id: awzan_assifa_almushabbaha
+        title: أوزان الصفة المشبهة (فعيل/فَعْلان/فَعِل/فَعول…)
+        leaf: true
+      - id: farq_bayn_sifa_wism_fa3il
+        title: الفرق بين الصفة المشبهة واسم الفاعل
+        leaf: true
+    - id: sighat_almubalaghah
+      title: صيغ المبالغة
+      children:
+      - id: sighat_almubalaghah__ta3rif
+        title: تعريف صيغ المبالغة
+        leaf: true
+      - id: awzan_sighat_almubalaghah
+        title: أوزان صيغ المبالغة (فعّال/مِفعال/فعول/فعيل/فَعِل…)
+        leaf: true
+      - id: qawa3id_sighat_almubalaghah
+        title: قواعد الاشتقاق والاستعمال (إن ورد)
+        leaf: true
+    - id: ism_attfdil
+      title: اسم التفضيل
+      children:
+      - id: ism_attfdil__ta3rif
+        title: تعريف اسم التفضيل
+        leaf: true
+      - id: shuroot_ism_attfdil
+        title: شروط صوغ اسم التفضيل
+        leaf: true
+      - id: ism_attfdil_min_ghayr_thulathi
+        title: التفضيل من غير الثلاثي (طرق التعبير)
+        leaf: true
+      - id: shadhdh_fi_attfdil
+        title: الشاذ في التفضيل (أفعل/خير/شر…)
+        leaf: true
+    - id: ism_azzaman_walmakan
+      title: اسما الزمان والمكان
+      children:
+      - id: ism_azzaman_walmakan__ta3rif
+        title: تعريف اسمي الزمان والمكان
+        leaf: true
+      - id: awzan_ism_azzaman_walmakan_thulathi
+        title: أوزانهما من الثلاثي (مَفْعَل/مَفْعِل…)
+        leaf: true
+      - id: awzan_ism_azzaman_walmakan_ghayr_thulathi
+        title: صوغهما من غير الثلاثي
+        leaf: true
+    - id: ism_alala
+      title: اسم الآلة
+      children:
+      - id: ism_alala__ta3rif
+        title: تعريف اسم الآلة
+        leaf: true
+      - id: awzan_ism_alala_qiyasiyya
+        title: الأوزان القياسية (مِفْعَل/مِفْعَلة/مِفعال…)
+        leaf: true
+      - id: awzan_ism_alala_sama3iyya
+        title: الأوزان السماعية (إن ورد)
+        leaf: true
+  - id: abwab_alism__sarf
+    title: أبواب الاسم من جهة الصرف (تصغير/نسب/جموع…)
+    children:
+    - id: attasghir
+      title: التصغير
+      children:
+      - id: attasghir__ta3rif
+        title: تعريف التصغير وفائدته
+        leaf: true
+      - id: awzan_attasghir
+        title: أوزان التصغير (فُعَيْل/فُعَيْعِل/فُعَيْعِيل…)
+        leaf: true
+      - id: attasghir_fi_almu3tal_walmahmuz
+        title: التصغير في المعتل والمهموز (قواعد)
+        leaf: true
+      - id: shuruut_wamawaani3_attasghir
+        title: شروط التصغير وموانعه
+        leaf: true
+    - id: annisba
+      title: النسب (ياء النسب)
+      children:
+      - id: annisba__ta3rif
+        title: تعريف النسب
+        leaf: true
+      - id: qawa3id_annisba_3amma
+        title: قواعد عامة في النسب
+        leaf: true
+      - id: annisba_ila_almaqsur_walmanqus_walmamdud
+        title: النسب إلى المقصور والمنقوص والممدود
+        leaf: true
+      - id: annisba_ila_aljama3_walmuthanna
+        title: النسب إلى الجمع والمثنى (إن ورد)
+        leaf: true
+    - id: aljam3
+      title: الجموع (صوغها)
+      children:
+      - id: jam3_almudhakkar_alsalim__sarf
+        title: جمع المذكر السالم (صوغ)
+        leaf: true
+      - id: jam3_almuannath_alsalim__sarf
+        title: جمع المؤنث السالم (صوغ)
+        leaf: true
+      - id: jam3_altaksir
+        title: جمع التكسير
+        children:
+        - id: jam3_altaksir__overview
+          title: 'جمع التكسير: مدخل وضوابط عامة'
+          leaf: true
+        - id: jumuu3_alqilla
+          title: جموع القلة (أفعل/أفعال/أفعلة/فِعلة…)
+          leaf: true
+        - id: jumuu3_alkathra
+          title: جموع الكثرة (أوزان مشهورة…)
+          leaf: true
+        - id: sighat_muntaha_aljumu3__sarf
+          title: صيغة منتهى الجموع (صرفيا)
+          leaf: true
+      - id: ism_aljam3
+        title: اسم الجمع وجمع الجمع (إن ورد)
+        leaf: true
+      - id: ism_jins_jam3i
+        title: اسم الجنس الجمعي (إن ورد)
+        leaf: true
+    - id: alithna2__sarf
+      title: التثنية (صوغ)
+      children:
+      - id: alithna2__qawa3id
+        title: قواعد التثنية
+        leaf: true
+      - id: alithna2_fi_almaqsur_walmanqus_walmamdud
+        title: تثنية المقصور والمنقوص والممدود
+        leaf: true
+    - id: almqsur_walmanqus_walmamdud__sarf
+      title: المقصور والمنقوص والممدود (صرفيا)
+      children:
+      - id: almaqsur__sarf
+        title: المقصور (تعريف/علامات)
+        leaf: true
+      - id: almanqus__sarf
+        title: المنقوص (تعريف/علامات)
+        leaf: true
+      - id: almamdud__sarf
+        title: الممدود (تعريف/علامات)
+        leaf: true
+      - id: qawa3id_al2i3lal_fi_alasma
+        title: قواعد الإعلال في الأسماء (إذا وردت)
+        leaf: true
+    - id: tasniya_wajma3__shudhudh
+      title: شواذّ/سماعيات في التثنية والجمع والنسب (إن ورد)
+      leaf: true
+  - id: masail_amma
+    title: مسائل جامعة / فهارس
+    children:
+    - id: alqiyas_wassamaa__sarf
+      title: القياس والسماع في الصرف (قواعد وإشارات)
+      leaf: true
+    - id: ashshadh_wannadir
+      title: الشاذ والنادر في الصيغ الصرفية
+      leaf: true
+    - id: mulhaqat_wa_ibtidaa
+      title: ملحقات وفروع (قائمة مفتوحة بحسب المصادر)
+      leaf: true
+  id_policy:
+    description: Same ID rules as balagha taxonomy to avoid drift.
+    charset: lowercase ASCII letters (a-z), digits (0-9), underscores (_)
+    transliteration_rules:
+      ع: '3'
+      ء_و_ؤ_ئ_إ_أ_آ: dropped
+      ة: dropped from end
+      ال_definite_article: prefixed as al
+      shadda: doubled letter
+      long_vowels: aa / uu / ii
+      ث: th
+      ذ: dh
+      ش: sh
+      ص: s
+      ض: d
+      ط: t
+      ظ: dh
+      غ: gh
+      خ: kh
+      ق: q
+    structure_rules:
+    - Use underscores to separate words
+    - Prefix with parent concept to disambiguate
+    - Use __overview for overview nodes
+    - Once assigned, node IDs are immutable

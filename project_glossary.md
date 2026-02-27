@@ -45,7 +45,7 @@ When an excerpt involves a science outside these four, the `related_science` fie
 
 **Extraction (Stages 3+4 combined):** The core operation. For each passage, an LLM atomizes the text (breaks it into typed atoms), groups atoms into self-contained excerpts, assigns taxonomy placement per excerpt, and generates exclusion records. Includes 17-check validation with automatic correction retries. Combines what were originally separate atomization and excerpting stages. Tool: `tools/extract_passages.py` (~1389 lines). 🟡 Single-model complete; multi-model consensus not yet built.
 
-**Taxonomy Trees (Stage 5):** Build and maintain the base taxonomy YAML trees for each science. Each science needs a tree before extraction can place excerpts into it. Trees are stored in `taxonomy/`. 🟡 إملاء exists (`imlaa_v0.1.yaml`, 44 leaves); بلاغة exists (`balagha_v0_4.yaml`, 143 leaves); صرف and نحو not yet created.
+**Taxonomy Trees (Stage 5):** Build and maintain the base taxonomy YAML trees for each science. Each science needs a tree before extraction can place excerpts into it. Trees are stored in `taxonomy/`. ✅ All 4 sciences complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves.
 
 **Taxonomy Evolution (Stage 6):** Detects when the taxonomy tree needs finer granularity, proposes new sub-nodes, redistributes existing excerpts, and applies changes with human approval. ❌ Not yet built.
 

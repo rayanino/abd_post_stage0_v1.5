@@ -1,0 +1,440 @@
+taxonomy:
+  id: imlaa_v1_0
+  title: علم الإملاء
+  language: ar
+  policy:
+    leaf_atomic: true
+    single_core_node_per_excerpt: true
+    exclude_cross_science_nodes: true
+    allow_rhetorical_treatment_only: false
+  nodes:
+  - id: muqaddimat
+    title: مقدمات علم الإملاء
+    children:
+    - id: ta3rif_alimlaa
+      title: تعريف الإملاء وموضوعه وغايته
+      children:
+      - id: ta3rif_alimlaa_lugha
+        title: تعريف الإملاء لغة
+        leaf: true
+      - id: ta3rif_alimlaa_istilah
+        title: تعريف الإملاء اصطلاحا
+        children:
+        - id: ta3rif_alimlaa_istilah__ta3rif_3ilmi
+          title: التعريف العلمي للإملاء (صياغات الحدّ)
+          leaf: true
+        - id: ta3rif_alimlaa_istilah__ta3rif_3amali
+          title: التعريف العملي للإملاء (وظيفته الكتابية)
+          leaf: true
+        - id: ta3rif_alimlaa_istilah__ajza2_alta3rif
+          title: تفكيك عناصر التعريف الاصطلاحي
+          leaf: true
+        - id: ta3rif_alimlaa_istilah__furuuq_ta3arif
+          title: فروق صيغ تعريف الإملاء عند المؤلفين
+          leaf: true
+      - id: mawdu3_alimlaa
+        title: موضوع علم الإملاء
+        leaf: true
+      - id: ghaya_thamarat_alimlaa
+        title: غاية الإملاء وثمرته
+        leaf: true
+      - id: nisbat_alimlaa_ila_ghayrihi
+        title: نسبة الإملاء إلى غيره من علوم العربية (خط/صرف/نحو)
+        leaf: true
+    - id: qawa3id_3amma
+      title: قواعد عامة في الرسم والكتابة
+      children:
+      - id: alrasm_alqiyasi
+        title: الرسم القياسي وضابطه
+        leaf: true
+      - id: mabda_suhulat_alqira2a
+        title: مبدأ سهولة القراءة ورفع اللبس
+        leaf: true
+      - id: athar_alharakat_fi_alrasm
+        title: أثر الحركات والسكون في اختيار صورة الرسم
+        leaf: true
+      - id: athar_alasl_assarfi
+        title: أثر الأصل الصرفي والاشتقاق في الرسم
+        leaf: true
+      - id: alkalima_bayna_alsama3_walqiyas
+        title: الكتابة بين السماع والقياس
+        leaf: true
+      - id: ma_yuntaq_wala_yuktab
+        title: ما ينطق ولا يكتب
+        leaf: true
+      - id: ma_yuktab_wala_yuntaq
+        title: ما يكتب ولا ينطق
+        leaf: true
+  - id: alhamza
+    title: الهمزة
+    children:
+    - id: ta3rif_alhamza
+      title: تعريف الهمزة ومخرجها ووظيفتها الكتابية
+      leaf: true
+    - id: hamzat_alwasl_walqat3
+      title: همزة الوصل وهمزة القطع
+      children:
+      - id: hamzat_alwasl
+        title: همزة الوصل
+        children:
+        - id: ta3rif_hamzat_alwasl
+          title: تعريف همزة الوصل
+          leaf: true
+        - id: mawadi3_hamzat_alwasl_fi_alasmaa
+          title: مواضع همزة الوصل في الأسماء
+          leaf: true
+        - id: mawadi3_hamzat_alwasl_fi_alaf3al
+          title: مواضع همزة الوصل في الأفعال
+          leaf: true
+        - id: mawadi3_hamzat_alwasl_fi_alhuruf
+          title: مواضع همزة الوصل في الحروف
+          leaf: true
+        - id: hamzat_alwasl_fi_ism_ibn_imra2
+          title: 'مواضع خاصة: اسم/ابن/ابنة/امرؤ/امرأة/اثنان…'
+          leaf: true
+        - id: hamzat_alwasl__ibtida_wawasl
+          title: النطق والكتابة في الابتداء والوصل
+          leaf: true
+      - id: hamzat_alqat3
+        title: همزة القطع
+        children:
+        - id: ta3rif_hamzat_alqat3
+          title: تعريف همزة القطع
+          leaf: true
+        - id: mawadi3_hamzat_alqat3_fi_alasmaa
+          title: مواضع همزة القطع في الأسماء
+          leaf: true
+        - id: mawadi3_hamzat_alqat3_fi_alaf3al
+          title: مواضع همزة القطع في الأفعال
+          leaf: true
+        - id: mawadi3_hamzat_alqat3_fi_alhuruf
+          title: مواضع همزة القطع في الحروف
+          leaf: true
+        - id: farq_hamzat_alwasl_walqat3
+          title: الفرق بين همزة الوصل والقطع
+          leaf: true
+    - id: hamza_awwal_alkalima
+      title: الهمزة في أول الكلمة
+      children:
+      - id: hamza_awwal__overview
+        title: القاعدة العامة في أول الكلمة
+        leaf: true
+      - id: hamza_awwal_fi_alasmaa
+        title: الهمزة أول الكلمة في الأسماء
+        leaf: true
+      - id: hamza_awwal_fi_alaf3al
+        title: الهمزة أول الكلمة في الأفعال
+        leaf: true
+      - id: hamza_awwal_fi_alhuruf
+        title: الهمزة أول الكلمة في الحروف
+        leaf: true
+    - id: hamza_wasat_alkalima
+      title: الهمزة المتوسطة
+      children:
+      - id: qawa3id_hamza_wasat__overview
+        title: القواعد العامة للهمزة المتوسطة (أقوى الحركات)
+        leaf: true
+      - id: hamza_wasat_3ala_alif
+        title: الهمزة المتوسطة على ألف
+        leaf: true
+      - id: hamza_wasat_3ala_waw
+        title: الهمزة المتوسطة على واو
+        leaf: true
+      - id: hamza_wasat_3ala_ya
+        title: الهمزة المتوسطة على ياء (نبرة)
+        leaf: true
+      - id: hamza_wasat_3ala_assatr
+        title: الهمزة المتوسطة على السطر
+        leaf: true
+      - id: hamza_wasat_ba3d_alif
+        title: الهمزة المتوسطة بعد ألف
+        leaf: true
+      - id: hamza_wasat_ba3d_waw_sakina
+        title: الهمزة المتوسطة بعد واو ساكنة
+        leaf: true
+      - id: hamza_wasat_ba3d_ya_sakina
+        title: الهمزة المتوسطة بعد ياء ساكنة
+        leaf: true
+      - id: hamza_wasat_fi_almudaf_ila_dama2ir
+        title: الهمزة المتوسطة عند اتصال الضمائر واللواحق
+        leaf: true
+    - id: hamza_akhir_alkalima
+      title: الهمزة المتطرفة
+      children:
+      - id: qawa3id_hamza_akhir__overview
+        title: القاعدة العامة للهمزة المتطرفة
+        leaf: true
+      - id: hamza_akhir_3ala_alif
+        title: الهمزة المتطرفة على ألف
+        leaf: true
+      - id: hamza_akhir_3ala_waw
+        title: الهمزة المتطرفة على واو
+        leaf: true
+      - id: hamza_akhir_3ala_ya
+        title: الهمزة المتطرفة على ياء
+        leaf: true
+      - id: hamza_akhir_3ala_assatr
+        title: الهمزة المتطرفة على السطر
+        leaf: true
+      - id: hamza_akhir_ma3_tanwin_fath
+        title: الهمزة المتطرفة مع تنوين الفتح
+        leaf: true
+      - id: hamza_akhir_ma3_lawaahiq
+        title: الهمزة المتطرفة عند اتصال اللواحق
+        leaf: true
+  - id: alalif
+    title: الألف
+    children:
+    - id: alalif_allayyina
+      title: الألف اللينة
+      children:
+      - id: ta3rif_alalif_allayyina
+        title: تعريف الألف اللينة
+        leaf: true
+      - id: alalif_allayyina_fi_awwal_alkalima
+        title: الألف اللينة في أول الكلمة (تنبيهات)
+        leaf: true
+      - id: alalif_allayyina_fi_wasat_alkalima
+        title: الألف اللينة في وسط الكلمة
+        leaf: true
+      - id: alalif_allayyina_fi_akhir_alkalima
+        title: الألف اللينة في آخر الكلمة
+        children:
+        - id: alalif_allayyina_akhir_fi_alasmaa
+          title: في الأسماء
+          leaf: true
+        - id: alalif_allayyina_akhir_fi_alaf3al
+          title: في الأفعال
+          leaf: true
+        - id: alalif_allayyina_akhir_fi_alhuruf
+          title: في الحروف
+          leaf: true
+        - id: ma3rifat_alasl_alwawi_walya2i
+          title: معرفة الأصل الواوي واليائي
+          leaf: true
+      - id: farq_almaqsura_walmamduda
+        title: الفرق بين الألف المقصورة والممدودة
+        leaf: true
+    - id: alalif_alfariqa
+      title: الألف الفارقة
+      children:
+      - id: ta3rif_alalif_alfariqa
+        title: تعريف الألف الفارقة
+        leaf: true
+      - id: alalif_ba3d_waw_aljama3a
+        title: الألف الفارقة بعد واو الجماعة
+        leaf: true
+      - id: mawadi3_hadhf_alalif_alfariqa
+        title: مواضع حذف الألف الفارقة
+        leaf: true
+    - id: alalif_ma3_tanwin_fath
+      title: ألف تنوين الفتح
+      children:
+      - id: ta3rif_alalif_ma3_tanwin_fath
+        title: 'ألف تنوين الفتح: القاعدة العامة'
+        leaf: true
+      - id: mawadi3_ithbat_alalif_ma3_tanwin_fath
+        title: مواضع إثبات ألف تنوين الفتح
+        leaf: true
+      - id: mawadi3_hadhf_alalif_ma3_tanwin_fath
+        title: مواضع حذف ألف تنوين الفتح
+        leaf: true
+  - id: altaa_walhaa
+    title: التاء والهاء في الرسم
+    children:
+    - id: altaa_almarbuta_walmabsuta
+      title: التاء المربوطة والتاء المبسوطة
+      children:
+      - id: ta3rif_taa_marbuta
+        title: تعريف التاء المربوطة
+        leaf: true
+      - id: ta3rif_taa_mabsuta
+        title: تعريف التاء المبسوطة
+        leaf: true
+      - id: mawadi3_taa_marbuta
+        title: مواضع التاء المربوطة
+        leaf: true
+      - id: mawadi3_taa_mabsuta
+        title: مواضع التاء المبسوطة
+        leaf: true
+      - id: farq_taa_waha
+        title: الفرق بين التاء المربوطة والهاء
+        leaf: true
+    - id: haa_aldamir
+      title: هاء الضمير
+      children:
+      - id: ta3rif_haa_aldamir
+        title: تعريف هاء الضمير
+        leaf: true
+      - id: haa_aldamir_ma3_alharakat
+        title: رسم هاء الضمير مع الحركات
+        leaf: true
+      - id: haa_aldamir_ma3_waaw_waya2
+        title: هاء الضمير مع الواو والياء
+        leaf: true
+  - id: alziyadah_walhadhf
+    title: الزيادة والحذف
+    children:
+    - id: ziyadat_alhuruf
+      title: زيادة الحروف
+      children:
+      - id: ziyadat_alalif
+        title: زيادة الألف
+        leaf: true
+      - id: ziyadat_alwaw
+        title: زيادة الواو
+        leaf: true
+      - id: ziyadat_alya2
+        title: زيادة الياء
+        leaf: true
+      - id: ziyadat_huruf_ukhra
+        title: زيادات أخرى/مواضع خاصة
+        leaf: true
+    - id: hadhf_alhuruf
+      title: حذف الحروف
+      children:
+      - id: hadhf_alalif
+        title: حذف الألف
+        children:
+        - id: hadhf_alalif_awwalan
+          title: حذف الألف أولا
+          leaf: true
+        - id: hadhf_alalif_wasatan
+          title: حذف الألف وسطا
+          leaf: true
+        - id: hadhf_alalif_akhiran
+          title: حذف الألف آخرا
+          leaf: true
+      - id: hadhf_alwaw
+        title: حذف الواو
+        leaf: true
+      - id: hadhf_alya2
+        title: حذف الياء
+        leaf: true
+      - id: hadhf_alnun
+        title: حذف النون
+        leaf: true
+      - id: hadhf_huruf_ukhra
+        title: حذف حروف أخرى/مواضع خاصة
+        leaf: true
+  - id: alfasl_walwasl
+    title: الفصل والوصل (المقطوع والموصول)
+    children:
+    - id: alfasl_walwasl__overview
+      title: القاعدة العامة في الفصل والوصل
+      leaf: true
+    - id: ma_yuktab_mawsulan
+      title: ما يكتب موصولا
+      children:
+      - id: ma_yuktab_mawsulan__ma
+        title: وصل (ما) مع ما يتصل بها
+        leaf: true
+      - id: ma_yuktab_mawsulan__man
+        title: وصل (من) مع ما يتصل بها
+        leaf: true
+      - id: ma_yuktab_mawsulan__in_an
+        title: وصل (إن/أن) في المواضع المقررة
+        leaf: true
+      - id: ma_yuktab_mawsulan__la
+        title: وصل (لا) في بعض التراكيب
+        leaf: true
+      - id: mawsul_ukhar
+        title: موصولات أخرى / تراكيب خاصة
+        leaf: true
+    - id: ma_yuktab_maqtu3an
+      title: ما يكتب مقطوعا
+      children:
+      - id: ma_yuktab_maqtu3an__ma
+        title: قطع (ما) في المواضع المقررة
+        leaf: true
+      - id: ma_yuktab_maqtu3an__man
+        title: قطع (من) في المواضع المقررة
+        leaf: true
+      - id: ma_yuktab_maqtu3an__in_an
+        title: قطع (إن/أن) في المواضع المقررة
+        leaf: true
+      - id: maqtu3_ukhar
+        title: مقطوعات أخرى / تراكيب خاصة
+        leaf: true
+  - id: asmaa_walfadh_khassa
+    title: ألفاظ وأسماء لها رسم خاص
+    children:
+    - id: lafdh_allah
+      title: لفظ الجلالة ورسمه
+      leaf: true
+    - id: ibn_wibna
+      title: ابن/ابنة في المواضع الخاصة
+      leaf: true
+    - id: ism_wisman
+      title: اسم/اسمان وما في بابهما
+      leaf: true
+    - id: imra2_wimra2a
+      title: امرؤ/امرأة وما في بابهما
+      leaf: true
+    - id: ulfadh_sha2i3a_mustathna
+      title: ألفاظ شائعة مستثناة من القياس
+      leaf: true
+  - id: alamat_alkitaba_alhaditha
+    title: علامات الكتابة الحديثة
+    children:
+    - id: alamat_altarqim
+      title: علامات الترقيم
+      children:
+      - id: ta3rif_altarqim
+        title: تعريف علامات الترقيم ووظيفتها
+        leaf: true
+      - id: fasilah_wafasilah_manquta
+        title: الفاصلة والفاصلة المنقوطة
+        leaf: true
+      - id: nuqta
+        title: النقطة
+        leaf: true
+      - id: alamat_alistifham_walta3ajjub
+        title: علامتا الاستفهام والتعجب
+        leaf: true
+      - id: nuktatan_ra2siyyatan
+        title: النقطتان الرأسيتان
+        leaf: true
+      - id: asharat_alaqtibas_walqawsan
+        title: علامتا الاقتباس والقوسان
+        leaf: true
+      - id: sharta_wa_hawashi
+        title: الشرطة والواصلات وما في معناها
+        leaf: true
+    - id: qawa3id_kitabiyya_haditha
+      title: قواعد كتابية حديثة
+      children:
+      - id: kitabat_al2a3dad
+        title: كتابة الأعداد
+        leaf: true
+      - id: kitabat_alrumuz_walikhtisarat
+        title: كتابة الرموز والاختصارات
+        leaf: true
+      - id: kitabat_alasmaa_almu3arraba
+        title: كتابة الأعلام والألفاظ المعربة/الدخيلة
+        leaf: true
+  id_policy:
+    description: Same ID rules as balagha taxonomy to avoid drift.
+    charset: lowercase ASCII letters (a-z), digits (0-9), underscores (_)
+    transliteration_rules:
+      ع: '3'
+      ء_و_ؤ_ئ_إ_أ_آ: dropped
+      ة: dropped from end
+      ال_definite_article: prefixed as al
+      shadda: doubled letter
+      long_vowels: aa / uu / ii
+      ث: th
+      ذ: dh
+      ش: sh
+      ص: s
+      ض: d
+      ط: t
+      ظ: dh
+      غ: gh
+      خ: kh
+      ق: q
+    structure_rules:
+    - Use underscores to separate words
+    - Prefix with parent concept to disambiguate
+    - Use __overview for overview nodes
+    - Once assigned, node IDs are immutable

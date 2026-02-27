@@ -1,21 +1,48 @@
 registry_version: 0.1
-notes: |
-  Canonical registry of taxonomy trees per science and version.
-  Baseline passage packages may include a local taxonomy snapshot file for reproducibility.
-  The production pipeline MUST resolve taxonomy trees through this registry.
+notes: Canonical registry of taxonomy trees per science and version. Baseline passage packages may include a local taxonomy
+  snapshot file for reproducibility. The production pipeline MUST resolve taxonomy trees through this registry.
 sciences:
-  - science_id: balagha
-    display_name_ar: "البلاغة"
-    versions:
-      - taxonomy_version: balagha_v0_2
-        relpath: "taxonomy/balagha/balagha_v0_2.yaml"
-        status: historical
-        notes: "Introduced during Passage 1 (TC-001..TC-003)."
-      - taxonomy_version: balagha_v0_3
-        relpath: "taxonomy/balagha/balagha_v0_3.yaml"
-        status: historical
-        notes: "Introduced during Passage 2 (TC-004..TC-007)."
-      - taxonomy_version: balagha_v0_4
-        relpath: "taxonomy/balagha/balagha_v0_4.yaml"
-        status: active
-        notes: "Introduced during Passage 3 (TC-008..TC-012)."
+- science_id: balagha
+  display_name_ar: البلاغة
+  versions:
+  - taxonomy_version: balagha_v0_2
+    relpath: taxonomy/balagha/balagha_v0_2.yaml
+    status: historical
+    notes: Introduced during Passage 1 (TC-001..TC-003).
+  - taxonomy_version: balagha_v0_3
+    relpath: taxonomy/balagha/balagha_v0_3.yaml
+    status: historical
+    notes: Introduced during Passage 2 (TC-004..TC-007).
+  - taxonomy_version: balagha_v0_4
+    relpath: taxonomy/balagha/balagha_v0_4.yaml
+    status: historical
+    notes: Passage-shaped balagha taxonomy used during early gold baselines.
+  - taxonomy_version: balagha_v1_0
+    relpath: taxonomy/balagha/balagha_v1_0.yaml
+    status: active
+    notes: Base superset taxonomy for balagha (granular, placement-safe).
+- science_id: nahw
+  display_name_ar: النحو
+  versions:
+  - taxonomy_version: nahw_v1_0
+    relpath: taxonomy/nahw/nahw_v1_0.yaml
+    status: active
+    notes: Base superset taxonomy for nahw (granular, placement-safe).
+- science_id: sarf
+  display_name_ar: الصرف
+  versions:
+  - taxonomy_version: sarf_v1_0
+    relpath: taxonomy/sarf/sarf_v1_0.yaml
+    status: active
+    notes: Base superset taxonomy for sarf (granular, placement-safe).
+- science_id: imlaa
+  display_name_ar: الإملاء
+  versions:
+  - taxonomy_version: imlaa_v0_1
+    relpath: taxonomy/imlaa_v0.1.yaml
+    status: historical
+    notes: Early starter taxonomy for imlaa.
+  - taxonomy_version: imlaa_v1_0
+    relpath: taxonomy/imlaa/imlaa_v1_0.yaml
+    status: active
+    notes: Base superset taxonomy for imlaa (granular, placement-safe).
