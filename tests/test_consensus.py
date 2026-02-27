@@ -18,6 +18,10 @@ from tools.consensus import (
     compute_excerpt_text_span,
     match_excerpts,
     compute_coverage_agreement,
+    compare_footnote_excerpts,
+    compare_exclusions,
+    _normalize_confidence,
+    _UNMAPPED_NODES,
     build_consensus,
     generate_consensus_review_section,
     _extract_taxonomy_context,
@@ -895,3 +899,706 @@ class TestConsensusMetaStructure:
         # This should not raise
         json_str = json.dumps(consensus, ensure_ascii=False)
         assert len(json_str) > 0
+
+    def test_new_hardened_fields_present(self):
+        """consensus_meta must include hardened fields."""
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_same_taxonomy()
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        meta = consensus["consensus_meta"]
+
+        hardened_fields = [
+            "both_unmapped_count", "discarded_excerpts",
+            "footnote_comparison", "exclusion_comparison",
+            "case_type_disagreements",
+        ]
+        for field in hardened_fields:
+            assert field in meta, f"Missing hardened field: {field}"
+
+
+# ===========================================================================
+# STRESS TESTS — hardened edge cases
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Stress: null / missing core_atoms
+# ---------------------------------------------------------------------------
+
+class TestExcerptWithNullCoreAtoms:
+    """compute_excerpt_text_span must handle None and missing core_atoms."""
+
+    def test_core_atoms_is_none(self):
+        exc = {"core_atoms": None}
+        assert compute_excerpt_text_span(exc, {}) == ""
+
+    def test_core_atoms_key_missing(self):
+        exc = {}  # no core_atoms key at all
+        assert compute_excerpt_text_span(exc, {}) == ""
+
+    def test_consensus_with_null_core_atoms_excerpt(self):
+        """build_consensus should not crash when an excerpt has null core_atoms."""
+        atoms_a = [_make_atom("a1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        exc_a_ok = _make_excerpt("ea:001", ["a1"], taxonomy_node_id="leaf_a")
+        exc_a_null = {
+            "excerpt_id": "ea:002",
+            "taxonomy_node_id": "leaf_b",
+            "core_atoms": None,
+        }
+        ra = _make_result(atoms_a, [exc_a_ok, exc_a_null])
+
+        atoms_b = [_make_atom("b1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        exc_b = _make_excerpt("eb:001", ["b1"], taxonomy_node_id="leaf_a")
+        rb = _make_result(atoms_b, [exc_b])
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        # Should not raise
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        assert "excerpts" in consensus
+
+
+# ---------------------------------------------------------------------------
+# Stress: both models _unmapped
+# ---------------------------------------------------------------------------
+
+class TestBothModelsUnmapped:
+    """When both models place at _unmapped, it's a classification failure."""
+
+    def test_both_unmapped_flagged(self):
+        atoms_a = [_make_atom("a1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        atoms_b = [_make_atom("b1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        exc_a = _make_excerpt("ea:001", ["a1"], taxonomy_node_id="_unmapped")
+        exc_b = _make_excerpt("eb:001", ["b1"], taxonomy_node_id="_unmapped")
+        ra = _make_result(atoms_a, [exc_a])
+        rb = _make_result(atoms_b, [exc_b])
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        meta = consensus["consensus_meta"]
+        assert meta["both_unmapped_count"] == 1
+        assert meta["full_agreement_count"] == 0  # NOT counted as real agreement
+
+        # Per-excerpt should have low confidence and both_unmapped agreement
+        pe = meta["per_excerpt"][0]
+        assert pe["agreement"] == "both_unmapped"
+        assert pe["confidence"] == "low"
+        assert "classification failure" in pe["flags"][0].lower()
+
+    def test_unmapped_variants_all_detected(self):
+        """All variants: _unmapped, __unmapped, unmapped."""
+        for node_id in _UNMAPPED_NODES:
+            atoms_a = [_make_atom("a1", "prose_sentence", "نص")]
+            atoms_b = [_make_atom("b1", "prose_sentence", "نص")]
+            exc_a = _make_excerpt("ea:001", ["a1"], taxonomy_node_id=node_id)
+            exc_b = _make_excerpt("eb:001", ["b1"], taxonomy_node_id=node_id)
+            ra = _make_result(atoms_a, [exc_a])
+            rb = _make_result(atoms_b, [exc_b])
+
+            issues = {"errors": [], "warnings": [], "info": []}
+            consensus = build_consensus(
+                "TEST", ra, rb, "a", "b", issues, issues,
+            )
+            assert consensus["consensus_meta"]["both_unmapped_count"] == 1, \
+                f"Failed to detect unmapped variant: {node_id}"
+
+
+# ---------------------------------------------------------------------------
+# Stress: footnote excerpt comparison
+# ---------------------------------------------------------------------------
+
+class TestFootnoteExcerptComparison:
+    def test_identical_footnotes_all_matched(self):
+        fn_text = "هذا حاشية مفيدة في هذا الباب"
+        ra = _make_result([], [], footnote_excerpts=[
+            {"excerpt_id": "fn:a:001", "text": fn_text},
+        ])
+        rb = _make_result([], [], footnote_excerpts=[
+            {"excerpt_id": "fn:b:001", "text": fn_text},
+        ])
+        result = compare_footnote_excerpts(ra, rb, "claude", "gpt4o")
+        assert result["matched_count"] == 1
+        assert result["unmatched_a_count"] == 0
+        assert result["unmatched_b_count"] == 0
+
+    def test_extra_footnote_in_one_model(self):
+        fn_text = "هذا حاشية مفيدة في هذا الباب"
+        ra = _make_result([], [], footnote_excerpts=[
+            {"excerpt_id": "fn:a:001", "text": fn_text},
+        ])
+        rb = _make_result([], [], footnote_excerpts=[
+            {"excerpt_id": "fn:b:001", "text": fn_text},
+            {"excerpt_id": "fn:b:002", "text": "حاشية ثانية فريدة لم يجدها النموذج الأول"},
+        ])
+        result = compare_footnote_excerpts(ra, rb, "claude", "gpt4o")
+        assert result["matched_count"] == 1
+        assert result["unmatched_b_count"] == 1
+        assert len(result["disagreements"]) == 1
+        assert result["disagreements"][0]["found_by"] == "gpt4o"
+
+    def test_no_footnotes_both_models(self):
+        ra = _make_result([], [])
+        rb = _make_result([], [])
+        result = compare_footnote_excerpts(ra, rb, "claude", "gpt4o")
+        assert result["matched_count"] == 0
+        assert result["disagreements"] == []
+
+    def test_footnotes_in_consensus_meta(self):
+        """Footnote comparison result should appear in consensus_meta."""
+        fn_text = "هذا حاشية مفيدة في هذا الباب"
+        ra = _make_model_a_result()
+        ra["footnote_excerpts"] = [{"excerpt_id": "fn:a:001", "text": fn_text}]
+        rb = _make_model_b_result_same_taxonomy()
+        rb["footnote_excerpts"] = [{"excerpt_id": "fn:b:001", "text": fn_text}]
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        fn_meta = consensus["consensus_meta"]["footnote_comparison"]
+        assert fn_meta["matched_count"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Stress: exclusion comparison
+# ---------------------------------------------------------------------------
+
+class TestExclusionComparison:
+    def test_same_exclusions_agree(self):
+        ra = _make_model_a_result()  # has exclusion for "باب الهمزة"
+        rb = _make_model_b_result_same_taxonomy()  # same exclusion text
+        result = compare_exclusions(ra, rb, "claude", "gpt4o")
+        assert result["agreed_count"] == 1
+        assert result["a_only_count"] == 0
+        assert result["b_only_count"] == 0
+
+    def test_different_exclusion_decisions(self):
+        atoms_a = [
+            _make_atom("a1", "heading", "عنوان"),
+            _make_atom("a2", "prose_sentence", TEXT_HAMZA_OVERVIEW),
+        ]
+        atoms_b = [
+            _make_atom("b1", "heading", "عنوان"),
+            _make_atom("b2", "prose_sentence", TEXT_HAMZA_OVERVIEW),
+        ]
+        ra = _make_result(
+            atoms_a,
+            [_make_excerpt("ea:001", ["a2"])],
+            exclusions=[{"atom_id": "a1", "exclusion_reason": "heading_structural"}],
+        )
+        # Model B does NOT exclude the heading
+        rb = _make_result(
+            atoms_b,
+            [_make_excerpt("eb:001", ["b2"]),
+             _make_excerpt("eb:002", ["b1"])],
+        )
+        result = compare_exclusions(ra, rb, "claude", "gpt4o")
+        assert result["a_only_count"] == 1
+        assert len(result["disagreements"]) == 1
+        assert result["disagreements"][0]["excluded_by"] == "claude"
+
+    def test_exclusions_in_consensus_meta(self):
+        """Exclusion comparison should appear in consensus_meta."""
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_same_taxonomy()
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        excl_meta = consensus["consensus_meta"]["exclusion_comparison"]
+        assert "agreed_count" in excl_meta
+
+
+# ---------------------------------------------------------------------------
+# Stress: case_types comparison
+# ---------------------------------------------------------------------------
+
+class TestCaseTypesComparison:
+    def test_different_case_types_flagged(self):
+        atoms_a = [_make_atom("a1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        atoms_b = [_make_atom("b1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        exc_a = _make_excerpt("ea:001", ["a1"], taxonomy_node_id="leaf",
+                              case_types=["A1_pure_definition"])
+        exc_b = _make_excerpt("eb:001", ["b1"], taxonomy_node_id="leaf",
+                              case_types=["A2_rule_statement", "A1_pure_definition"])
+        ra = _make_result(atoms_a, [exc_a])
+        rb = _make_result(atoms_b, [exc_b])
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        ct_dis = consensus["consensus_meta"]["case_type_disagreements"]
+        assert len(ct_dis) == 1
+        assert "A1_pure_definition" in ct_dis[0]["shared"]
+        assert "A2_rule_statement" in ct_dis[0]["b_only"]
+
+    def test_same_case_types_no_disagreement(self):
+        atoms_a = [_make_atom("a1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        atoms_b = [_make_atom("b1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        exc_a = _make_excerpt("ea:001", ["a1"], taxonomy_node_id="leaf",
+                              case_types=["A1_pure_definition"])
+        exc_b = _make_excerpt("eb:001", ["b1"], taxonomy_node_id="leaf",
+                              case_types=["A1_pure_definition"])
+        ra = _make_result(atoms_a, [exc_a])
+        rb = _make_result(atoms_b, [exc_b])
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        assert consensus["consensus_meta"]["case_type_disagreements"] == []
+
+
+# ---------------------------------------------------------------------------
+# Stress: discarded excerpt tracking
+# ---------------------------------------------------------------------------
+
+class TestDiscardedExcerptTracking:
+    def test_discarded_excerpts_tracked_in_meta(self):
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_extra_excerpt()
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def discard_llm(system, user, model, api_key):
+            return {
+                "parsed": {
+                    "verdict": "discard",
+                    "reasoning": "Not a valid teaching unit.",
+                    "confidence": "certain",
+                },
+                "input_tokens": 80,
+                "output_tokens": 40,
+                "stop_reason": "end_turn",
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=discard_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+        discarded = consensus["consensus_meta"]["discarded_excerpts"]
+        assert len(discarded) == 1
+        assert discarded[0]["excerpt_id"] == "qb:exc:000003"
+        assert discarded[0]["source_model"] == "gpt4o"
+        assert "Not a valid" in discarded[0]["reason"]
+
+    def test_kept_excerpts_not_in_discarded(self):
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_extra_excerpt()
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def keep_llm(system, user, model, api_key):
+            return {
+                "parsed": {
+                    "verdict": "keep",
+                    "reasoning": "Valid.",
+                    "confidence": "certain",
+                },
+                "input_tokens": 80,
+                "output_tokens": 40,
+                "stop_reason": "end_turn",
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=keep_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+        assert consensus["consensus_meta"]["discarded_excerpts"] == []
+        assert len(consensus["excerpts"]) == 3  # 2 matched + 1 kept
+
+
+# ---------------------------------------------------------------------------
+# Stress: very short text n-gram handling
+# ---------------------------------------------------------------------------
+
+class TestShortTextNgrams:
+    def test_two_char_text_produces_bigram(self):
+        grams = char_ngrams("اب", 5)
+        assert len(grams) == 1
+        assert "اب" in grams
+
+    def test_three_char_text_produces_trigrams(self):
+        grams = char_ngrams("ابت", 5)
+        # effective_n = min(5, max(2, 3)) = 3
+        # "ابت" -> one 3-gram
+        assert len(grams) == 1
+
+    def test_four_char_text_produces_quadgrams(self):
+        grams = char_ngrams("ابتث", 5)
+        # effective_n = min(5, max(2, 4)) = 4
+        # "ابتث" -> one 4-gram
+        assert len(grams) == 1
+
+    def test_short_text_overlap_ratio_works(self):
+        """Two very short overlapping texts should produce nonzero overlap."""
+        ratio = text_overlap_ratio("كتب", "كتب")
+        assert ratio == 1.0
+
+    def test_short_different_texts_low_overlap(self):
+        ratio = text_overlap_ratio("كتب", "درس")
+        assert ratio == 0.0
+
+    def test_single_char_text(self):
+        grams = char_ngrams("ا", 5)
+        # len < effective_n (max(2,1)=2), returns {clean}
+        assert grams == {"ا"}
+
+
+# ---------------------------------------------------------------------------
+# Stress: arbiter confidence normalization
+# ---------------------------------------------------------------------------
+
+class TestNormalizeConfidence:
+    def test_standard_values_unchanged(self):
+        assert _normalize_confidence("certain") == "certain"
+        assert _normalize_confidence("likely") == "likely"
+        assert _normalize_confidence("uncertain") == "uncertain"
+
+    def test_case_insensitive(self):
+        assert _normalize_confidence("CERTAIN") == "certain"
+        assert _normalize_confidence("Likely") == "likely"
+
+    def test_high_maps_to_certain(self):
+        assert _normalize_confidence("high") == "certain"
+
+    def test_medium_maps_to_likely(self):
+        assert _normalize_confidence("medium") == "likely"
+
+    def test_unknown_maps_to_uncertain(self):
+        assert _normalize_confidence("whatever") == "uncertain"
+        assert _normalize_confidence("low") == "uncertain"
+
+    def test_none_maps_to_uncertain(self):
+        assert _normalize_confidence(None) == "uncertain"
+
+    def test_empty_string_maps_to_uncertain(self):
+        assert _normalize_confidence("") == "uncertain"
+
+    def test_non_string_maps_to_uncertain(self):
+        assert _normalize_confidence(42) == "uncertain"
+
+    def test_whitespace_stripped(self):
+        assert _normalize_confidence("  certain  ") == "certain"
+
+
+# ---------------------------------------------------------------------------
+# Stress: arbiter invalid placement fallback
+# ---------------------------------------------------------------------------
+
+class TestArbiterInvalidPlacementFallback:
+    def test_invalid_placement_falls_back_to_model_a(self):
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_different_taxonomy()
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def bad_placement_llm(system, user, model, api_key):
+            return {
+                "parsed": {
+                    "correct_placement": "completely_wrong_node",
+                    "reasoning": "I picked something invalid.",
+                    "confidence": "certain",
+                },
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "stop_reason": "end_turn",
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=bad_placement_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+        meta = consensus["consensus_meta"]
+        # The invalid placement should fall back to model A's placement
+        for d in meta["disagreements"]:
+            if d["type"] == "placement_disagreement":
+                assert d["arbiter_resolution"]["correct_placement"] in (
+                    "al_hala_1_tursam_alifan", "al_hala_2_tursam_wawan"
+                )
+
+
+# ---------------------------------------------------------------------------
+# Stress: arbiter malformed JSON graceful fallback
+# ---------------------------------------------------------------------------
+
+class TestArbiterMalformedJsonFallback:
+    def test_non_dict_response_falls_back(self):
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_different_taxonomy()
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def bad_llm(system, user, model, api_key):
+            return {
+                "parsed": "just a string, not a dict",
+                "input_tokens": 50,
+                "output_tokens": 20,
+                "stop_reason": "end_turn",
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=bad_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+        # Should not crash; arbiter falls back gracefully
+        assert len(consensus["excerpts"]) == 2
+        meta = consensus["consensus_meta"]
+        for d in meta["disagreements"]:
+            if d["type"] == "placement_disagreement":
+                assert d["arbiter_resolution"]["confidence"] == "uncertain"
+
+    def test_none_parsed_falls_back(self):
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_different_taxonomy()
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def none_llm(system, user, model, api_key):
+            return {
+                "parsed": None,
+                "input_tokens": 50,
+                "output_tokens": 20,
+                "stop_reason": "end_turn",
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=none_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+        assert len(consensus["excerpts"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# Stress: reordered atoms produce same content
+# ---------------------------------------------------------------------------
+
+class TestReorderedAtomsSameContent:
+    def test_reordered_core_atoms_still_match(self):
+        """If two models reference the same text but atom order differs, overlap still high."""
+        text1 = "أن تكون الهمزة ساكنة"
+        text2 = "بعد فتح فتكتب على ألف"
+
+        atoms_a = [
+            _make_atom("a1", "prose_sentence", text1),
+            _make_atom("a2", "prose_sentence", text2),
+        ]
+        atoms_b = [
+            _make_atom("b1", "prose_sentence", text2),  # reversed order
+            _make_atom("b2", "prose_sentence", text1),
+        ]
+        exc_a = _make_excerpt("ea:001", ["a1", "a2"], taxonomy_node_id="leaf")
+        exc_b = _make_excerpt("eb:001", ["b2", "b1"], taxonomy_node_id="leaf")
+
+        lookup_a = build_atom_lookup({"atoms": atoms_a})
+        lookup_b = build_atom_lookup({"atoms": atoms_b})
+
+        matched, un_a, un_b = match_excerpts(
+            [exc_a], [exc_b], lookup_a, lookup_b,
+        )
+        # Text is same content just reordered — n-gram overlap should be very high
+        assert len(matched) == 1
+        assert matched[0]["text_overlap"] > 0.7
+
+
+# ---------------------------------------------------------------------------
+# Stress: both models produce empty excerpts
+# ---------------------------------------------------------------------------
+
+class TestBothModelsEmptyResults:
+    def test_both_empty_no_crash(self):
+        ra = _make_result([], [])
+        rb = _make_result([], [])
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        assert consensus["excerpts"] == []
+        meta = consensus["consensus_meta"]
+        assert meta["matched_count"] == 0
+        assert meta["full_agreement_count"] == 0
+
+    def test_one_empty_one_populated(self):
+        ra = _make_model_a_result()
+        rb = _make_result([], [])
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        # All of model A's excerpts should be unmatched
+        meta = consensus["consensus_meta"]
+        assert meta["unmatched_a_count"] == 2
+        assert meta["matched_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Stress: consensus meta full JSON roundtrip
+# ---------------------------------------------------------------------------
+
+class TestConsensusMetaJsonRoundtrip:
+    def test_full_roundtrip_with_all_features(self):
+        """Build a consensus with all features and verify JSON roundtrip."""
+        import json
+
+        # Build a scenario with: matched, unmatched, footnotes, exclusions, case_types
+        atoms_a = [
+            _make_atom("a1", "prose_sentence", TEXT_HAMZA_OVERVIEW),
+            _make_atom("a2", "prose_sentence", TEXT_HAMZA_CASE_1),
+            _make_atom("a3", "heading", "باب"),
+        ]
+        atoms_b = [
+            _make_atom("b1", "prose_sentence", TEXT_HAMZA_OVERVIEW),
+            _make_atom("b2", "prose_sentence", TEXT_HAMZA_CASE_2),  # different text
+            _make_atom("b3", "heading", "باب"),
+        ]
+        exc_a = [
+            _make_excerpt("ea:001", ["a1"], taxonomy_node_id="leaf_a",
+                          case_types=["A1_pure_definition"]),
+            _make_excerpt("ea:002", ["a2"], taxonomy_node_id="leaf_b"),
+        ]
+        exc_b = [
+            _make_excerpt("eb:001", ["b1"], taxonomy_node_id="leaf_a",
+                          case_types=["A2_rule_statement"]),
+            _make_excerpt("eb:002", ["b2"], taxonomy_node_id="leaf_c"),
+        ]
+        ra = _make_result(
+            atoms_a, exc_a,
+            footnote_excerpts=[{"excerpt_id": "fn:a:001", "text": "حاشية"}],
+            exclusions=[{"atom_id": "a3", "exclusion_reason": "heading"}],
+        )
+        rb = _make_result(
+            atoms_b, exc_b,
+            footnote_excerpts=[{"excerpt_id": "fn:b:001", "text": "حاشية مختلفة جديدة"}],
+            exclusions=[],
+        )
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+
+        # Full JSON roundtrip
+        json_str = json.dumps(consensus, ensure_ascii=False, indent=2)
+        roundtripped = json.loads(json_str)
+        assert roundtripped["passage_id"] == "P004"
+        assert "consensus_meta" in roundtripped
+        meta = roundtripped["consensus_meta"]
+        assert isinstance(meta["footnote_comparison"], dict)
+        assert isinstance(meta["exclusion_comparison"], dict)
+        assert isinstance(meta["case_type_disagreements"], list)
+        assert isinstance(meta["discarded_excerpts"], list)
+
+
+# ---------------------------------------------------------------------------
+# Stress: review section with hardened features
+# ---------------------------------------------------------------------------
+
+class TestReviewSectionHardenedFeatures:
+    def test_both_unmapped_shown_in_review(self):
+        meta = {
+            "mode": "consensus",
+            "model_a": "claude", "model_b": "gpt4o",
+            "winning_model": "claude",
+            "matched_count": 1, "full_agreement_count": 0,
+            "both_unmapped_count": 1,
+            "placement_disagreement_count": 0,
+            "unmatched_a_count": 0, "unmatched_b_count": 0,
+            "coverage_agreement": {"coverage_agreement_ratio": 1.0},
+            "footnote_comparison": {"matched_count": 0, "unmatched_a_count": 0, "unmatched_b_count": 0},
+            "exclusion_comparison": {"agreed_count": 0, "a_only_count": 0, "b_only_count": 0},
+            "case_type_disagreements": [],
+            "discarded_excerpts": [{"excerpt_id": "e1", "source_model": "gpt4o", "reason": "invalid"}],
+            "arbiter_cost": {"input_tokens": 0, "output_tokens": 0, "total_cost": 0.0},
+            "disagreements": [{"type": "both_unmapped", "text_overlap": 0.95, "arbiter_resolution": None}],
+            "per_excerpt": [
+                {"excerpt_id": "e1", "confidence": "low", "source_model": "claude",
+                 "agreement": "both_unmapped", "flags": ["Both models placed at _unmapped"]},
+            ],
+        }
+        md = generate_consensus_review_section(meta)
+        assert "classification failure" in md.lower()
+        assert "Discarded by arbiter" in md
+
+    def test_footnote_section_shown_when_disagreements(self):
+        meta = {
+            "mode": "consensus",
+            "model_a": "claude", "model_b": "gpt4o",
+            "winning_model": "claude",
+            "matched_count": 0, "full_agreement_count": 0,
+            "both_unmapped_count": 0,
+            "placement_disagreement_count": 0,
+            "unmatched_a_count": 0, "unmatched_b_count": 0,
+            "coverage_agreement": {"coverage_agreement_ratio": 1.0},
+            "footnote_comparison": {"matched_count": 1, "unmatched_a_count": 0, "unmatched_b_count": 1},
+            "exclusion_comparison": {"agreed_count": 0, "a_only_count": 1, "b_only_count": 0},
+            "case_type_disagreements": [
+                {"excerpt_a_id": "e1", "a_only": ["X"], "b_only": ["Y"], "shared": ["Z"]},
+            ],
+            "discarded_excerpts": [],
+            "arbiter_cost": {"input_tokens": 0, "output_tokens": 0, "total_cost": 0.0},
+            "disagreements": [],
+            "per_excerpt": [],
+        }
+        md = generate_consensus_review_section(meta)
+        assert "Footnote Excerpt Comparison" in md
+        assert "Exclusion Comparison" in md
+        assert "Case Type Disagreements" in md
+
+
+# ---------------------------------------------------------------------------
+# Stress: passage text truncation at word boundary
+# ---------------------------------------------------------------------------
+
+class TestPassageTextTruncation:
+    def test_long_passage_truncated_for_arbiter(self):
+        """resolve_unmatched_excerpt should truncate at word boundary."""
+        from tools.consensus import resolve_unmatched_excerpt
+
+        long_text = "كلمة " * 500  # ~2500 chars
+        atom = {"text": "نص المقتطف"}
+        exc = {
+            "excerpt_id": "e1",
+            "taxonomy_node_id": "leaf",
+            "taxonomy_path": "science > leaf",
+            "core_atoms": [{"atom_id": "a1", "role": "author_prose"}],
+        }
+        atom_lookup = {"a1": atom}
+
+        call_count = [0]
+        captured_prompt = [None]
+
+        def capture_llm(system, user, model, api_key):
+            call_count[0] += 1
+            captured_prompt[0] = user
+            return {
+                "parsed": {"verdict": "keep", "reasoning": "ok", "confidence": "certain"},
+                "input_tokens": 50,
+                "output_tokens": 25,
+                "stop_reason": "end_turn",
+            }
+
+        result = resolve_unmatched_excerpt(
+            exc, atom_lookup, "claude", "gpt4o", long_text,
+            capture_llm, "arbiter", "key",
+        )
+        assert result["verdict"] == "keep"
+        assert call_count[0] == 1
+        # The passage context inside the prompt should be truncated to ~2000 chars,
+        # not the full 2500 chars. Check that the full raw passage is NOT embedded.
+        assert long_text not in captured_prompt[0]
+        # The truncated context should be shorter than the original
+        assert captured_prompt[0].count("كلمة") < 500
