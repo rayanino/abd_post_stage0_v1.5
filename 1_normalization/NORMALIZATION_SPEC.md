@@ -4,7 +4,7 @@
 **Precision level:** High (deterministic, no LLM involvement)
 **Dependencies:** Stage 0 (Intake) must be complete. Requires frozen source HTML.
 
-> **Document relationship:** This file is the **stage-level overview**. The detailed transformation rules (12 subsections covering every normalization step) live in `NORMALIZATION_SPEC_v0.2.md` in this same folder. Read this file first for orientation, then v0.2 for the full technical reference.
+> **Document relationship:** This file is the **stage-level overview**. The detailed transformation rules live in `NORMALIZATION_SPEC_v0.5.md` in this same folder (the latest version). Read this file first for orientation, then v0.5 for the full technical reference. Older versions (v0.2–v0.4) are retained for history but are superseded.
 
 ---
 
@@ -21,7 +21,7 @@ This stage already has validated tooling and documentation:
 | Asset | Location | Status |
 |-------|----------|--------|
 | `normalize_shamela.py` | `tools/normalize_shamela.py` | 595 lines, validated |
-| `NORMALIZATION_SPEC_v0.2.md` | `1_normalization/NORMALIZATION_SPEC_v0.2.md` | Complete |
+| `NORMALIZATION_SPEC_v0.5.md` | `1_normalization/NORMALIZATION_SPEC_v0.5.md` | Complete (latest) |
 | `SHAMELA_HTML_REFERENCE.md` | `1_normalization/SHAMELA_HTML_REFERENCE.md` | Complete |
 | `CORPUS_SURVEY_REPORT.md` | `1_normalization/CORPUS_SURVEY_REPORT.md` | 1,046 files surveyed |
 | Gold output (jawahir) | `1_normalization/gold_samples/` | Validated |
@@ -90,7 +90,7 @@ Single Markdown file rendering the full book content for human review in VSCode.
 
 ---
 
-## 5. Key Rules (from NORMALIZATION_SPEC_v0.2)
+## 5. Key Rules (from NORMALIZATION_SPEC_v0.5)
 
 - **Zero information loss:** Every character in the source is accounted for in the output (content, metadata, or explicitly discarded structural markup).
 - **Source text fidelity:** NEVER alter author's text. Asterisks (`*`), diacritics, tatweel, ZWNJ, and all Unicode content are preserved byte-identical. `clean_verse_markers()` exists as a utility but is NOT called during normalization — Stage 2 handles verse formatting with full book context.

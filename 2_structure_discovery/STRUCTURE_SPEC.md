@@ -1,7 +1,7 @@
 # Stage 2: Structure Discovery — Specification
 
-**Status:** Draft — needs zoom-in review (least mature stage)
-**Precision level:** Low-Medium (three-pass algorithm defined; passage rules partially catalogued; LLM pass underspecified)
+**Status:** Implemented — `tools/discover_structure.py` (~1400 lines) is complete and tested (`tests/test_structure_discovery.py`). Validated on قواعد الإملاء. Some spec sections (LLM prompt design §4 Pass 3) were never updated after implementation — the tool code is authoritative for implemented behavior.
+**Precision level:** Medium (three-pass algorithm implemented; passage construction working; some open questions remain for edge-case books)
 **Dependencies:** Stage 1 (Normalization) must be complete. Requires `pages.jsonl`.
 
 ---

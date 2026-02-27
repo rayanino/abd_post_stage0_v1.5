@@ -43,8 +43,8 @@ The spec (§5, §4.2) describes an atom schema that **does not match** the actua
 
 - `3_atomization/ATOMIZATION_SPEC.md` (primary — but read critically, it has drift)
 - `schemas/gold_standard_schema_v0.3.3.json` — search for `"atom"` record type definition. **This is the truth.**
-- `gold_baselines/jawahir_al_balagha/passage1_v0.3.14/passage1_matn_atoms_v02.jsonl` — read 5–10 atom records to see what real atoms look like
-- `gold_baselines/jawahir_al_balagha/passage1_v0.3.14/passage1_fn_atoms_v02.jsonl` — footnote atoms
+- `gold_baselines/jawahir_al_balagha/passage1_v0.3.13/passage1_matn_atoms_v02.jsonl` — read 5–10 atom records to see what real atoms look like
+- `gold_baselines/jawahir_al_balagha/passage1_v0.3.13/passage1_fn_atoms_v02.jsonl` — footnote atoms
 - `project_glossary.md` §3 (Atoms) — authoritative definitions
 - `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` §5 (headings), §7 (granularity) — binding rules
 - `2_atoms_and_excerpts/checklists_v0.4.md` — ATOM.* checklist items

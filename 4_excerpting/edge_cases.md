@@ -1,5 +1,13 @@
 # Stage 4: Excerpting — Edge Cases
 
+> ## SCHEMA DRIFT WARNING
+> This file uses **fabricated relation types** and **nonexistent fields** from the outdated EXCERPTING_SPEC. Specifically:
+> - `relation: continues`, `relation: builds_on`, `relation: exemplifies`, `relation: refines` — **none of these exist**. Real relation types: `split_continues_in`, `exercise_tests`, `footnote_supports`, etc. See `project_glossary.md` §7.
+> - `science_classification` — **does not exist** as a field. Science is implicit from taxonomy tree placement.
+> - `role: context` with `context_justification` — **wrong structure**. Context atoms use structured roles (`classification_frame`, `preceding_setup`, etc.).
+>
+> **The conceptual guidance is still valuable** (Category A/B/C distinctions, when to split vs merge, exercise handling). Just don't use the field names or relation types for implementation.
+
 ---
 
 ## Multi-Topic Content (the core challenge)

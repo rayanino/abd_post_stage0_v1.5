@@ -59,7 +59,7 @@ balagha:
 
 ### 4.1 Normal case: excerpt maps to existing leaf
 
-The excerpt's `placed_at` field points to a leaf node in the appropriate science's tree.
+The excerpt's `taxonomy_node_id` field (plus `taxonomy_path` for human readability) points to a leaf node in the appropriate science's tree.
 
 **Validation (PLACE.P rules):**
 - P.1: The target node must exist in the active taxonomy
@@ -95,9 +95,8 @@ When an excerpt teaches a topic not represented in the current tree:
 
 ### 4.3 Cross-science routing
 
-When an excerpt from a بلاغة book is classified as صرف:
-- The excerpt's `science_classification` is `sarf`
-- The excerpt must be placed in the صرف taxonomy tree (not the بلاغة tree)
+When an excerpt from a بلاغة book belongs to صرف:
+- The excerpt is placed in the صرف taxonomy tree (not the بلاغة tree) — science is determined implicitly by which tree the excerpt is placed in, not by a separate field
 - If the صرف tree doesn't exist yet, the excerpt is stored in a pending queue until the tree is available
 - The book's registry entry tracks which sciences received excerpts
 

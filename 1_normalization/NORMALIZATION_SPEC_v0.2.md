@@ -1,6 +1,8 @@
 # ABD Normalization Specification v0.2
 
-**Status:** Draft  
+> **SUPERSEDED — use `NORMALIZATION_SPEC_v0.5.md` instead.** This version is retained for history only. v0.3–v0.5 added: footnote_preamble, footnote_section_format, schema_version, DUPLICATE_PAGE warnings, character counts, and verse detection fixes.
+
+**Status:** Superseded by v0.5
 **Date:** 2026-02-24  
 **Scope:** Shamela desktop HTML exports → structured JSONL (per-page records with separated layers)  
 **Supersedes:** v0.1  

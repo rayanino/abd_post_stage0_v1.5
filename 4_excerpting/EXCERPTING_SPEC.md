@@ -1,8 +1,21 @@
 # Stage 4: Excerpting — Specification
 
-**Status:** Draft — rules are the most mature of all stages (extensive manual workflow precision), automation layer underspecified
-**Precision level:** High for rules, Low for LLM automation
-**Dependencies:** Stage 3 (Atomization) must be complete for the target passage.
+> ## CRITICAL: SCHEMA DRIFT WARNING
+> This spec was written before the gold baselines and automated extraction tool matured. It contains **significant schema drift** — field names, relation types, and structural models that do NOT match the actual proven data model. **Do NOT use the field names or relation types from this file for code generation or prompt design.**
+>
+> **Key drift (see `4_excerpting/ZOOM_BRIEF.md` for full details):**
+> - §3.6: `science_classification`, `science_classification_reasoning`, `science_classification_confidence` — **do not exist**. Science is implicit from taxonomy placement.
+> - §4.2: Relation types (`prerequisite`, `builds_on`, `contrasts`, `exemplifies`, `cross_reference`) — **entirely fabricated**. Real types: `footnote_supports`, `footnote_explains`, `split_continues_in`, `interwoven_sibling`, etc. See `project_glossary.md` §7.
+> - §5.2: Excerpt schema example uses wrong field names throughout (`EXC_001` → `{book_id}:exc:{seq}`, `title` → `excerpt_title`, `type` → `excerpt_kind`, `atoms[].role` → separate `core_atoms[]`/`context_atoms[]`, `placed_at` → `taxonomy_node_id` + `taxonomy_path`).
+> - Missing: exclusion records, exercise structure, `boundary_reasoning`, `case_types`, `source_spans`, `heading_path`.
+>
+> **Authoritative sources:** `schemas/gold_standard_schema_v0.3.3.json` (schema), `project_glossary.md` (definitions), `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.16.md` (rules). The automated tool `tools/extract_passages.py` implements the correct schema.
+>
+> **What IS reliable in this spec:** §3 (Multi-Topic Excerpt Problem) — the Category A/B/C framework, dependency test, and boundedness guardrail are correct and align with Binding Decisions §8.
+
+**Status:** Implemented — `tools/extract_passages.py` (~1389 lines) combines atomization, excerpting, and taxonomy placement. Tested with 80 tests. Verified on إملاء (single-model, no consensus yet). This spec has NOT been updated to match the implementation.
+**Precision level:** High for rules (inherited from binding decisions), but this spec's field names and relation types are outdated
+**Dependencies:** Stage 2 (Structure Discovery) must be complete. Requires `passages.jsonl` and `pages.jsonl`.
 
 ---
 

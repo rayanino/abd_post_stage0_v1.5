@@ -1,5 +1,7 @@
 # Stage 2 Guidelines — What It Needs and What's Hard
 
+> **STATUS:** This document was written before the stage was implemented. **Stage 2 is now complete:** `tools/discover_structure.py` (~1400 lines) implements the three-pass algorithm described below. Tested and validated on قواعد الإملاء. These guidelines remain useful for understanding design rationale, but the tool code is authoritative for actual behavior.
+
 ## What Stage 2 must accomplish
 
 Stage 1 delivers a flat sequence of normalized pages. Stage 2 must transform that into a hierarchical structure with defined passage boundaries. A **passage** is the unit of work for everything downstream (atomization, excerpting, taxonomy placement).

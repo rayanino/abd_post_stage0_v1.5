@@ -1,17 +1,17 @@
 # Stage 1: Normalization — Zoom-In Brief
 
+> **STATUS:** This zoom-in brief was written when the spec was at v0.2. The spec has since advanced to **v0.5** with substantial additions (footnote_section_format, schema_version, DUPLICATE_PAGE warnings, character counts, footnote_preamble, verse detection fixes). Read `NORMALIZATION_SPEC_v0.5.md` as the authoritative reference. Some pre-identified issues below may have been resolved in later versions.
+
 ## Mandate
 
-This is the most mature stage — existing tooling (`normalize_shamela.py`, 595 lines) and a detailed spec (`NORMALIZATION_SPEC_v0.2.md`) already exist, validated against 1,046 files. The zoom-in should verify completeness, reconcile the two spec files, and ensure the spec is automation-ready.
+This is the most mature stage — existing tooling (`normalize_shamela.py`, 595 lines) and a detailed spec (`NORMALIZATION_SPEC_v0.5.md`) already exist, validated against 1,046 files.
 
 ## Document Relationship
 
 There are **two spec files** in this folder:
 
-- **`NORMALIZATION_SPEC.md`** (108 lines) — Stage-level overview. References v0.2 for details. Read this first for orientation.
-- **`NORMALIZATION_SPEC_v0.2.md`** (342 lines) — The detailed transformation spec with all rules. This is the authoritative technical reference.
-
-The overview is not a replacement for v0.2 — they serve different purposes (navigation vs. complete rules).
+- **`NORMALIZATION_SPEC.md`** — Stage-level overview. Read this first for orientation.
+- **`NORMALIZATION_SPEC_v0.5.md`** — The detailed transformation spec with all rules. This is the authoritative technical reference. (Older versions v0.2–v0.4 are retained for history.)
 
 ## Pre-Identified Issues
 
@@ -30,7 +30,7 @@ The overview is not a replacement for v0.2 — they serve different purposes (na
 ## What to Read
 
 - `1_normalization/NORMALIZATION_SPEC.md` (overview)
-- `1_normalization/NORMALIZATION_SPEC_v0.2.md` (detailed rules)
+- `1_normalization/NORMALIZATION_SPEC_v0.5.md` (detailed rules — latest version)
 - `1_normalization/SHAMELA_HTML_REFERENCE.md` (HTML format documentation)
 - `1_normalization/CORPUS_SURVEY_REPORT.md` (1,046-file findings)
 - `1_normalization/gold_samples/` (jawahir gold output)

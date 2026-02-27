@@ -366,7 +366,7 @@ Options:
 
 ## 8. Gold Samples
 
-See `0_normalization/gold_samples/`:
+See `1_normalization/gold_samples/`:
 - `GOLD_SAMPLES.md` — annotated input→output comparisons for 6 representative page types
 - `jawahir_normalized.jsonl` — full-book normalized output (308 pages)
 - `jawahir_normalized_full.jsonl` — pages 19–40 with raw HTML included
@@ -394,5 +394,5 @@ The normalizer correctly preserves all source text while stripping only Shamela 
 | Document | Relationship |
 |---|---|
 | `CORPUS_SURVEY_REPORT.md` | Detailed findings from scanning 1,046 files / 189,676 pages |
-| `normalization_contract_v0.2.md` | Input/output contract for integration with the pipeline |
-| `APP_SPEC.md` | Pipeline architecture (CP0 = normalization) |
+| `spec/normalization_contract_v0.1.md` | Input/output contract for integration with the pipeline |
+| `CLAUDE.md` | Pipeline architecture and project orientation |

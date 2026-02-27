@@ -1,6 +1,6 @@
 # Stage 0: Intake — Edge Cases
 
-**Companion to:** INTAKE_SPEC.md v1.5
+**Companion to:** INTAKE_SPEC.md v1.6
 
 ---
 

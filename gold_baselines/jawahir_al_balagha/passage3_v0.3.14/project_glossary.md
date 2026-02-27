@@ -1,5 +1,8 @@
 # Arabic Book Digester — Project Glossary
 
+> ## STALE SNAPSHOT — DO NOT USE AS REFERENCE
+> This is a **frozen snapshot** included with the passage 3 gold baseline for reproducibility. It references binding decisions v0.3.8 (current is v0.3.16) and contains an outdated pipeline description. **For current terminology, use the root-level `project_glossary.md` instead.**
+
 This document defines ABD’s project-specific terminology.
 
 **Normative rules** (including conflict resolution) live in `2_atoms_and_excerpts/00_BINDING_DECISIONS_v0.3.8.md`. When documents disagree, follow the binding precedence order; use this glossary to interpret terms, not to override binding rules.

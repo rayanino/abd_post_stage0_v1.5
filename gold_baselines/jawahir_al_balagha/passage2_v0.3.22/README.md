@@ -1,4 +1,4 @@
-# Gold Standard Package v0.3.21 — passage2
+# Gold Standard Package v0.3.22 — passage2
 ## What This Is
 
 This baseline is a **manually annotated, fully validated** gold-standard decomposition of a slice of:

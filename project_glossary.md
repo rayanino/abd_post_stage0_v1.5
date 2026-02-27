@@ -35,11 +35,19 @@ When an excerpt involves a science outside these four, the `related_science` fie
 
 ### Pipeline Stages
 
-**Input preparation:** Transforms raw source material (Shamela HTML exports, ketab-online-sdk output, etc.) into clean, layer-separated, structurally-parsed text. Handles HTML stripping, Unicode normalization, whitespace normalization, and detection of structural markers. Specification for this stage is not yet written — it is the next major specification task after the excerpting chapter is finalized.
+**Intake (Stage 0):** Registers a book, freezes the source HTML, creates `intake_metadata.json` with book-level metadata and scholarly context. Tool: `tools/intake.py`. Spec: `0_intake/INTAKE_SPEC.md`. ✅ Complete.
 
-**Atomization:** Converts clean parsed text into an ordered sequence of typed, anchored **atoms**. This happens once per source text, before any excerpting logic runs. The output is a finalized sequence of atoms that the excerpting engine operates on without modification.
+**Enrichment (Stage 0.5):** Researches and fills the author's scholarly context (death date, madhab, grammatical school, geographic origin). Tool: `tools/enrich.py`. 🟡 Basic — needs extension into an intelligent research system.
 
-**Excerpting:** The core operation. Analyzes the atom sequence to identify **excerpts** — selections of atoms that substantively address exactly one taxonomy leaf node. Assigns each excerpt to its correct position in the taxonomy tree. This is where precision matters most: an error here propagates through everything downstream.
+**Normalization (Stage 1):** Transforms frozen Shamela HTML into structured `pages.jsonl` — one JSON object per page with separated matn and footnotes. Fully deterministic, no LLM. Tool: `tools/normalize_shamela.py`. Spec: `1_normalization/NORMALIZATION_SPEC_v0.5.md`. ✅ Complete.
+
+**Structure Discovery (Stage 2):** Discovers the book's internal structural divisions (باب, فصل, مبحث, etc.) and defines passage boundaries. Three-pass algorithm: HTML-tagged headings → keyword heuristics → LLM-assisted gap filling. Produces `passages.jsonl` + `divisions.json`. Tool: `tools/discover_structure.py`. Spec: `2_structure_discovery/STRUCTURE_SPEC.md`. ✅ Complete.
+
+**Extraction (Stages 3+4 combined):** The core operation. Per passage, an LLM breaks text into atoms, groups atoms into excerpts, assigns taxonomy placement, and generates exclusion records. Produces atoms, excerpts, exclusions, and review reports per passage. Tool: `tools/extract_passages.py` (~1389 lines). 🟡 Single-model, verified on إملاء only. Multi-model consensus planned.
+
+**Taxonomy Evolution (Stage 6):** When excerpts reveal that the taxonomy tree needs finer granularity, proposes changes (add leaf, split leaf, rename, move), reads Arabic text of all affected excerpts, redistributes, and presents for human approval. ❌ Not yet built.
+
+**Assembly + Distribution (Stage 7):** Assembles self-contained excerpt files (inline text + embedded metadata) and places them in the taxonomy folder tree. ❌ Not yet built.
 
 **Synthesis (external):** Handled by an external LLM outside this repo. It reads all excerpt files at each taxonomy leaf folder and produces a single comprehensive encyclopedic entry per leaf, aimed at Arabic-language students. When authors disagree, it presents all scholarly positions and attributes each to its author. Synthesis is NOT a stage of ABD — but every design decision within ABD (excerpt boundaries, metadata richness, roles, relation chains, author context) is made to serve the downstream synthesis LLM.
 
@@ -377,6 +385,18 @@ Each gold standard passage produces a lessons_learned file documenting every edg
 ---
 
 ## 11. Key Principles
+
+### Content Sovereignty (excerpts are king)
+The most fundamental principle of the project. Excerpt boundaries are determined purely by content — what atoms naturally form a self-contained teaching unit. The taxonomy tree has **zero influence** on how excerpting happens. The operations are strictly separated: excerpt first (what is a coherent teaching unit?), place second (where does this belong in the tree?), evolve third (is the tree granular enough?). If an excerpt doesn't fit the current tree, the tree changes — content is never forced into an ill-fitting node. The tree serves excerpts, never the other way around.
+
+### Self-Containment
+Every excerpt file must be independently understandable by the downstream synthesis LLM. When the synthesis LLM receives an excerpt, it must be able to extract everything it needs from that single file — the Arabic text, author identity, scholarly tradition, topic context — without requesting additional files or cross-referencing. This goes beyond comprehensibility: the excerpt must carry its full context embedded within it.
+
+### Living Taxonomy
+The taxonomy tree is not a fixed container — it evolves as new books reveal finer topic distinctions. When an excerpt reveals that a leaf node covers multiple sub-topics, the tree evolves: the system detects the need, proposes new sub-nodes (LLM-driven), reads the Arabic text of ALL existing excerpts at the affected node to redistribute them, and presents the change for human approval. Every evolution is version-controlled with rollback capability.
+
+### One Excerpt Per Book Per Node (quality preference)
+If extraction produces two excerpts from the same book at the same leaf node, that's a signal to investigate: either merge them (they're about the same thing) or evolve the node (they cover different sub-aspects). This is a quality preference that drives proper granularity, NOT a hard constraint on excerpting.
 
 ### Core-Uniqueness Invariant
 Each atom may be a core atom in at most one excerpt. This prevents the same content from being counted multiple times during synthesis. An atom CAN appear as context in multiple excerpts (it provides framing in each) and can be referenced in multiple heading_paths, but it is core in exactly one.

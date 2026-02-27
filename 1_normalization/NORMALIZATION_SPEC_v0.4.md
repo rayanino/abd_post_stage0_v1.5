@@ -1,6 +1,8 @@
 # ABD Normalization Specification v0.4
 
-**Status:** Active  
+> **SUPERSEDED — use `NORMALIZATION_SPEC_v0.5.md` instead.** This version is retained for history only.
+
+**Status:** Superseded by v0.5
 **Date:** 2026-02-26  
 **Scope:** Shamela desktop HTML exports → structured JSONL (per-page records with separated layers)  
 **Supersedes:** v0.3  

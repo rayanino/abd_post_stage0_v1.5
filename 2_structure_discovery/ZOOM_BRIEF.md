@@ -1,12 +1,14 @@
 # Stage 2: Structure Discovery — Zoom-In Brief
 
+> **STATUS UPDATE:** This zoom-in brief was written before the stage was implemented. **The tool now exists and is complete:** `tools/discover_structure.py` (~1400 lines) implements the three-pass algorithm and is tested by `tests/test_structure_discovery.py`. It has been validated on قواعد الإملاء (producing `books/imla/stage2_output/`). Many of the pre-identified issues below have been addressed in the implementation. The spec (`STRUCTURE_SPEC.md`) has not been updated to reflect the final implementation — read the tool code for the authoritative behavior.
+
 ## Mandate
 
-This is the **least mature and most critical** stage. It has zero existing tooling and the spec is a draft. Structure Discovery defines passage boundaries, which everything downstream (atomization, excerpting, taxonomy) depends on. This zoom-in will likely require the most time and iteration.
+Structure Discovery defines passage boundaries, which everything downstream (atomization, excerpting, taxonomy) depends on.
 
-## Pre-Identified Issues
+## Pre-Identified Issues (written pre-implementation — some resolved)
 
-1. **No tooling exists.** Unlike Stage 1 (which has a working normalizer), this stage has no code. The three-pass algorithm is defined in the spec but has never been implemented or tested.
+1. **~~No tooling exists.~~** ✅ **RESOLVED.** `tools/discover_structure.py` (~1400 lines) exists, implements the three-pass algorithm, and has passing tests (`tests/test_structure_discovery.py`). Validated on إملاء.
 
 2. **LLM Pass 3 is underspecified.** Passes 1 (HTML-tagged headings) and 2 (keyword heuristics) are deterministic and relatively straightforward. Pass 3 (LLM-discovered divisions) is where the hard problems live: untagged headings, implicit section breaks, ambiguous hierarchy levels. The spec acknowledges this but offers no prompt design or examples.
 

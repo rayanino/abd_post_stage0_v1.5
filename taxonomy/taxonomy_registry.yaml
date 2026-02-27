@@ -4,6 +4,13 @@ notes: |
   Baseline passage packages may include a local taxonomy snapshot file for reproducibility.
   The production pipeline MUST resolve taxonomy trees through this registry.
 sciences:
+  - science_id: imlaa
+    display_name_ar: "الإملاء"
+    versions:
+      - taxonomy_version: imlaa_v0_1
+        relpath: "taxonomy/imlaa_v0.1.yaml"
+        status: active
+        notes: "Built from قواعد الإملاء (44 leaves)."
   - science_id: balagha
     display_name_ar: "البلاغة"
     versions:
