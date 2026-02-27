@@ -32,6 +32,40 @@ import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
 
+
+# ---------------------------------------------------------------------------
+# Model provider registry (OpenRouter uses OpenAI-compatible format for all)
+# ---------------------------------------------------------------------------
+
+MODEL_PRICING = {
+    # (input_per_1M, output_per_1M) in USD
+    # Anthropic via OpenRouter
+    "anthropic/claude-sonnet-4-5-20250929": (3.0, 15.0),
+    "anthropic/claude-sonnet-4-20250514": (3.0, 15.0),
+    "anthropic/claude-opus-4-20250514": (15.0, 75.0),
+    # OpenAI via OpenRouter
+    "openai/gpt-4o": (2.5, 10.0),
+    "openai/gpt-4o-2024-08-06": (2.5, 10.0),
+    "openai/gpt-4.1": (2.0, 8.0),
+    "openai/gpt-4.1-mini": (0.4, 1.6),
+    # Direct Anthropic (legacy single-model mode)
+    "claude-sonnet-4-5-20250929": (3.0, 15.0),
+    "claude-sonnet-4-20250514": (3.0, 15.0),
+}
+
+
+def get_model_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Calculate cost from token counts using MODEL_PRICING."""
+    in_rate, out_rate = MODEL_PRICING.get(model, (3.0, 15.0))
+    return input_tokens * in_rate / 1_000_000 + output_tokens * out_rate / 1_000_000
+
+
+def _model_short(model: str) -> str:
+    """Short name for filenames (max 25 chars, filesystem-safe)."""
+    short = model.replace("/", "_").replace("-", "").replace(".", "")
+    return short[:25]
+
+
 # ---------------------------------------------------------------------------
 # Constants — enum values from gold_standard_schema_v0.3.3.json
 # ---------------------------------------------------------------------------
@@ -529,6 +563,92 @@ def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
     }
 
 
+def call_llm_openrouter(system: str, user: str, model: str,
+                         api_key: str) -> dict:
+    """Call OpenRouter API (OpenAI-compatible) and return parsed JSON response.
+
+    Works with any model available on OpenRouter (Anthropic, OpenAI, etc.).
+    Returns same format as call_llm: {parsed, input_tokens, output_tokens, stop_reason}.
+    """
+    import httpx
+
+    resp = httpx.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": model,
+            "max_tokens": 16384,
+            "temperature": 0,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        },
+        timeout=240.0,
+    )
+
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"OpenRouter API error {resp.status_code}: {resp.text[:500]}"
+        )
+
+    data = resp.json()
+    choice = data["choices"][0]
+    text = choice["message"]["content"]
+
+    # Strip markdown fences if present
+    text = text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+
+    usage = data.get("usage", {})
+    stop_reason = choice.get("finish_reason", "unknown")
+
+    # Parse JSON with truncation repair
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as e:
+        if stop_reason == "length" or "Unterminated" in str(e):
+            try:
+                parsed = json.loads(repair_truncated_json(text))
+            except json.JSONDecodeError:
+                raise RuntimeError(
+                    f"JSON parse failed even after repair (stop_reason={stop_reason}). "
+                    f"First 200 chars: {text[:200]}... Last 200 chars: ...{text[-200:]}"
+                )
+        else:
+            raise
+
+    return {
+        "parsed": parsed,
+        "input_tokens": usage.get("prompt_tokens", 0),
+        "output_tokens": usage.get("completion_tokens", 0),
+        "stop_reason": stop_reason,
+    }
+
+
+def call_llm_dispatch(system: str, user: str, model: str,
+                       api_key: str, openrouter_key: str | None = None) -> dict:
+    """Dispatch LLM call to the appropriate provider.
+
+    If openrouter_key is provided and model contains '/', routes to OpenRouter.
+    Otherwise uses direct Anthropic API via call_llm.
+    """
+    if openrouter_key and "/" in model:
+        return call_llm_openrouter(system, user, model, openrouter_key)
+    else:
+        return call_llm(system, user, model, api_key)
+
+
 # ---------------------------------------------------------------------------
 # Post-processing — mechanical enrichment after LLM returns
 # ---------------------------------------------------------------------------
@@ -930,7 +1050,8 @@ def extract_taxonomy_leaves(yaml_text: str) -> set[str]:
 # ---------------------------------------------------------------------------
 
 def attempt_correction(result: dict, issues: dict, passage_id: str,
-                       system: str, model: str, api_key: str) -> dict | None:
+                       system: str, model: str, api_key: str,
+                       openrouter_key: str | None = None) -> dict | None:
     """Send a correction prompt and return the corrected result, or None."""
     # Format issues
     all_issues = []
@@ -952,7 +1073,8 @@ def attempt_correction(result: dict, issues: dict, passage_id: str,
     )
 
     try:
-        response = call_llm(system, user_msg, model, api_key)
+        response = call_llm_dispatch(system, user_msg, model, api_key,
+                                     openrouter_key)
         return response
     except Exception as e:
         print(f"    Correction call failed: {e}")
@@ -1080,11 +1202,103 @@ def generate_review_md(
 
 
 # ---------------------------------------------------------------------------
+# Single-model extraction helper
+# ---------------------------------------------------------------------------
+
+def extract_single_model(
+    system: str,
+    user: str,
+    model: str,
+    api_key: str,
+    book_id: str,
+    science: str,
+    taxonomy_filename: str,
+    pid: str,
+    taxonomy_leaves: set,
+    max_retries: int,
+    openrouter_key: str | None = None,
+) -> tuple[dict, dict, dict, int]:
+    """Run extraction with one model, including correction retries.
+
+    Returns: (result, issues, cost_info, retries_used)
+    where cost_info = {"model": str, "input_tokens": int,
+                       "output_tokens": int, "total_cost": float}
+    """
+    t0 = time.time()
+    response = call_llm_dispatch(system, user, model, api_key, openrouter_key)
+    elapsed = time.time() - t0
+
+    result = response["parsed"]
+    in_tok = response["input_tokens"]
+    out_tok = response["output_tokens"]
+    cost = get_model_cost(model, in_tok, out_tok)
+
+    print(f"  [{model}] {elapsed:.1f}s, {in_tok} in + {out_tok} out = ${cost:.4f}")
+
+    # Post-process
+    result = post_process_extraction(result, book_id, science, taxonomy_filename)
+
+    # Validate
+    issues = validate_extraction(result, pid, taxonomy_leaves)
+    n_issues = len(issues["errors"]) + len(issues["warnings"])
+    status = "pass" if n_issues == 0 else f"{len(issues['errors'])}E {len(issues['warnings'])}W"
+    print(f"  [{model}] Atoms: {len(result.get('atoms', []))}, "
+          f"Excerpts: {len(result.get('excerpts', []))}, "
+          f"Validation: {status}")
+
+    if issues["errors"]:
+        for iss in issues["errors"][:3]:
+            print(f"    - [ERROR] {iss}")
+    if issues["warnings"]:
+        for iss in issues["warnings"][:3]:
+            print(f"    - [WARN] {iss}")
+
+    # Correction retry loop
+    retries_used = 0
+    if n_issues > 0 and max_retries > 0:
+        for retry in range(max_retries):
+            print(f"  [{model}] Correction attempt {retry + 1}/{max_retries}...")
+            correction = attempt_correction(
+                result, issues, pid, system, model, api_key, openrouter_key
+            )
+            if correction is None:
+                break
+
+            retries_used += 1
+            r_in = correction["input_tokens"]
+            r_out = correction["output_tokens"]
+            r_cost = get_model_cost(model, r_in, r_out)
+            in_tok += r_in
+            out_tok += r_out
+            cost += r_cost
+
+            result = correction["parsed"]
+            result = post_process_extraction(
+                result, book_id, science, taxonomy_filename
+            )
+            issues = validate_extraction(result, pid, taxonomy_leaves)
+            n_issues = len(issues["errors"]) + len(issues["warnings"])
+            status = "pass" if n_issues == 0 else f"{len(issues['errors'])}E {len(issues['warnings'])}W"
+            print(f"    After correction: {status} (+${r_cost:.4f})")
+
+            if n_issues == 0:
+                break
+
+    cost_info = {
+        "model": model,
+        "input_tokens": in_tok,
+        "output_tokens": out_tok,
+        "total_cost": cost,
+    }
+    return result, issues, cost_info, retries_used
+
+
+# ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
 
 def run_extraction(args):
-    """Main extraction pipeline."""
+    """Main extraction pipeline. Supports single-model and consensus modes."""
     # Load inputs
     passages = load_jsonl(args.passages)
     pages = load_jsonl(args.pages)
@@ -1095,6 +1309,11 @@ def run_extraction(args):
 
     # Derive taxonomy filename for version string
     taxonomy_filename = Path(args.taxonomy).name
+
+    # Consensus mode detection
+    consensus_mode = getattr(args, "consensus_mode", False)
+    model_list = getattr(args, "model_list", [args.model])
+    openrouter_key = getattr(args, "openrouter_key", None)
 
     # Filter passages if specified
     if args.passage_ids:
@@ -1125,7 +1344,14 @@ def run_extraction(args):
     print(f"Passages to process: {len(passage_indices)}")
     print(f"Taxonomy leaves: {len(taxonomy_leaves)}")
     print(f"Output: {outdir}")
-    print(f"Model: {args.model}")
+    if consensus_mode:
+        print(f"Mode: CONSENSUS ({len(model_list)} models)")
+        print(f"Models: {', '.join(model_list)}")
+        arbiter_model = getattr(args, "arbiter_model", None)
+        if arbiter_model:
+            print(f"Arbiter: {arbiter_model}")
+    else:
+        print(f"Model: {args.model}")
     print(f"Max retries: {max_retries}")
     print(f"")
 
@@ -1181,99 +1407,155 @@ def run_extraction(args):
             prompt_path = outdir / f"{pid}_prompt.md"
             with open(prompt_path, "w", encoding="utf-8") as f:
                 f.write(f"# SYSTEM\n\n{system}\n\n# USER\n\n{user}")
+                if consensus_mode:
+                    f.write(f"\n\n# CONSENSUS MODE\n")
+                    f.write(f"Models: {', '.join(model_list)}\n")
             print(f"  DRY RUN: prompt saved to {prompt_path}")
             print(f"  System prompt: {len(system)} chars")
             print(f"  User prompt: {len(user)} chars")
             continue
 
-        # Call LLM
-        in_tok = 0
-        out_tok = 0
-        cost = 0.0
-        retries_used = 0
+        # ---------------------------------------------------------------
+        # SINGLE MODEL MODE (backward compatible)
+        # ---------------------------------------------------------------
+        if not consensus_mode:
+            try:
+                result, issues, cost_info, retries_used = extract_single_model(
+                    system, user, args.model, args.api_key,
+                    args.book_id, args.science, taxonomy_filename,
+                    pid, taxonomy_leaves, max_retries, openrouter_key,
+                )
+            except Exception as e:
+                print(f"  ERROR: {e}")
+                err_path = outdir / f"{pid}_error.txt"
+                with open(err_path, "w", encoding="utf-8") as f:
+                    f.write(str(e))
+                continue
 
-        try:
-            t0 = time.time()
-            response = call_llm(system, user, args.model, args.api_key)
-            elapsed = time.time() - t0
-            result = response["parsed"]
-            in_tok = response["input_tokens"]
-            out_tok = response["output_tokens"]
-
-            # Cost estimate (Claude Sonnet pricing)
-            cost = in_tok * 3 / 1_000_000 + out_tok * 15 / 1_000_000
+            in_tok = cost_info["input_tokens"]
+            out_tok = cost_info["output_tokens"]
+            cost = cost_info["total_cost"]
             total_cost["input_tokens"] += in_tok
             total_cost["output_tokens"] += out_tok
             total_cost["total_cost"] += cost
 
-            print(f"  LLM: {elapsed:.1f}s, {in_tok} in + {out_tok} out = ${cost:.4f}")
+        # ---------------------------------------------------------------
+        # CONSENSUS MODE
+        # ---------------------------------------------------------------
+        else:
+            from tools.consensus import build_consensus, generate_consensus_review_section
 
-        except Exception as e:
-            print(f"  ERROR: {e}")
-            err_path = outdir / f"{pid}_error.txt"
-            with open(err_path, "w", encoding="utf-8") as f:
-                f.write(str(e))
-            continue
+            per_model_results = {}
+            per_model_issues = {}
+            per_model_costs = {}
+            per_model_retries = {}
 
-        # Post-process
-        result = post_process_extraction(
-            result, args.book_id, args.science, taxonomy_filename
-        )
+            for model in model_list:
+                try:
+                    m_result, m_issues, m_cost, m_retries = extract_single_model(
+                        system, user, model, args.api_key,
+                        args.book_id, args.science, taxonomy_filename,
+                        pid, taxonomy_leaves, max_retries, openrouter_key,
+                    )
+                    per_model_results[model] = m_result
+                    per_model_issues[model] = m_issues
+                    per_model_costs[model] = m_cost
+                    per_model_retries[model] = m_retries
+                except Exception as e:
+                    print(f"  [{model}] ERROR: {e}")
+                    err_path = outdir / f"{pid}_{_model_short(model)}_error.txt"
+                    with open(err_path, "w", encoding="utf-8") as f:
+                        f.write(str(e))
 
-        # Validate
-        issues = validate_extraction(result, pid, taxonomy_leaves)
-        n_issues = len(issues["errors"]) + len(issues["warnings"])
-        status = "pass" if n_issues == 0 else f"{len(issues['errors'])}E {len(issues['warnings'])}W"
-        print(f"  Atoms: {len(result.get('atoms', []))}, "
-              f"Excerpts: {len(result.get('excerpts', []))}, "
-              f"Validation: {status}")
+            if len(per_model_results) < 2:
+                # Fallback: fewer than 2 models succeeded
+                if per_model_results:
+                    fallback_model = list(per_model_results.keys())[0]
+                    result = per_model_results[fallback_model]
+                    issues = per_model_issues[fallback_model]
+                    cost_info = per_model_costs[fallback_model]
+                    retries_used = per_model_retries[fallback_model]
+                    print(f"  CONSENSUS FALLBACK: only {fallback_model} succeeded")
+                else:
+                    print(f"  ALL MODELS FAILED for {pid}")
+                    continue
+            else:
+                # Save per-model raw outputs for auditability
+                for model in per_model_results:
+                    raw_path = outdir / f"{pid}_{_model_short(model)}_raw.json"
+                    with open(raw_path, "w", encoding="utf-8") as f:
+                        json.dump(per_model_results[model], f,
+                                  ensure_ascii=False, indent=2)
 
-        if issues["errors"]:
-            for iss in issues["errors"][:3]:
-                print(f"    - [ERROR] {iss}")
-        if issues["warnings"]:
-            for iss in issues["warnings"][:3]:
-                print(f"    - [WARN] {iss}")
+                # Build arbiter call function if arbiter model configured
+                arbiter_model = getattr(args, "arbiter_model", None)
+                call_llm_fn = None
+                if arbiter_model:
+                    def call_llm_fn(sys_p, usr_p, mdl, key):
+                        return call_llm_dispatch(sys_p, usr_p, mdl, key,
+                                                 openrouter_key)
 
-        # --- Correction retry loop ---
-        if n_issues > 0 and max_retries > 0:
-            for retry in range(max_retries):
-                print(f"  Correction attempt {retry + 1}/{max_retries}...")
-                correction = attempt_correction(
-                    result, issues, pid, system, args.model, args.api_key
+                models = list(per_model_results.keys())
+                consensus = build_consensus(
+                    passage_id=pid,
+                    result_a=per_model_results[models[0]],
+                    result_b=per_model_results[models[1]],
+                    model_a=models[0],
+                    model_b=models[1],
+                    issues_a=per_model_issues[models[0]],
+                    issues_b=per_model_issues[models[1]],
+                    prefer_model=getattr(args, "consensus_prefer", None),
+                    threshold=getattr(args, "consensus_threshold", 0.5),
+                    call_llm_fn=call_llm_fn,
+                    arbiter_model=arbiter_model,
+                    arbiter_api_key=openrouter_key or args.api_key,
+                    taxonomy_yaml=taxonomy_yaml,
+                    passage_text=passage_text,
                 )
-                if correction is None:
-                    break
 
-                retries_used += 1
-                r_in = correction["input_tokens"]
-                r_out = correction["output_tokens"]
-                r_cost = r_in * 3 / 1_000_000 + r_out * 15 / 1_000_000
-                in_tok += r_in
-                out_tok += r_out
-                cost += r_cost
-                total_cost["input_tokens"] += r_in
-                total_cost["output_tokens"] += r_out
-                total_cost["total_cost"] += r_cost
-
-                result = correction["parsed"]
-                result = post_process_extraction(
-                    result, args.book_id, args.science, taxonomy_filename
-                )
+                # Use consensus result
+                result = {
+                    "atoms": consensus["atoms"],
+                    "excerpts": consensus["excerpts"],
+                    "footnote_excerpts": consensus["footnote_excerpts"],
+                    "exclusions": consensus["exclusions"],
+                    "notes": consensus["notes"],
+                    "consensus_meta": consensus["consensus_meta"],
+                }
                 issues = validate_extraction(result, pid, taxonomy_leaves)
-                n_issues = len(issues["errors"]) + len(issues["warnings"])
-                status = "pass" if n_issues == 0 else f"{len(issues['errors'])}E {len(issues['warnings'])}W"
-                print(f"    After correction: {status} (+${r_cost:.4f})")
+                retries_used = sum(per_model_retries.values())
 
-                if n_issues == 0:
-                    break
+                # Aggregate costs across models + arbiter
+                cost_info = {"model": "consensus", "input_tokens": 0,
+                             "output_tokens": 0, "total_cost": 0.0}
+                for mc in per_model_costs.values():
+                    cost_info["input_tokens"] += mc["input_tokens"]
+                    cost_info["output_tokens"] += mc["output_tokens"]
+                    cost_info["total_cost"] += mc["total_cost"]
+                arbiter_cost = consensus["consensus_meta"].get("arbiter_cost", {})
+                cost_info["input_tokens"] += arbiter_cost.get("input_tokens", 0)
+                cost_info["output_tokens"] += arbiter_cost.get("output_tokens", 0)
+                cost_info["total_cost"] += arbiter_cost.get("total_cost", 0.0)
+
+                # Print consensus summary
+                meta = consensus["consensus_meta"]
+                print(f"  CONSENSUS: {meta['full_agreement_count']} agreed, "
+                      f"{meta['placement_disagreement_count']} placement disagreements, "
+                      f"{meta['unmatched_a_count']+meta['unmatched_b_count']} unmatched")
+
+            in_tok = cost_info["input_tokens"]
+            out_tok = cost_info["output_tokens"]
+            cost = cost_info["total_cost"]
+            total_cost["input_tokens"] += in_tok
+            total_cost["output_tokens"] += out_tok
+            total_cost["total_cost"] += cost
 
         # Update sequence counters
         atom_seq += len(result.get("atoms", []))
         excerpt_seq += len(result.get("excerpts", []))
         excerpt_seq += len(result.get("footnote_excerpts", []))
 
-        # Save raw result
+        # Save extraction result
         raw_path = outdir / f"{pid}_extraction.json"
         with open(raw_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
@@ -1285,12 +1567,20 @@ def run_extraction(args):
              "total_cost": cost},
             retries=retries_used,
         )
+
+        # Append consensus review section if applicable
+        if consensus_mode and "consensus_meta" in result:
+            from tools.consensus import generate_consensus_review_section
+            review += "\n" + generate_consensus_review_section(
+                result["consensus_meta"]
+            )
+
         review_path = outdir / f"{pid}_review.md"
         with open(review_path, "w", encoding="utf-8") as f:
             f.write(review)
 
         total_issue_count = len(issues["errors"]) + len(issues["warnings"])
-        all_results.append({
+        passage_result = {
             "passage_id": pid,
             "atoms": len(result.get("atoms", [])),
             "excerpts": len(result.get("excerpts", [])),
@@ -1298,7 +1588,17 @@ def run_extraction(args):
             "issues": total_issue_count,
             "retries": retries_used,
             "cost": cost,
-        })
+        }
+        if consensus_mode and "consensus_meta" in result:
+            meta = result["consensus_meta"]
+            passage_result["consensus"] = {
+                "full_agreement": meta.get("full_agreement_count", 0),
+                "placement_disagreements": meta.get("placement_disagreement_count", 0),
+                "unmatched": meta.get("unmatched_a_count", 0) + meta.get("unmatched_b_count", 0),
+                "coverage_agreement": meta.get("coverage_agreement", {}).get(
+                    "coverage_agreement_ratio", 0),
+            }
+        all_results.append(passage_result)
 
         # Rate limit courtesy
         time.sleep(1)
@@ -1317,23 +1617,29 @@ def run_extraction(args):
     print(f"Total cost: ${total_cost['total_cost']:.4f}")
 
     # Save summary
+    summary = {
+        "book_id": args.book_id,
+        "book_title": args.book_title,
+        "science": args.science,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "passages": all_results,
+        "totals": {
+            "atoms": total_atoms,
+            "excerpts": total_excerpts,
+            "issues": total_issues,
+            "retries": total_retries,
+            "cost": total_cost,
+        },
+    }
+    if consensus_mode:
+        summary["consensus_mode"] = True
+        summary["models"] = model_list
+    else:
+        summary["model"] = args.model
+
     summary_path = outdir / "extraction_summary.json"
     with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump({
-            "book_id": args.book_id,
-            "book_title": args.book_title,
-            "science": args.science,
-            "model": args.model,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "passages": all_results,
-            "totals": {
-                "atoms": total_atoms,
-                "excerpts": total_excerpts,
-                "issues": total_issues,
-                "retries": total_retries,
-                "cost": total_cost,
-            },
-        }, f, ensure_ascii=False, indent=2)
+        json.dump(summary, f, ensure_ascii=False, indent=2)
 
     print(f"\nResults saved to {outdir}/")
 
@@ -1365,7 +1671,7 @@ def main():
     parser.add_argument("--api-key", default=None,
                         help="Anthropic API key (or set ANTHROPIC_API_KEY)")
     parser.add_argument("--model", default="claude-sonnet-4-5-20250929",
-                        help="Model to use")
+                        help="Model to use (single-model mode)")
     parser.add_argument("--passage-ids", default=None,
                         help="Comma-separated passage IDs to process")
     parser.add_argument("--dry-run", action="store_true",
@@ -1373,13 +1679,51 @@ def main():
     parser.add_argument("--max-retries", type=int, default=2,
                         help="Max correction retries per passage (default: 2)")
 
+    # Multi-model consensus arguments
+    parser.add_argument("--models", default=None,
+                        help="Comma-separated OpenRouter model IDs for consensus "
+                             "(e.g., 'anthropic/claude-sonnet-4-5-20250929,"
+                             "openai/gpt-4o'). Enables consensus when 2+ models.")
+    parser.add_argument("--openrouter-key", default=None,
+                        help="OpenRouter API key (or set OPENROUTER_API_KEY)")
+    parser.add_argument("--consensus-prefer", default=None,
+                        help="Model to prefer when breaking ties in consensus")
+    parser.add_argument("--consensus-threshold", type=float, default=0.5,
+                        help="Minimum text overlap for excerpt matching "
+                             "(default: 0.5)")
+    parser.add_argument("--arbiter-model", default=None,
+                        help="Model to use for resolving disagreements "
+                             "(e.g., 'anthropic/claude-sonnet-4-5-20250929'). "
+                             "If not set, disagreements are flagged only.")
+
     args = parser.parse_args()
 
-    # Resolve API key
+    # Resolve OpenRouter key
+    if not args.openrouter_key:
+        args.openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+
+    # Resolve Anthropic API key (for single-model legacy mode)
     if not args.api_key:
         args.api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not args.api_key and not args.dry_run:
-        print("ERROR: No API key provided. Use --api-key or set ANTHROPIC_API_KEY")
+
+    # Build model list and detect consensus mode
+    if args.models:
+        args.model_list = [m.strip() for m in args.models.split(",")]
+        args.consensus_mode = len(args.model_list) >= 2
+        # Consensus mode requires OpenRouter key
+        if not args.openrouter_key and not args.dry_run:
+            print("ERROR: Consensus mode requires --openrouter-key or "
+                  "OPENROUTER_API_KEY")
+            sys.exit(1)
+    else:
+        args.model_list = [args.model]
+        args.consensus_mode = False
+
+    # Single-model mode requires either direct API key or OpenRouter key
+    if not args.consensus_mode and not args.api_key and not args.openrouter_key \
+       and not args.dry_run:
+        print("ERROR: No API key provided. Use --api-key or set "
+              "ANTHROPIC_API_KEY (or use --openrouter-key for OpenRouter)")
         sys.exit(1)
 
     run_extraction(args)
