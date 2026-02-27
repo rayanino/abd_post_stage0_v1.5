@@ -14,7 +14,7 @@ The excerpts produced here accumulate at taxonomy leaf nodes alongside excerpts 
 | Stage 1: Normalization | ✅ Complete | `books/imla/stage1_output/pages.jsonl` (77 pages, matn+footnotes separated) |
 | Stage 2: Structure Discovery | ✅ Complete | `books/imla/stage2_output/passages.jsonl` (46 passages) |
 | Stage 3+4: Extraction | ✅ Complete | Tool built, tested (80 tests), verified on 5 passages with real API |
-| Stage 5: Taxonomy Placement | ✅ Complete | Taxonomy node assigned per-excerpt during extraction |
+| Stage 5: Taxonomy Trees | 🟡 إملاء done | `taxonomy/imlaa_v0.1.yaml` (44 leaves); صرف/نحو/بلاغة trees still needed |
 
 Synthesis is handled by an external LLM (outside this repo) that consumes the excerpts at each taxonomy leaf.
 

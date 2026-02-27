@@ -18,7 +18,7 @@
 | `3_atomization/` | Break passages into atoms (legacy spec) | Superseded by Stage 3+4 tool | `ATOMIZATION_SPEC.md` (reference only; automated tool implements these rules) |
 | `3_extraction/` | Automated extraction (atoms + excerpts) | ✅ Complete | `RUNBOOK.md`, `gold/P004_gold_excerpt.json` |
 | `4_excerpting/` | Group atoms into excerpts, assign to taxonomy | ✅ Complete (via Stage 3+4 tool) | `EXCERPTING_SPEC.md`, `EXCERPT_DEFINITION.md` |
-| `5_taxonomy/` | Place excerpts in taxonomy trees, evolve trees | ✅ Complete (implicit in extraction) | `TAXONOMY_SPEC.md` |
+| `5_taxonomy/` | Build taxonomy trees per science, evolve trees | 🟡 إملاء done, صرف/نحو/بلاغة needed | `TAXONOMY_SPEC.md` |
 
 ### Precision Documents (Binding Authority)
 
