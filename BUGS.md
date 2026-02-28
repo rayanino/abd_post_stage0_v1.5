@@ -466,18 +466,50 @@ Unchanged.
 
 ---
 
+### BUG-041 🔴 FIXED — `_resolve_key_for_model(None)` Crashes Consensus
+
+**Location:** `tools/extract_passages.py` → `_resolve_key_for_model()` (line 884)
+
+**Problem:** When no `--arbiter-model` is specified, `arbiter_model` is `None`. The consensus code passes `None` to `_resolve_key_for_model()`, which calls `_is_openai_model(None)`, triggering `AttributeError: 'NoneType' object has no attribute 'startswith'`. This crashes every multi-model consensus run that doesn't explicitly set an arbiter.
+
+**Fix:** Added `if not model: return anthropic_key or ""` guard at top of `_resolve_key_for_model()`.
+
+---
+
+### BUG-042 🔴 FIXED — Intake Rejects New Science Names
+
+**Location:** `tools/intake.py` → book category determination (line 1214)
+
+**Problem:** After `validate_science()` accepts a new science name (e.g., `aqidah`), the book category determination code only recognized `SINGLE_SCIENCES` (the 4 core sciences) and fell through to `abort("Unexpected science value")`. Result: intake blocked for any non-core science despite the engine being architecturally science-agnostic.
+
+**Fix:** Reversed the if-elif chain so any specific science name (not `multi`/`adjacent`/`unrelated`) is treated as `single_science`. Non-core sciences get an informational note.
+
+---
+
+### BUG-043 🔴 FIXED — LLM Returns Full Taxonomy Paths Instead of Leaf IDs
+
+**Location:** `tools/extract_passages.py` → `validate_extraction()` Check 10
+
+**Problem:** When presented with hierarchical taxonomy YAML, LLMs (both Claude and GPT-4o) frequently return full dot-paths (e.g., `aqidah.al_iman_billah.asma_wa_sifat.al_istiwa`), colon-paths (`manhaj_ahl_al_sunna:al_ittiba3`), or slash-paths instead of just the leaf node ID (`al_istiwa`). The validation correctly flagged these as "non-leaf" but the retry loop couldn't fix it — the LLM keeps returning paths. This caused persistent warnings and wasted retry budget across all عقيدة passages.
+
+**Fix:** Added a normalization step before leaf validation: if a taxonomy_node_id contains `.`, `:`, or `/` separators, extract the last segment and check if it's a valid leaf. If so, normalize in-place. Unknown paths still produce warnings.
+
+---
+
 ## Summary
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
-| 🔴 CRITICAL | 11 | 3 | 8 (BUG-001, 002, 003, 004, 035, 036, 038, 040) |
+| 🔴 CRITICAL | 14 | 3 | 11 (BUG-001, 002, 003, 004, 035, 036, 038, 040, 041, 042, 043) |
 | 🟡 MODERATE | 20 | 14 | 6 (BUG-005, 027, 030, 037, 039 + audit 3) |
 | 🟢 LOW | 10 | 8 | 0 |
-| **Total** | **41** | **25** | **14** |
+| **Total** | **44** | **25** | **17** |
 
-**14 bugs fixed across Audit 2–3.** All pipeline-blocking bugs (Tier 1) are resolved. Remaining open bugs are doc inaccuracies, schema drift, and low-priority cleanup.
+**17 bugs fixed across Audit 2–4.** All pipeline-blocking bugs (Tier 1) are resolved. Remaining open bugs are doc inaccuracies, schema drift, and low-priority cleanup.
 
-**Test suite:** 811 passed, 2 failed (pre-existing Windows cp1252 encoding in structure discovery), 7 skipped. Engine tests (extraction + evolution + assembly): 254 passed.
+**Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
+
+**Test suite:** 521 engine tests pass (extraction + evolution + assembly + consensus + intake). 815+ total across full suite.
 
 ### Remaining Fix Priority
 

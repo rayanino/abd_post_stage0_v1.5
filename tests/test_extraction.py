@@ -1503,3 +1503,73 @@ class TestResolveKeyForModel:
             "o1-preview", "ant-key",
             openrouter_key=None, openai_key="oa-key")
         assert key == "oa-key"
+
+    def test_none_model_returns_anthropic_key(self):
+        """BUG-041: arbiter_model=None should not crash."""
+        key = _resolve_key_for_model(
+            None, "ant-key",
+            openrouter_key="or-key", openai_key="oa-key")
+        assert key == "ant-key"
+
+    def test_none_model_with_no_anthropic_key(self):
+        key = _resolve_key_for_model(
+            None, None,
+            openrouter_key="or-key", openai_key="oa-key")
+        assert key == ""
+
+
+class TestTaxonomyNodeNormalization:
+    """BUG-043: LLMs return full paths instead of leaf IDs."""
+
+    LEAVES = {"al_istiwa", "ta3rif_al_iman", "al_karamat", "al_ittiba3"}
+
+    def _make_result(self, node_id):
+        return {
+            "atoms": [{"atom_id": "x:matn:001001", "atom_type": "prose_sentence",
+                        "text": "test", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "x:exc:001001", "taxonomy_node_id": node_id,
+                          "core_atoms": [{"atom_id": "x:matn:001001", "role": "author_prose"}],
+                          "boundary_reasoning": "test", "source_layer": "matn",
+                          "excerpt_title": "test", "case_types": ["A1_pure_definition"],
+                          "excerpt_kind": "teaching"}],
+        }
+
+    def test_dot_path_normalized(self):
+        result = self._make_result("aqidah.al_iman_billah.asma_wa_sifat.al_istiwa")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "al_istiwa"
+        assert len(v["warnings"]) == 0
+
+    def test_colon_path_normalized(self):
+        result = self._make_result("manhaj_ahl_al_sunna:al_ittiba3")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "al_ittiba3"
+        assert len(v["warnings"]) == 0
+
+    def test_slash_path_normalized(self):
+        result = self._make_result("aqidah/al_iman/ta3rif_al_iman")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "ta3rif_al_iman"
+        assert len(v["warnings"]) == 0
+
+    def test_plain_leaf_unchanged(self):
+        result = self._make_result("al_karamat")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "al_karamat"
+        assert len(v["warnings"]) == 0
+
+    def test_unknown_path_still_warns(self):
+        result = self._make_result("aqidah.unknown_branch.unknown_leaf")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        assert any("non-leaf" in w for w in v["warnings"])
+
+    def test_unmapped_not_normalized(self):
+        result = self._make_result("_unmapped")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "_unmapped"
+        assert len(v["warnings"]) == 0

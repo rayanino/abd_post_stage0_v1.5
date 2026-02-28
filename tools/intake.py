@@ -1211,10 +1211,7 @@ def main():
 
     # ── §3.7 Book category determination ──────────────────────────────
 
-    if confirmed_science in SINGLE_SCIENCES:
-        book_category = "single_science"
-        primary_science = confirmed_science
-    elif confirmed_science == "multi":
+    if confirmed_science == "multi":
         book_category = "multi_science"
         primary_science = None
     elif confirmed_science == "adjacent":
@@ -1224,7 +1221,13 @@ def main():
         book_category = "tangentially_relevant"
         primary_science = None
     else:
-        abort(f"Unexpected science value: {confirmed_science}")
+        # Any specific science name (known or new) is a single-science book.
+        # Engine is science-agnostic — accepts any science name.
+        book_category = "single_science"
+        primary_science = confirmed_science
+        if confirmed_science not in CORE_SCIENCES:
+            info(f"  NOTE: '{confirmed_science}' is not in the core set {CORE_SCIENCES}. "
+                 f"Proceeding (engine is science-agnostic).")
 
     info(f"  Category: {book_category}")
     if primary_science:

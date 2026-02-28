@@ -1,0 +1,52 @@
+{
+  "schema_version": "intake_metadata_v0.2",
+  "book_id": "wasitiyyah",
+  "shamela_book_id": null,
+  "title": "العقيدة الواسطية - ت ابن مانع",
+  "title_formal": "العقيدة الواسطية",
+  "shamela_author_short": "ابن تيمية",
+  "author": "تقي الدين أبو العباس أحمد بن عبد الحليم بن عبد السلام بن عبد الله بن أبي القاسم بن محمد ابن تيمية الحراني الحنبلي الدمشقي (ت 728 هـ)",
+  "muhaqiq": null,
+  "publisher": "مكتبة المعارف، الرياض - المملكة العربية السعودية",
+  "shamela_page_count": 32,
+  "shamela_edition": "بدون طبعة أو عام نشر",
+  "shamela_volume_count": null,
+  "publication_year": null,
+  "html_qism_field": "العقيدة",
+  "shamela_pub_date": "29 ربيع الأول 1437",
+  "primary_science": "aqidah",
+  "book_category": "single_science",
+  "science_parts": null,
+  "scholarly_context": {
+    "author_death_hijri": 728,
+    "author_birth_hijri": null,
+    "fiqh_madhab": "hanbali",
+    "grammatical_school": null,
+    "geographic_origin": "الدمشقي",
+    "book_type": null,
+    "extraction_source": "auto"
+  },
+  "volume_count": 1,
+  "total_actual_pages": 32,
+  "source_files": [
+    {
+      "relpath": "books/wasitiyyah/source/wasitiyyah.htm",
+      "sha256": "6cef9c1e05eaa7e5f69327289e6d6d316cb7749a140324978c1da092f2a03fe9",
+      "size_bytes": 96010,
+      "role": "primary_export",
+      "volume_number": null,
+      "actual_page_count": 32,
+      "file_note": null
+    }
+  ],
+  "unrecognized_metadata_lines": [],
+  "edition_notes": "العقيدة الواسطية لابن تيمية - ت ابن مانع. E2E test for new science (aqidah).",
+  "language": "ar",
+  "intake_utc": "2026-02-28T18:50:12Z",
+  "taxonomy_at_intake": {
+    "balagha": "balagha_v1_0",
+    "nahw": "nahw_v1_0",
+    "sarf": "sarf_v1_0",
+    "imlaa": "imlaa_v1_0"
+  }
+}

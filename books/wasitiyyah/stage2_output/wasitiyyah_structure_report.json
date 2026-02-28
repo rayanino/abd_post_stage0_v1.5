@@ -1,0 +1,109 @@
+{
+  "schema_version": "structure_report_v0.1",
+  "book_id": "wasitiyyah",
+  "generated_utc": "2026-02-28T20:17:37.795024+00:00",
+  "pass_stats": {
+    "pass1_html_tagged": 15,
+    "pass1_5_toc_entries": 0,
+    "pass2_keyword_candidates": 0,
+    "pass2_after_dedup": 0,
+    "pass3_llm_discovered": 0,
+    "pass3_confirmed": 0,
+    "pass3_rejected": 0,
+    "pass3_llm_calls": 0
+  },
+  "division_stats": {
+    "total_divisions": 15,
+    "max_depth": 1,
+    "by_detection_method": {
+      "html_tagged": 15
+    },
+    "by_confidence": {
+      "confirmed": 15
+    },
+    "by_type": {
+      "مقدمة": 1,
+      "implicit": 13,
+      "خاتمة": 1
+    },
+    "digestible_count": 15,
+    "non_digestible_count": 0,
+    "uncertain_digestible_count": 0,
+    "heading_density": 0.469
+  },
+  "passage_stats": {
+    "total_passages": 12,
+    "total_pages_covered": 31,
+    "total_pages_skipped": 1,
+    "by_content_type": {
+      "teaching": 12
+    },
+    "by_sizing_action": {
+      "none": 12
+    },
+    "page_count_min": 1,
+    "page_count_max": 9,
+    "page_count_median": 2.0,
+    "page_count_mean": 2.6
+  },
+  "review_summary": {
+    "total_flags": 6,
+    "low_confidence_divisions": 0,
+    "uncertain_digestibility": 0,
+    "long_passages": 0,
+    "toc_matched": 0,
+    "toc_missed_headings": 0,
+    "toc_false_positives": 0,
+    "ordinal_warnings": 0,
+    "flagged_items": [
+      {
+        "item_type": "division",
+        "item_id": "div_0001",
+        "flags": [
+          "same_page_cluster"
+        ],
+        "description": "implicit: الإيمان بما وصف الله به نفسه في كتابه"
+      },
+      {
+        "item_type": "division",
+        "item_id": "div_0004",
+        "flags": [
+          "same_page_cluster"
+        ],
+        "description": "implicit: الإيمان بأنه قريب مجيب"
+      },
+      {
+        "item_type": "division",
+        "item_id": "div_0006",
+        "flags": [
+          "same_page_cluster"
+        ],
+        "description": "implicit: الإيمان برؤية المؤمنين لربهم"
+      },
+      {
+        "item_type": "passage",
+        "item_id": "P001",
+        "flags": [
+          "has_same_page_subheadings"
+        ],
+        "description": "مقدمة المؤلف (9 pages)"
+      },
+      {
+        "item_type": "passage",
+        "item_id": "P003",
+        "flags": [
+          "has_same_page_subheadings"
+        ],
+        "description": "الإيمان بأنه فوق عرشه (1 pages)"
+      },
+      {
+        "item_type": "passage",
+        "item_id": "P004",
+        "flags": [
+          "has_same_page_subheadings"
+        ],
+        "description": "الإيمان بأن القرآن كلام الله منزل غير مخلوق (1 pages)"
+      }
+    ]
+  }
+}

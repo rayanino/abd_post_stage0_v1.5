@@ -120,7 +120,7 @@ EXCERPT_ID_RE = re.compile(r"^[a-z0-9_]+:exc:[0-9]{6}$")
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """\
-You are an expert in Classical Arabic linguistics performing structured knowledge extraction from scholarly texts. Your task is to atomize a passage into semantic units and then group those atoms into excerpts, each assigned to a taxonomy leaf node.
+You are an expert in classical Islamic scholarship performing structured knowledge extraction from scholarly Arabic texts. Your task is to atomize a passage into semantic units and then group those atoms into excerpts, each assigned to a taxonomy leaf node.
 
 ## Book Context
 - Book: {book_title}
@@ -881,6 +881,8 @@ def _resolve_key_for_model(model: str, anthropic_key: str | None,
     - gpt-/o1-/o3-/o4- with openai_key → openai_key
     - otherwise → anthropic_key
     """
+    if not model:
+        return anthropic_key or ""
     if openrouter_key and "/" in model:
         return openrouter_key
     if openai_key and _is_openai_model(model):
@@ -1215,6 +1217,25 @@ def validate_extraction(result: dict, passage_id: str,
                 )
 
     # --- Check 10: Leaf-only placement (PLACE.P2) ---
+    # First, normalize taxonomy_node_id: LLMs sometimes return full paths
+    # (e.g., "aqidah.al_iman_billah.asma_wa_sifat.al_istiwa" or
+    # "manhaj_ahl_al_sunna:al_ittiba3") instead of just the leaf ID.
+    # Extract the last segment and check if it's a valid leaf.
+    for exc in excerpts:
+        node = exc.get("taxonomy_node_id", "")
+        if node and node != "_unmapped" and node not in taxonomy_leaves:
+            # Try extracting last segment from dot-path or colon-path
+            for sep in (".", ":", "/"):
+                if sep in node:
+                    last_segment = node.rsplit(sep, 1)[-1]
+                    if last_segment in taxonomy_leaves:
+                        exc["taxonomy_node_id"] = last_segment
+                        info.append(
+                            f"Normalized taxonomy_node_id '{node}' → "
+                            f"'{last_segment}' for {exc.get('excerpt_id','???')}"
+                        )
+                        break
+
     for exc in excerpts:
         node = exc.get("taxonomy_node_id", "")
         if node and node != "_unmapped" and node not in taxonomy_leaves:
