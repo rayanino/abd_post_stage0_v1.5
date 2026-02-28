@@ -1210,12 +1210,27 @@ def build_consensus(
         elif m["same_taxonomy"]:
             # FULL AGREEMENT -- high confidence
             exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
+            other_exc = m["excerpt_b"] if winning == model_a else m["excerpt_a"]
+            # H06: Enrich winning excerpt's empty metadata from losing model.
+            # Only metadata fields — never overwrite content (core_atoms, etc.)
+            _ENRICHABLE = ("case_types", "boundary_reasoning", "content_type",
+                           "excerpt_kind", "relations")
+            enriched_fields = []
+            for field in _ENRICHABLE:
+                val = exc.get(field)
+                other_val = other_exc.get(field)
+                if (not val or val == "test") and other_val and other_val != "test":
+                    exc[field] = other_val
+                    enriched_fields.append(field)
+            flags = []
+            if enriched_fields:
+                flags.append(f"Enriched from other model: {', '.join(enriched_fields)}")
             consensus_excerpts.append({
                 "excerpt": exc,
                 "source_model": winning,
                 "confidence": "high",
                 "agreement": "full",
-                "flags": [],
+                "flags": flags,
                 "disagreement_detail": None,
             })
         else:
@@ -1239,6 +1254,11 @@ def build_consensus(
                 if correct_tax == "neither":
                     # Arbiter says both are wrong — flag for human review
                     chosen_exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
+                    # H03: Override taxonomy to _unmapped since arbiter
+                    # rejected both placements
+                    chosen_exc = dict(chosen_exc)  # shallow copy to avoid mutating original
+                    chosen_exc["taxonomy_node_id"] = "_unmapped"
+                    chosen_exc["taxonomy_path"] = "_unmapped"
                     source = winning
                     confidence = "low"
                 elif correct_tax == m["taxonomy_a"]:
@@ -1253,7 +1273,9 @@ def build_consensus(
                 # Arbiter unavailable or uncertain -- use preferred model
                 chosen_exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
                 source = winning
-                confidence = "medium"
+                # H05: "low" not "medium" — uncertain arbiter should surface
+                # in human review, not be confused with confident decisions
+                confidence = "low"
 
             detail = {
                 "type": "placement_disagreement",
@@ -1431,6 +1453,39 @@ def build_consensus(
 
     # Build the final excerpt list and exclusions (merge from both models)
     final_excerpts = [ce["excerpt"] for ce in consensus_excerpts]
+
+    # H01: Fix footnote linked_matn_excerpt dangling references.
+    # After consensus, footnotes from the losing model may reference excerpt IDs
+    # that don't exist in final_excerpts. Try to find the best match by text
+    # overlap, or flag as dangling.
+    final_excerpt_ids = {e.get("excerpt_id", "") for e in final_excerpts}
+    for fn in merged_footnotes:
+        linked = fn.get("linked_matn_excerpt", "")
+        if linked and linked not in final_excerpt_ids:
+            # Try to find the best matching excerpt by taxonomy + text similarity
+            fn_text = fn.get("text", "")
+            best_id = None
+            best_score = 0.0
+            for fe in final_excerpts:
+                # Prefer excerpts in the same taxonomy area
+                score = text_overlap_ratio(
+                    fn_text, compute_excerpt_text_span(
+                        fe, {**atoms_a, **atoms_b}
+                    )
+                ) if fn_text else 0.0
+                if score > best_score:
+                    best_score = score
+                    best_id = fe.get("excerpt_id", "")
+            if best_id and best_score > 0.3:
+                fn["linked_matn_excerpt"] = best_id
+                fn.setdefault("_consensus_flags", []).append(
+                    f"linked_matn_excerpt remapped from {linked} (overlap={best_score:.2f})"
+                )
+            else:
+                fn.setdefault("_consensus_flags", []).append(
+                    f"linked_matn_excerpt '{linked}' not found in consensus output"
+                )
+
     losing_result = result_b if winning == model_a else result_a
     losing_model = model_b if winning == model_a else model_a
     final_exclusions = list(winning_result.get("exclusions") or [])
@@ -1443,15 +1498,30 @@ def build_consensus(
         if atom:
             winning_excl_texts.add(normalize_for_comparison(atom.get("text", "")))
     losing_atoms_lookup = atoms_b if winning == model_a else atoms_a
+    # H02: Also check atom_type when matching, not just text, to avoid
+    # pointing an exclusion at a prose atom with the same short text as a heading.
+    # Build set of atom IDs referenced by any consensus excerpt (core or context).
+    _excerpt_atom_ids = set()
+    for _exc in final_excerpts:
+        for _entry in (_exc.get("core_atoms") or []):
+            _excerpt_atom_ids.add(_extract_atom_id(_entry))
+        for _entry in (_exc.get("context_atoms") or []):
+            _excerpt_atom_ids.add(_extract_atom_id(_entry))
+
     for exc in (losing_result.get("exclusions") or []):
         atom = losing_atoms_lookup.get(exc.get("atom_id", ""))
         if atom:
             norm = normalize_for_comparison(atom.get("text", ""))
+            src_type = atom.get("atom_type", atom.get("type", ""))
             if norm and norm not in winning_excl_texts:
-                # Find a matching atom in merged_atoms by text
+                # Find a matching atom in merged_atoms by text AND type,
+                # excluding atoms that are actively used in excerpts.
                 matched_id = None
                 for ma in merged_atoms:
-                    if normalize_for_comparison(ma.get("text", "")) == norm:
+                    ma_type = ma.get("atom_type", ma.get("type", ""))
+                    if (normalize_for_comparison(ma.get("text", "")) == norm
+                            and ma_type == src_type
+                            and ma.get("atom_id", "") not in _excerpt_atom_ids):
                         matched_id = ma.get("atom_id")
                         break
                 if matched_id:

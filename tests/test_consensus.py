@@ -571,14 +571,15 @@ class TestBuildConsensusPlacementDisagreement:
             issues_a, issues_b,
             # No call_llm_fn → no arbiter
         )
-        # Disagreement excerpt should have medium confidence
+        # H05: Disagreement with no arbiter should have "low" confidence
+        # (uncertain decisions must surface in human review)
         meta = consensus["consensus_meta"]
         disagreement_excerpts = [
             pe for pe in meta["per_excerpt"]
             if pe["agreement"] == "placement_disagreement"
         ]
         assert len(disagreement_excerpts) == 1
-        assert disagreement_excerpts[0]["confidence"] == "medium"
+        assert disagreement_excerpts[0]["confidence"] == "low"
 
 
 class TestBuildConsensusUnmatchedExcerpts:
@@ -2756,3 +2757,213 @@ class TestExclusionMerge:
         flagged = [e for e in consensus["exclusions"]
                    if e.get("_consensus_flag")]
         assert len(flagged) >= 1
+
+
+# ========================================================================
+# H02: Exclusion merge checks atom_type to avoid cross-type collisions
+# ========================================================================
+
+class TestExclusionMergeAtomTypeCheck:
+    """H02: When merging exclusions from the losing model, the match must
+    check atom_type too, not just normalized text. Short Arabic headings
+    like 'باب' could collide with prose atoms containing the same word."""
+
+    def test_exclusion_does_not_target_core_atom(self):
+        """An exclusion from the losing model must NOT point at an atom
+        that is actively used in a consensus excerpt's core_atoms."""
+        # Both models have an atom with the same text "باب"
+        heading_a = _make_atom("qa:h:001", "heading", "باب")
+        prose_a = _make_atom("qa:m:001", "prose_sentence", "باب")
+        heading_b = _make_atom("qb:h:001", "heading", "باب")
+        prose_b = _make_atom("qb:m:001", "prose_sentence", "باب")
+
+        ra = _make_result(
+            [heading_a, prose_a],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_1")],
+        )
+        ra["exclusions"] = []  # Winning model forgot to exclude heading
+
+        rb = _make_result(
+            [heading_b, prose_b],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_1")],
+        )
+        rb["exclusions"] = [
+            {"atom_id": "qb:h:001", "exclusion_reason": "heading_structural"}
+        ]
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+
+        # The exclusion should NOT point at qa:m:001 (the core prose atom)
+        for excl in consensus["exclusions"]:
+            excl_id = excl.get("atom_id", "")
+            for exc in consensus["excerpts"]:
+                core_ids = [
+                    (e["atom_id"] if isinstance(e, dict) else e)
+                    for e in exc.get("core_atoms", [])
+                ]
+                assert excl_id not in core_ids, \
+                    f"Exclusion {excl_id} conflicts with core atom in {exc.get('excerpt_id')}"
+
+
+# ========================================================================
+# H03: "Neither" verdict sets taxonomy_node_id to _unmapped
+# ========================================================================
+
+class TestNeitherVerdictSetsUnmapped:
+    """H03: When arbiter says 'neither' placement is correct,
+    the excerpt's taxonomy_node_id must be overridden to _unmapped."""
+
+    def test_neither_sets_unmapped(self):
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "نص عربي طويل يكفي")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_a")],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "نص عربي طويل يكفي")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_b")],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def mock_arbiter(sys, usr, mdl, key):
+            return {
+                "parsed": {"correct_placement": "neither",
+                           "reasoning": "both wrong", "confidence": "high"},
+                "input_tokens": 10, "output_tokens": 10,
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=mock_arbiter, arbiter_model="arb", arbiter_api_key="k",
+        )
+        exc = consensus["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "_unmapped"
+        assert exc["taxonomy_path"] == "_unmapped"
+
+
+# ========================================================================
+# H04: Trailing-comma repair produces valid JSON
+# ========================================================================
+
+class TestTrailingCommaRepair:
+    """H04: Truncation at comma boundaries must be repaired to valid JSON."""
+
+    def test_trailing_comma_nested(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"atoms": [{"id": "a"}, {"id": "b"}, '
+        repaired = repair_truncated_json(text)
+        import json
+        parsed = json.loads(repaired)
+        assert len(parsed["atoms"]) == 2
+
+    def test_trailing_comma_in_array(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"atoms": [{"id": "a"}, '
+        repaired = repair_truncated_json(text)
+        import json
+        parsed = json.loads(repaired)
+        assert len(parsed["atoms"]) == 1
+
+    def test_trailing_comma_after_value(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"a": 1, "b": 2, '
+        repaired = repair_truncated_json(text)
+        import json
+        parsed = json.loads(repaired)
+        assert parsed["a"] == 1
+        assert parsed["b"] == 2
+
+
+# ========================================================================
+# H05: Arbiter uncertain → confidence "low"
+# ========================================================================
+
+class TestArbiterUncertainIsLow:
+    """H05: When arbiter is unavailable or uncertain, confidence must be
+    'low' not 'medium', so these items surface in human review."""
+
+    def test_uncertain_arbiter_gives_low_confidence(self):
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "Arabic text here long")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_x")],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "Arabic text here long")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_y")],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def mock_uncertain_arbiter(sys, usr, mdl, key):
+            return {
+                "parsed": {"correct_placement": "leaf_x",
+                           "reasoning": "unsure", "confidence": "uncertain"},
+                "input_tokens": 10, "output_tokens": 10,
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=mock_uncertain_arbiter,
+            arbiter_model="arb", arbiter_api_key="k",
+        )
+        meta = consensus["consensus_meta"]
+        pe = [p for p in meta["per_excerpt"]
+              if p["agreement"] == "placement_disagreement"]
+        assert len(pe) == 1
+        assert pe[0]["confidence"] == "low"
+
+
+# ========================================================================
+# H06: Enrichment of winning model's empty fields from losing model
+# ========================================================================
+
+class TestFieldEnrichmentOnFullAgreement:
+    """H06: When both models agree on taxonomy but the winning model has
+    empty metadata fields, enrich from the losing model."""
+
+    def test_empty_case_types_enriched(self):
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "Test text content")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_1",
+                           case_types=[])],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "Test text content")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_1",
+                           case_types=["A1_pure_definition", "B2_rule_statement"])],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+        # Model A wins (tie goes to A)
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        exc = consensus["excerpts"][0]
+        assert exc["case_types"] == ["A1_pure_definition", "B2_rule_statement"]
+        # Check enrichment flag
+        meta = consensus["consensus_meta"]
+        pe = meta["per_excerpt"][0]
+        assert any("Enriched" in f for f in pe["flags"])
+
+    def test_nonempty_fields_not_overwritten(self):
+        """Winning model's non-empty fields should NOT be overwritten."""
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "Test text content")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_1",
+                           case_types=["A1_pure_definition"],
+                           boundary_reasoning="Good reasoning here")],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "Test text content")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_1",
+                           case_types=["B2_rule_statement"],
+                           boundary_reasoning="Different reasoning")],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        exc = consensus["excerpts"][0]
+        # Winning model's values should be preserved
+        assert exc["case_types"] == ["A1_pure_definition"]
+        assert exc["boundary_reasoning"] == "Good reasoning here"

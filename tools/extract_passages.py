@@ -527,6 +527,12 @@ def repair_truncated_json(text: str) -> str:
     # If we ended inside a string, close it
     if in_string:
         repair += '"'
+    # H04: Strip trailing commas before closing brackets/braces.
+    # Truncation at comma boundaries (e.g., {"a": 1, ) produces invalid JSON
+    # because JSON does not allow trailing commas.
+    stripped = repair.rstrip()
+    if stripped.endswith(","):
+        repair = stripped[:-1]
     # Close stack in reverse order
     for opener in reversed(stack):
         if opener == '{':
@@ -1652,6 +1658,11 @@ def run_extraction(args):
                     print(f"  CONSENSUS FALLBACK: only {fallback_model} succeeded")
                 else:
                     print(f"  ALL MODELS FAILED for {pid}")
+                    # H07: Write error artifact so the failure is persistent
+                    err_path = outdir / f"{pid}_all_models_error.txt"
+                    with open(err_path, "w", encoding="utf-8") as f:
+                        f.write(f"All models failed for {pid}.\n")
+                        f.write(f"Models attempted: {', '.join(model_list)}\n")
                     continue
             else:
                 # Save per-model raw outputs for auditability
