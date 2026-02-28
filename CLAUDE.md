@@ -310,6 +310,8 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 
 The books in `books/` are test cases for developing and validating the pipeline tools. They are not a production queue.
 
+### Intaken Books (pipeline-ready)
+
 ```
 books/
 ├── imla/          # قواعد الإملاء (77p, إملاء) — primary test book, has Stage 1+2 outputs
@@ -320,8 +322,23 @@ books/
 ├── ibn_aqil/      # شرح ابن عقيل (نحو)
 ├── miftah/        # مفتاح العلوم (بلاغة)
 ├── dalail/        # دلائل الإعجاز (بلاغة)
-└── Other Books/   # Raw Shamela exports (additional test candidates)
+└── books_registry.yaml  — canonical registry of all intaken books
 ```
+
+### Available Shamela Exports (raw, not yet intaken)
+
+`books/Other Books/` contains a large library of raw Shamela HTML exports organized by science category. These are **ready to be intaken** through the pipeline using `tools/intake.py`. They are gitignored (large binary files) but present locally for test and development use.
+
+```
+books/Other Books/
+├── كتب العقيدة/           # 804 books (عقيدة — creed/theology)
+├── كتب الفقه الحنبلي/     # 147 books (فقه حنبلي — Hanbali jurisprudence)
+├── كتب البلاغة/           # بلاغة — rhetoric
+├── كتب النحو والصرف/      # نحو + صرف — grammar & morphology
+└── كتب اللغة/             # لغة — Arabic language/lexicography
+```
+
+To intake a new book from this collection, use `tools/intake.py` with the path to the `.htm` file. See `0_intake/INTAKE_SPEC.md` for details.
 
 ## Gotchas
 
