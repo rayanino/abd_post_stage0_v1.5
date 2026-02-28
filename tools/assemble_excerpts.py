@@ -42,7 +42,9 @@ except ImportError:
 
 SCHEMA_VERSION = "assembled_excerpt_v0.1"
 TOOL_VERSION = "0.1"
-VALID_SCIENCES = {"imlaa", "sarf", "nahw", "balagha"}
+# Known sciences (informational, not enforced — the engine is science-agnostic).
+# New sciences can be added without code changes; pass any science name via --science.
+KNOWN_SCIENCES = {"imlaa", "sarf", "nahw", "balagha"}
 
 
 # ---------------------------------------------------------------------------
@@ -739,10 +741,11 @@ def generate_report_md(
 
 def run_assembly(args) -> int:
     """Execute the assembly pipeline. Returns exit code (0=success, 1=errors)."""
-    # Validate science
-    if args.science not in VALID_SCIENCES:
-        print(f"Error: --science must be one of {VALID_SCIENCES}, got '{args.science}'")
-        return 1
+    # Validate science (informational warning, not a hard block)
+    if args.science not in KNOWN_SCIENCES:
+        print(f"  NOTE: --science '{args.science}' is not in the known set "
+              f"{KNOWN_SCIENCES}. Proceeding anyway (engine is science-agnostic).",
+              file=sys.stderr)
 
     # Load taxonomy
     print(f"Loading taxonomy: {args.taxonomy}")
@@ -910,7 +913,7 @@ def main():
     )
     parser.add_argument(
         "--science", required=True,
-        help="Science: imlaa|sarf|nahw|balagha"
+        help="Science name (e.g., imlaa, sarf, nahw, balagha, fiqh, hadith)"
     )
     parser.add_argument(
         "--output-dir", required=True,

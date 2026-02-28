@@ -154,23 +154,31 @@ def scan_cluster_signals(
     taxonomy_map: dict[str, TaxonomyNodeInfo],
     science: str,
 ) -> list[EvolutionSignal]:
-    """Scan for same-book clusters: multiple excerpts at the same leaf node.
+    """Scan for same-book clusters: multiple excerpts from the SAME book at
+    one leaf node.
 
-    Groups all excerpts by taxonomy_node_id across all passages, then
-    flags nodes with 2+ excerpts as potential evolution signals.
+    Per CLAUDE.md: "If extraction produces two excerpts from the same book
+    at the same node, that's a signal." Multiple excerpts from DIFFERENT
+    books at the same node is expected and normal — not a signal.
+
+    Groups excerpts by (book_id, node_id). Flags where a single book has
+    2+ excerpts at one node.
     """
-    # Group excerpts by node_id
-    node_excerpts: dict[str, list[tuple[dict, str]]] = {}  # node -> [(exc, pid)]
+    # Group excerpts by (book_id, node_id)
+    # key: (book_id, node_id) -> [(exc, pid)]
+    book_node_excerpts: dict[tuple[str, str], list[tuple[dict, str]]] = {}
 
     for passage in extraction_data:
         pid = passage["passage_id"]
         for exc in passage.get("excerpts", []):
             node_id = exc.get("taxonomy_node_id", "")
+            book_id = exc.get("book_id", "")
             if node_id and node_id != "_unmapped":
-                node_excerpts.setdefault(node_id, []).append((exc, pid))
+                key = (book_id, node_id)
+                book_node_excerpts.setdefault(key, []).append((exc, pid))
 
     signals = []
-    for node_id, excerpts_and_pids in node_excerpts.items():
+    for (book_id, node_id), excerpts_and_pids in book_node_excerpts.items():
         if len(excerpts_and_pids) < 2:
             continue
 
@@ -195,7 +203,8 @@ def scan_cluster_signals(
             excerpt_texts=exc_texts,
             excerpt_metadata=exc_meta,
             context=(
-                f"{len(exc_ids)} excerpts at node '{node_title}' ({node_id})"
+                f"{len(exc_ids)} excerpts from book '{book_id}' at node "
+                f"'{node_title}' ({node_id})"
             ),
         ))
 
@@ -646,21 +655,26 @@ def propose_evolution_for_signal(
               f"for {signal.node_id}", file=sys.stderr)
         return None
 
-    # Validate proposed node IDs
+    # Validate proposed node IDs — reject invalid ones
     validated_nodes = []
-    has_errors = False
+    rejected_nodes = []
     for node_dict in new_nodes_raw:
         nid = node_dict.get("node_id", "")
         errs = validate_proposed_node_id(nid, taxonomy_map)
         if errs:
-            print(f"  WARNING: Invalid proposed node '{nid}': {'; '.join(errs)}",
+            print(f"  WARNING: Rejected proposed node '{nid}': {'; '.join(errs)}",
                   file=sys.stderr)
-            has_errors = True
-        validated_nodes.append(node_dict)
+            rejected_nodes.append(node_dict)
+        else:
+            validated_nodes.append(node_dict)
 
-    if has_errors:
-        # Still return the proposal but flag confidence as uncertain
+    if rejected_nodes:
         parsed["confidence"] = "uncertain"
+
+    if not validated_nodes:
+        print(f"  WARNING: All proposed nodes were invalid for {signal.node_id}",
+              file=sys.stderr)
+        return None
 
     # Determine change type and parent
     if action == "split":
@@ -1179,7 +1193,7 @@ def main():
     )
     parser.add_argument(
         "--science", required=True,
-        help="Science: imlaa|sarf|nahw|balagha",
+        help="Science name (e.g., imlaa, sarf, nahw, balagha, fiqh, hadith)",
     )
     parser.add_argument(
         "--output-dir", required=True,

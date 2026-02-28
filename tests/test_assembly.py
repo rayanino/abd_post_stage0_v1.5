@@ -984,3 +984,59 @@ imlaa:
         assert exc_data["taxonomy_path"] == (
             "إملاء > الهمزة > الهمزة وسط الكلمة > الحالة الأولى"
         )
+
+
+# ---------------------------------------------------------------------------
+# Science-Agnostic Engine Tests
+# ---------------------------------------------------------------------------
+
+class TestScienceAgnostic:
+    """Verify the engine accepts arbitrary science names (Ilm Digest readiness)."""
+
+    def test_assembly_accepts_unknown_science(self, tmp_path):
+        """Assembly should work with non-standard science names like 'fiqh'."""
+        from tools.assemble_excerpts import parse_taxonomy_yaml, KNOWN_SCIENCES
+
+        # Verify known set is just informational
+        assert "fiqh" not in KNOWN_SCIENCES
+
+        # Create a minimal v0 taxonomy for 'fiqh'
+        tax_yaml = tmp_path / "fiqh_v1.yaml"
+        tax_yaml.write_text(
+            "fiqh:\n  kitab_altahara:\n    _leaf: true\n",
+            encoding="utf-8"
+        )
+
+        # parse_taxonomy_yaml should work with any science
+        nodes = parse_taxonomy_yaml(str(tax_yaml), "fiqh")
+        assert len(nodes) >= 1  # at least the leaf
+        leaves = {nid for nid, n in nodes.items() if n.is_leaf}
+        assert "kitab_altahara" in leaves
+
+    def test_evolution_accepts_arbitrary_science(self):
+        """Evolution signal creation works with any science string."""
+        from tools.evolve_taxonomy import EvolutionSignal
+
+        signal = EvolutionSignal(
+            signal_type="same_book_cluster",
+            node_id="ahkam_altahara",
+            science="fiqh",
+            excerpt_ids=["fqh:exc:001"],
+            excerpt_texts=["نص فقهي"],
+            excerpt_metadata=[{"excerpt_id": "fqh:exc:001"}],
+            context="test",
+        )
+        assert signal.science == "fiqh"
+
+    def test_extract_taxonomy_leaves_with_custom_science(self, tmp_path):
+        """extract_taxonomy_leaves should work with any science."""
+        from tools.extract_passages import extract_taxonomy_leaves
+
+        tax_yaml = tmp_path / "hadith_v1.yaml"
+        tax_yaml.write_text(
+            "hadith:\n  mustalah:\n    _leaf: true\n  jarh_wa_tadil:\n    _leaf: true\n",
+            encoding="utf-8"
+        )
+        leaves = extract_taxonomy_leaves(str(tax_yaml), "hadith")
+        assert "mustalah" in leaves
+        assert "jarh_wa_tadil" in leaves

@@ -253,6 +253,49 @@ class TestSignalDetection:
         assert len(signals) == 1
         assert signals[0].excerpt_ids == []
 
+    def test_no_cluster_for_different_books(self):
+        """Excerpts from DIFFERENT books at same node = expected, NOT a cluster signal."""
+        atoms = [
+            _make_atom("a1", "نص الكتاب الأول"),
+            _make_atom("a2", "نص الكتاب الثاني"),
+        ]
+        exc1 = _make_excerpt("q:exc:001", "ta3rif_alhamza", ["a1"])
+        exc1["book_id"] = "book_alpha"
+        exc2 = _make_excerpt("q:exc:002", "ta3rif_alhamza", ["a2"])
+        exc2["book_id"] = "book_beta"
+        passage = _make_passage("P001", atoms, [exc1, exc2])
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+        taxonomy_map = _make_taxonomy_map()
+
+        signals = scan_cluster_signals(
+            [passage], atoms_indexes, taxonomy_map, "imlaa",
+        )
+        assert len(signals) == 0
+
+    def test_cluster_only_for_same_book(self):
+        """Three excerpts at same node: 2 from book A, 1 from book B.
+        Only book A should produce a cluster signal."""
+        atoms = [
+            _make_atom("a1", "نص 1"),
+            _make_atom("a2", "نص 2"),
+            _make_atom("a3", "نص 3"),
+        ]
+        exc1 = _make_excerpt("q:exc:001", "ta3rif_alhamza", ["a1"])
+        exc1["book_id"] = "book_alpha"
+        exc2 = _make_excerpt("q:exc:002", "ta3rif_alhamza", ["a2"])
+        exc2["book_id"] = "book_alpha"
+        exc3 = _make_excerpt("q:exc:003", "ta3rif_alhamza", ["a3"])
+        exc3["book_id"] = "book_beta"
+        passage = _make_passage("P001", atoms, [exc1, exc2, exc3])
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+        taxonomy_map = _make_taxonomy_map()
+
+        signals = scan_cluster_signals(
+            [passage], atoms_indexes, taxonomy_map, "imlaa",
+        )
+        assert len(signals) == 1
+        assert set(signals[0].excerpt_ids) == {"q:exc:001", "q:exc:002"}
+
     def test_signal_deduplication(self):
         sig1 = EvolutionSignal(
             signal_type="same_book_cluster",
@@ -635,6 +678,82 @@ class TestProposalGeneration:
         assert proposal.cost["input_tokens"] == 1000
         assert proposal.cost["output_tokens"] == 200
         assert proposal.cost["total_cost"] > 0
+
+    def test_all_nodes_invalid_returns_none(self):
+        """If LLM proposes only invalid node IDs, proposal is rejected entirely."""
+        def mock_llm(system, user, model, key, openrouter_key=None, openai_key=None):
+            return {
+                "parsed": {
+                    "action": "split",
+                    "new_nodes": [
+                        {"node_id": "UPPERCASE_BAD", "title_ar": "خطأ ١", "leaf": True},
+                        {"node_id": "has spaces", "title_ar": "خطأ ٢", "leaf": True},
+                    ],
+                    "redistribution": {
+                        "q:exc:001": "UPPERCASE_BAD",
+                        "q:exc:002": "has spaces",
+                    },
+                    "reasoning": "Invalid IDs proposed",
+                    "confidence": "certain",
+                },
+                "input_tokens": 500,
+                "output_tokens": 100,
+                "stop_reason": "end_turn",
+            }
+
+        signal = self._make_signal_cluster()
+        taxonomy_map = _make_taxonomy_map()
+
+        proposal = propose_evolution_for_signal(
+            signal=signal,
+            taxonomy_yaml_raw=SAMPLE_V1_YAML,
+            taxonomy_map=taxonomy_map,
+            model="test-model",
+            api_key="test-key",
+            call_llm_fn=mock_llm,
+        )
+
+        assert proposal is None
+
+    def test_some_nodes_invalid_partial_proposal(self):
+        """If LLM proposes mix of valid and invalid node IDs,
+        invalid ones are excluded but proposal proceeds."""
+        def mock_llm(system, user, model, key, openrouter_key=None, openai_key=None):
+            return {
+                "parsed": {
+                    "action": "split",
+                    "new_nodes": [
+                        {"node_id": "valid_node_id", "title_ar": "صحيح", "leaf": True},
+                        {"node_id": "INVALID_ID", "title_ar": "خطأ", "leaf": True},
+                    ],
+                    "redistribution": {
+                        "q:exc:001": "valid_node_id",
+                        "q:exc:002": "INVALID_ID",
+                    },
+                    "reasoning": "Mixed validity",
+                    "confidence": "certain",
+                },
+                "input_tokens": 500,
+                "output_tokens": 100,
+                "stop_reason": "end_turn",
+            }
+
+        signal = self._make_signal_cluster()
+        taxonomy_map = _make_taxonomy_map()
+
+        proposal = propose_evolution_for_signal(
+            signal=signal,
+            taxonomy_yaml_raw=SAMPLE_V1_YAML,
+            taxonomy_map=taxonomy_map,
+            model="test-model",
+            api_key="test-key",
+            call_llm_fn=mock_llm,
+        )
+
+        assert proposal is not None
+        assert len(proposal.new_nodes) == 1
+        assert proposal.new_nodes[0]["node_id"] == "valid_node_id"
+        assert proposal.confidence == "uncertain"  # downgraded due to rejected nodes
 
 
 # ---------------------------------------------------------------------------

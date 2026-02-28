@@ -459,11 +459,15 @@ def get_passage_text(passage: dict, page_by_seq: dict) -> str:
 
 
 def get_passage_footnotes(passage: dict, page_by_seq: dict) -> str:
-    """Collect footnotes from passage pages."""
+    """Collect footnotes from passage pages, including preamble text."""
     fns = []
     for seq in range(passage["start_seq_index"], passage["end_seq_index"] + 1):
         pg = page_by_seq.get(seq)
         if pg:
+            # BUG-005 fix: include footnote_preamble (text before first marker)
+            preamble = pg.get("footnote_preamble", "").strip()
+            if preamble:
+                fns.append(preamble)
             for fn in pg.get("footnotes", []):
                 num = fn.get("number", "?")
                 text = fn.get("text", "")
@@ -945,6 +949,10 @@ def post_process_extraction(result: dict, book_id: str, science: str,
         # Fix field name: type -> atom_type
         if "type" in atom and "atom_type" not in atom:
             atom["atom_type"] = atom.pop("type")
+        # BUG-002 fix: normalize prose_tail atom_type from LLM
+        if atom.get("atom_type") == "prose_tail":
+            atom["atom_type"] = "prose_sentence"
+            atom["is_prose_tail"] = True
         # Add mechanical fields
         atom.setdefault("record_type", "atom")
         atom.setdefault("book_id", book_id)
@@ -1093,6 +1101,15 @@ def validate_extraction(result: dict, passage_id: str,
                 f"Atom has empty text: {a.get('atom_id', '???')}"
             )
 
+    # --- Check 2b: Duplicate atom IDs ---
+    seen_atom_ids: set[str] = set()
+    for a in atoms:
+        aid = a.get("atom_id", "")
+        if aid and aid in seen_atom_ids:
+            errors.append(f"Duplicate atom_id: {aid}")
+        if aid:
+            seen_atom_ids.add(aid)
+
     # --- Check 3: Atom type valid ---
     for a in atoms:
         atype = a.get("atom_type", a.get("type", ""))
@@ -1138,6 +1155,9 @@ def validate_extraction(result: dict, passage_id: str,
                 errors.append(f"Excerpt missing field '{field}': {eid}")
         if "case_types" not in exc or not exc.get("case_types"):
             warnings.append(f"Excerpt {eid} missing or empty case_types")
+        # Check 5b: Excerpt must have at least one core atom
+        if "core_atoms" in exc and not exc.get("core_atoms"):
+            errors.append(f"Excerpt {eid} has empty core_atoms")
 
     # --- Check 6: Excerpt reference integrity ---
     covered_atoms = set()
@@ -1149,7 +1169,8 @@ def validate_extraction(result: dict, passage_id: str,
                 errors.append(
                     f"Excerpt {eid} references unknown atom {aid}"
                 )
-            covered_atoms.add(aid)
+            elif aid:
+                covered_atoms.add(aid)  # only count atoms that actually exist
         for entry in exc.get("context_atoms", []):
             aid = _extract_atom_id(entry)
             if aid and aid not in atom_ids:
@@ -1306,37 +1327,62 @@ def validate_extraction(result: dict, passage_id: str,
     return {"errors": errors, "warnings": warnings, "info": info}
 
 
-def extract_taxonomy_leaves(yaml_text: str) -> set[str]:
-    """Quick extraction of leaf node IDs from YAML taxonomy.
+def extract_taxonomy_leaves(yaml_path_or_text: str, science: str = "") -> set[str]:
+    """Extract leaf node IDs from a taxonomy YAML file.
 
-    Handles both v0 format (``node_id:\\n  _leaf: true``) and v1 format
-    (``- id: node_id\\n  leaf: true``).
+    Accepts either a file path (preferred) or raw YAML text (legacy).
+    Handles both v0 format (``_leaf: true``) and v1 format (``leaf: true``).
+
+    When given a file path, delegates to the robust ``parse_taxonomy_yaml``
+    from ``assemble_excerpts`` which correctly parses both formats via PyYAML.
     """
-    leaves = set()
+    # Determine if argument is a file path or raw YAML text
+    is_path = (
+        "\n" not in yaml_path_or_text
+        and not yaml_path_or_text.strip().startswith("{")
+        and os.path.exists(yaml_path_or_text)
+    )
+
+    if is_path:
+        try:
+            from tools.assemble_excerpts import parse_taxonomy_yaml
+        except ImportError:
+            try:
+                from assemble_excerpts import parse_taxonomy_yaml
+            except ImportError:
+                parse_taxonomy_yaml = None  # type: ignore[assignment]
+
+        if parse_taxonomy_yaml is not None:
+            nodes = parse_taxonomy_yaml(yaml_path_or_text, science or "unknown")
+            return {nid for nid, info in nodes.items() if info.is_leaf}
+
+    # Fallback: text-based scanning (works for v0; limited for v1)
+    yaml_text = yaml_path_or_text if not is_path else ""
+    if is_path:
+        try:
+            with open(yaml_path_or_text, encoding="utf-8") as f:
+                yaml_text = f.read()
+        except OSError:
+            return set()
+
+    leaves: set[str] = set()
     lines = yaml_text.split("\n")
     for i, line in enumerate(lines):
-        # Strip comments and whitespace
         stripped = line.split("#")[0].strip()
-
-        # Match both ``_leaf: true`` (v0) and ``leaf: true`` (v1)
         if stripped in ("_leaf: true", "leaf: true") and i > 0:
-            # Scan backwards for the node ID
             for j in range(i - 1, -1, -1):
                 prev = lines[j].split("#")[0].strip()
                 if not prev:
                     continue
-                # v1 format: ``- id: node_id`` or ``id: node_id``
                 if prev.startswith("- id:") or prev.startswith("id:"):
                     node_id = prev.split(":", 1)[1].strip()
                     if node_id:
                         leaves.add(node_id)
                     break
-                # v0 format: ``node_id:`` as a dict key
                 bare = prev.rstrip(":")
                 if bare != prev and bare and not bare.startswith("_"):
                     leaves.add(bare)
                     break
-                # Skip metadata lines (title:, children:, etc.) in v1
                 if ":" in prev:
                     continue
                 break
@@ -1614,8 +1660,17 @@ def run_extraction(args):
     pages = load_jsonl(args.pages)
     page_by_seq = {p["seq_index"]: p for p in pages}
     taxonomy_yaml = load_taxonomy_yaml(args.taxonomy)
-    taxonomy_leaves = extract_taxonomy_leaves(taxonomy_yaml)
+    taxonomy_leaves = extract_taxonomy_leaves(args.taxonomy, args.science)
     gold_text = load_gold_example(args.gold)
+
+    # BUG-004 fix: warn if --book-id doesn't match passages.jsonl
+    if passages:
+        passage_book_ids = {p.get("book_id") for p in passages if p.get("book_id")}
+        if passage_book_ids and args.book_id not in passage_book_ids:
+            print(f"  WARNING: --book-id '{args.book_id}' does not match "
+                  f"book_id(s) in passages.jsonl: {passage_book_ids}. "
+                  f"This may cause inconsistent output metadata.",
+                  file=sys.stderr)
 
     # Derive taxonomy filename for version string
     taxonomy_filename = Path(args.taxonomy).name
@@ -2014,7 +2069,7 @@ def main():
     parser.add_argument("--book-title", required=True,
                         help="Book title in Arabic")
     parser.add_argument("--science", required=True,
-                        help="Science: imlaa|sarf|nahw|balagha")
+                        help="Science name (e.g., imlaa, sarf, nahw, balagha, fiqh, hadith)")
     parser.add_argument("--gold", default=None,
                         help="Path to gold example JSON")
     parser.add_argument("--output-dir", required=True,

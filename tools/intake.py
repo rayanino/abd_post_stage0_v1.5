@@ -28,8 +28,13 @@ import yaml
 # ─── Constants ──────────────────────────────────────────────────────────────
 
 SCHEMA_VERSION = "intake_metadata_v0.2"
-VALID_SCIENCES = ("balagha", "sarf", "nahw", "imlaa", "adjacent", "unrelated", "multi")
-SINGLE_SCIENCES = ("balagha", "sarf", "nahw", "imlaa")
+# Core sciences (known and tested). New sciences are accepted via --science flag
+# or interactive prompt — the engine is science-agnostic.
+CORE_SCIENCES = ("balagha", "sarf", "nahw", "imlaa")
+# Valid values for --science CLI arg (includes classification categories)
+VALID_SCIENCES = (*CORE_SCIENCES, "adjacent", "unrelated", "multi")
+# Backwards compat alias
+SINGLE_SCIENCES = CORE_SCIENCES
 BOOK_ID_PATTERN = re.compile(r"^[a-z][a-z_]*[a-z]$")
 
 # Book type detection patterns (checked against title, title_formal, or unrecognized lines)
@@ -904,8 +909,8 @@ def main():
     parser.add_argument("source", nargs="?", default=None,
                         help="Source .htm file or directory of .htm files")
     parser.add_argument("--book-id", default=None, help="Short ASCII book identifier (3-40 chars)")
-    parser.add_argument("--science", default=None, choices=VALID_SCIENCES,
-                        help="Primary science declaration")
+    parser.add_argument("--science", default=None,
+                        help="Primary science (e.g., imlaa, sarf, nahw, balagha, fiqh, hadith)")
     parser.add_argument("--science-parts", help="YAML file mapping sections to sciences (required for --science multi)")
     parser.add_argument("--notes", help="Free-text edition/context notes")
     parser.add_argument("--shamela-id", type=int, metavar="N",

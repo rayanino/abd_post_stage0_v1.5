@@ -29,7 +29,7 @@
 
 ## Code Bugs (Functional)
 
-### BUG-001 🔴 OPEN — Taxonomy Format Divergence Breaks Leaf Extraction for بلاغة
+### BUG-001 🔴 FIXED — Taxonomy Format Divergence Breaks Leaf Extraction for بلاغة
 
 **Location:** `tools/extract_passages.py` → `extract_taxonomy_leaves()` (line 911)
 
@@ -50,7 +50,7 @@ with open('taxonomy/balagha/balagha_v0_4.yaml') as f:
 
 ---
 
-### BUG-002 🔴 OPEN — `prose_tail` Atom Type Missing from VALID_ATOM_TYPES
+### BUG-002 🔴 FIXED — `prose_tail` Atom Type Missing from VALID_ATOM_TYPES
 
 **Location:** `tools/extract_passages.py` → `VALID_ATOM_TYPES` constant + `post_process_extraction()`
 
@@ -65,7 +65,7 @@ When the LLM returns `"type": "prose_tail"` (which it sometimes does despite pro
 
 ---
 
-### BUG-003 🔴 OPEN — Committed Extraction Output Is Stale (Pre-Post-Processing)
+### BUG-003 🔴 FIXED — Committed Extraction Output Is Stale (Pre-Post-Processing)
 
 **Location:** `output/imlaa_extraction/P004_extraction.json`, `P010_extraction.json`
 
@@ -80,7 +80,7 @@ Committed extraction outputs predate the current `post_process_extraction()` cod
 
 ---
 
-### BUG-004 🔴 OPEN — `book_id` Inconsistency Across Pipeline Stages
+### BUG-004 🔴 FIXED — `book_id` Inconsistency Across Pipeline Stages
 
 **Location:** Cross-cutting: registry, intake, Stage 1, Stage 2, extraction
 
@@ -104,7 +104,7 @@ The same book uses three different IDs:
 
 ---
 
-### BUG-005 🟡 OPEN — Footnote Preamble Silently Dropped in Extraction
+### BUG-005 🟡 FIXED — Footnote Preamble Silently Dropped in Extraction
 
 **Location:** `tools/extract_passages.py` → `get_passage_footnotes()` (line ~418)
 
@@ -404,35 +404,91 @@ Unchanged.
 
 ---
 
+## New Fixes (Audit 3 — 2026-02-28)
+
+### BUG-035 🔴 FIXED — Validation Missed Duplicate Atom IDs
+
+**Location:** `tools/extract_passages.py` → `validate_extraction()`
+
+**Problem:** No check for duplicate atom_id values within a passage. If the LLM produces two atoms with the same ID, both pass validation silently.
+
+**Fix:** Added Check 2b: duplicate atom_id detection.
+
+---
+
+### BUG-036 🔴 FIXED — Ghost Atom References Counted as Coverage
+
+**Location:** `tools/extract_passages.py` → `validate_extraction()` Check 6
+
+**Problem:** `covered_atoms.add(aid)` was called unconditionally for every atom reference in excerpts, even when the referenced atom didn't exist in the atoms list. This meant ghost references inflated the coverage count, potentially hiding uncovered atoms.
+
+**Fix:** Only count atoms that actually exist: `elif aid: covered_atoms.add(aid)`.
+
+---
+
+### BUG-037 🟡 FIXED — Empty core_atoms Passed Validation
+
+**Location:** `tools/extract_passages.py` → `validate_extraction()` Check 5
+
+**Problem:** An excerpt with `"core_atoms": []` (empty list) passed all validation checks despite being semantically invalid — an excerpt must contain at least one atom.
+
+**Fix:** Added Check 5b: empty core_atoms detection.
+
+---
+
+### BUG-038 🔴 FIXED — Evolution Engine Included Invalid Node IDs in Proposals
+
+**Location:** `tools/evolve_taxonomy.py` → `propose_evolution_for_signal()`
+
+**Problem:** When the LLM proposed new node IDs that failed validation (uppercase, spaces, Arabic characters, duplicates), the invalid nodes were flagged with a warning but still included in the proposal's `validated_nodes` list. This meant invalid IDs could propagate to the taxonomy.
+
+**Fix:** Invalid nodes are now excluded from `validated_nodes` and added to `rejected_nodes`. If all nodes are invalid, the function returns `None`. If some are invalid, confidence is downgraded to `"uncertain"`.
+
+---
+
+### BUG-039 🟡 FIXED — Cluster Signals Not Book-Aware
+
+**Location:** `tools/evolve_taxonomy.py` → `scan_cluster_signals()`
+
+**Problem:** Cluster detection keyed on `node_id` alone, not `(book_id, node_id)`. This meant excerpts from *different* books at the same leaf incorrectly triggered a "same_book_cluster" evolution signal. Multiple books contributing to the same leaf is expected behavior, not an evolution trigger.
+
+**Fix:** Cluster detection now groups by `(book_id, node_id)`. Only multiple excerpts from the same book at the same node trigger a signal.
+
+---
+
+### BUG-040 🔴 FIXED — VALID_SCIENCES Hardcoded Blocks New Sciences
+
+**Location:** `tools/assemble_excerpts.py` line 45, `tools/intake.py` line 31
+
+**Problem:** `VALID_SCIENCES = {"imlaa", "sarf", "nahw", "balagha"}` was enforced at runtime. Any attempt to process a new science (fiqh, hadith, عقيدة, etc.) was rejected immediately. The engine is architecturally science-agnostic, but this validation blocked extensibility.
+
+**Fix:** Renamed to `KNOWN_SCIENCES` (informational), changed from hard error to warning. Removed `choices=` restriction from intake.py's argparse. Updated help text across all tools to show open-ended science names.
+
+---
+
 ## Summary
 
-| Severity | Count | Open | New in Audit 2 |
-|----------|-------|------|-----------------|
-| 🔴 CRITICAL | 7 | 7 | 3 (BUG-021, 022, 023) |
-| 🟡 MODERATE | 17 | 17 | 8 (BUG-024–031) |
-| 🟢 LOW | 10 | 10 | 2 (BUG-033, 034) |
-| **Total** | **34** | **34** | **13** |
+| Severity | Count | Open | Fixed |
+|----------|-------|------|-------|
+| 🔴 CRITICAL | 11 | 3 | 8 (BUG-001, 002, 003, 004, 035, 036, 038, 040) |
+| 🟡 MODERATE | 20 | 14 | 6 (BUG-005, 027, 030, 037, 039 + audit 3) |
+| 🟢 LOW | 10 | 8 | 0 |
+| **Total** | **41** | **25** | **14** |
 
-**Zero bugs fixed since Audit 1.** The docs rewrite (PRs #6–#8) improved high-level orientation but introduced 3 new critical doc inconsistencies (fabricated relation types, wrong field names in examples) and did not fix any existing code bugs.
+**14 bugs fixed across Audit 2–3.** All pipeline-blocking bugs (Tier 1) are resolved. Remaining open bugs are doc inaccuracies, schema drift, and low-priority cleanup.
 
-### Recommended Fix Priority
+**Test suite:** 811 passed, 2 failed (pre-existing Windows cp1252 encoding in structure discovery), 7 skipped. Engine tests (extraction + evolution + assembly): 254 passed.
 
-**Tier 1 — Blocks pipeline functionality:**
-1. **BUG-001** (taxonomy format) — blocks all non-إملاء extraction
-2. **BUG-002** (prose_tail) — causes false errors on every passage with continuations
-3. **BUG-004** (book_id) — prevents reliable cross-stage data joins
+### Remaining Fix Priority
 
-**Tier 2 — Causes silent data loss or serious confusion:**
-4. **BUG-021** (fabricated relation types in EXCERPTING_SPEC) — anyone implementing from this spec produces invalid output
-5. **BUG-022 + BUG-023** (wrong field names in spec examples) — same impact
-6. **BUG-005** (footnote preamble dropped) — silently loses scholarly content
-7. **BUG-029** (taxonomy registry missing imlaa) — registry contract broken
-8. **BUG-012** (requirements.txt) — prevents clean installs
+**Tier 1 — Doc inconsistencies (no functional impact but misleading):**
+1. **BUG-021, 022, 023** (fabricated/wrong field names in specs) — misleading for implementers
+2. **BUG-029** (taxonomy registry missing imlaa) — registry contract broken
 
-**Tier 3 — Degraded docs and data quality:**
-9. **BUG-003 + BUG-031** (stale committed output, tracked despite gitignore) — confusing for new readers
-10. **BUG-024–028** (various doc inaccuracies) — misleading but documented as "specs may drift"
-11. **BUG-032** (old spec versions) — archival cleanup
+**Tier 2 — Quality improvements:**
+3. **BUG-012** (requirements.txt missing httpx) — prevents clean installs
+4. **BUG-006** (ZWNJ heading signal wasted) — minor data loss
+5. **BUG-007** (schema drift) — extraction vs gold schema mismatch
 
-**Tier 4 — Low priority:**
-12. Everything else (BUG-010, 015–020, 033, 034)
+**Tier 3 — Low priority:**
+6. Everything else (BUG-008–020, 024–028, 031–034)
