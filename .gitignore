@@ -20,6 +20,12 @@ __pycache__/
 .pytest_cache/
 .venv/
 
+# ─── Overnight automation runtime artifacts ──────────────────────────
+# Generated at repo root by automation/overnight/abd_overnight.py
+.overnight_state.json
+OVERNIGHT_REPORT.md
+overnight-*.log
+
 # ─── OS / Editor ─────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
