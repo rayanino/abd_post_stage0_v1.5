@@ -51,6 +51,12 @@ MODEL_PRICING = {
     # Direct Anthropic (legacy single-model mode)
     "claude-sonnet-4-5-20250929": (3.0, 15.0),
     "claude-sonnet-4-20250514": (3.0, 15.0),
+    # Direct OpenAI (bare model names — no openai/ prefix)
+    "gpt-4o": (2.5, 10.0),
+    "gpt-4o-2024-08-06": (2.5, 10.0),
+    "gpt-4.1": (2.0, 8.0),
+    "gpt-4.1-mini": (0.4, 1.6),
+    "gpt-4o-mini": (0.15, 0.6),
 }
 
 
@@ -751,15 +757,130 @@ def call_llm_openrouter(system: str, user: str, model: str,
     }
 
 
+def call_llm_openai(system: str, user: str, model: str,
+                     api_key: str) -> dict:
+    """Call OpenAI API directly and return parsed JSON response.
+
+    Uses the same retry and response format as ``call_llm_openrouter``
+    but hits ``api.openai.com`` instead of OpenRouter.
+    """
+    import httpx
+
+    last_error = None
+    for attempt in range(_ANTHROPIC_MAX_RETRIES + 1):
+        try:
+            resp = httpx.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": 16384,
+                    "temperature": 0,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                },
+                timeout=240.0,
+            )
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+            last_error = e
+            if attempt >= _ANTHROPIC_MAX_RETRIES:
+                raise RuntimeError(
+                    f"OpenAI API connection failed after "
+                    f"{_ANTHROPIC_MAX_RETRIES + 1} attempts: {e}"
+                )
+            wait = _ANTHROPIC_RETRY_BACKOFF[min(attempt, len(_ANTHROPIC_RETRY_BACKOFF) - 1)]
+            print(f"    [retry {attempt + 1}] OpenAI connection error: {e}. "
+                  f"Waiting {wait}s...")
+            time.sleep(wait)
+            continue
+
+        if resp.status_code in _TRANSIENT_STATUS_CODES:
+            if attempt >= _ANTHROPIC_MAX_RETRIES:
+                raise RuntimeError(
+                    f"OpenAI API error {resp.status_code} after "
+                    f"{_ANTHROPIC_MAX_RETRIES + 1} attempts: {resp.text[:500]}"
+                )
+            wait = _ANTHROPIC_RETRY_BACKOFF[min(attempt, len(_ANTHROPIC_RETRY_BACKOFF) - 1)]
+            print(f"    [retry {attempt + 1}] OpenAI {resp.status_code}. "
+                  f"Waiting {wait}s...")
+            time.sleep(wait)
+            continue
+
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"OpenAI API error {resp.status_code}: {resp.text[:500]}"
+            )
+        break  # success
+
+    data = resp.json()
+    choice = data["choices"][0]
+    text = choice["message"]["content"]
+
+    # Strip markdown fences if present
+    text = text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+
+    usage = data.get("usage", {})
+    stop_reason = choice.get("finish_reason", "unknown")
+
+    # Parse JSON with truncation repair
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as e:
+        if stop_reason == "length" or "Unterminated" in str(e):
+            try:
+                parsed = json.loads(repair_truncated_json(text))
+            except json.JSONDecodeError:
+                raise RuntimeError(
+                    f"JSON parse failed even after repair (stop_reason={stop_reason}). "
+                    f"First 200 chars: {text[:200]}... Last 200 chars: ...{text[-200:]}"
+                )
+        else:
+            raise
+
+    return {
+        "parsed": parsed,
+        "input_tokens": usage.get("prompt_tokens", 0),
+        "output_tokens": usage.get("completion_tokens", 0),
+        "stop_reason": stop_reason,
+    }
+
+
+# OpenAI model prefixes for routing
+_OPENAI_MODEL_PREFIXES = ("gpt-", "o1-", "o3-", "o4-")
+
+
+def _is_openai_model(model: str) -> bool:
+    """Check if a model name should be routed to the OpenAI API."""
+    return any(model.startswith(p) for p in _OPENAI_MODEL_PREFIXES)
+
+
 def call_llm_dispatch(system: str, user: str, model: str,
-                       api_key: str, openrouter_key: str | None = None) -> dict:
+                       api_key: str, openrouter_key: str | None = None,
+                       openai_key: str | None = None) -> dict:
     """Dispatch LLM call to the appropriate provider.
 
-    If openrouter_key is provided and model contains '/', routes to OpenRouter.
-    Otherwise uses direct Anthropic API via call_llm.
+    Routing order:
+    1. If model contains '/' and openrouter_key is set → OpenRouter
+    2. If model starts with gpt-/o1-/o3-/o4- and openai_key is set → OpenAI direct
+    3. Otherwise → Anthropic direct API
     """
     if openrouter_key and "/" in model:
         return call_llm_openrouter(system, user, model, openrouter_key)
+    elif openai_key and _is_openai_model(model):
+        return call_llm_openai(system, user, model, openai_key)
     else:
         return call_llm(system, user, model, api_key)
 
@@ -1212,7 +1333,8 @@ def extract_taxonomy_leaves(yaml_text: str) -> set[str]:
 def attempt_correction(result: dict, issues: dict, passage_id: str,
                        system: str, model: str, api_key: str,
                        openrouter_key: str | None = None,
-                       passage_text: str = "") -> dict | None:
+                       passage_text: str = "",
+                       openai_key: str | None = None) -> dict | None:
     """Send a correction prompt and return the corrected result, or None."""
     # Format issues
     all_issues = []
@@ -1241,7 +1363,7 @@ def attempt_correction(result: dict, issues: dict, passage_id: str,
 
     try:
         response = call_llm_dispatch(system, user_msg, model, api_key,
-                                     openrouter_key)
+                                     openrouter_key, openai_key)
         return response
     except Exception as e:
         print(f"    Correction call failed: {e}")
@@ -1385,6 +1507,7 @@ def extract_single_model(
     max_retries: int,
     openrouter_key: str | None = None,
     passage_text: str = "",
+    openai_key: str | None = None,
 ) -> tuple[dict, dict, dict, int]:
     """Run extraction with one model, including correction retries.
 
@@ -1393,7 +1516,8 @@ def extract_single_model(
                        "output_tokens": int, "total_cost": float}
     """
     t0 = time.time()
-    response = call_llm_dispatch(system, user, model, api_key, openrouter_key)
+    response = call_llm_dispatch(system, user, model, api_key, openrouter_key,
+                                 openai_key)
     elapsed = time.time() - t0
 
     result = response["parsed"]
@@ -1428,7 +1552,7 @@ def extract_single_model(
             print(f"  [{model}] Correction attempt {retry + 1}/{max_retries}...")
             correction = attempt_correction(
                 result, issues, pid, system, model, api_key, openrouter_key,
-                passage_text,
+                passage_text, openai_key,
             )
             if correction is None:
                 break
@@ -1483,6 +1607,7 @@ def run_extraction(args):
     consensus_mode = getattr(args, "consensus_mode", False)
     model_list = getattr(args, "model_list", [args.model])
     openrouter_key = getattr(args, "openrouter_key", None)
+    openai_key = getattr(args, "openai_key", None)
 
     # Filter passages if specified
     if args.passage_ids:
@@ -1602,7 +1727,7 @@ def run_extraction(args):
                     system, user, args.model, args.api_key,
                     args.book_id, args.science, taxonomy_filename,
                     pid, taxonomy_leaves, max_retries, openrouter_key,
-                    passage_text,
+                    passage_text, openai_key,
                 )
             except Exception as e:
                 print(f"  ERROR: {e}")
@@ -1635,7 +1760,7 @@ def run_extraction(args):
                         system, user, model, args.api_key,
                         args.book_id, args.science, taxonomy_filename,
                         pid, taxonomy_leaves, max_retries, openrouter_key,
-                        passage_text,
+                        passage_text, openai_key,
                     )
                     per_model_results[model] = m_result
                     per_model_issues[model] = m_issues
@@ -1678,7 +1803,7 @@ def run_extraction(args):
                 if arbiter_model:
                     def call_llm_fn(sys_p, usr_p, mdl, key):
                         return call_llm_dispatch(sys_p, usr_p, mdl, key,
-                                                 openrouter_key)
+                                                 openrouter_key, openai_key)
 
                 models = list(per_model_results.keys())
                 if len(models) > 2:
@@ -1703,7 +1828,7 @@ def run_extraction(args):
                     threshold=getattr(args, "consensus_threshold", 0.5),
                     call_llm_fn=call_llm_fn,
                     arbiter_model=arbiter_model,
-                    arbiter_api_key=openrouter_key or args.api_key,
+                    arbiter_api_key=openrouter_key or openai_key or args.api_key,
                     taxonomy_yaml=taxonomy_yaml,
                     passage_text=passage_text,
                     arbiter_pricing=arbiter_pricing,
@@ -1888,11 +2013,16 @@ def main():
 
     # Multi-model consensus arguments
     parser.add_argument("--models", default=None,
-                        help="Comma-separated OpenRouter model IDs for consensus "
+                        help="Comma-separated model IDs for consensus. "
+                             "Supports bare names for direct API "
+                             "(e.g., 'claude-sonnet-4-5-20250929,gpt-4o') or "
+                             "OpenRouter prefixed names "
                              "(e.g., 'anthropic/claude-sonnet-4-5-20250929,"
                              "openai/gpt-4o'). Enables consensus when 2+ models.")
     parser.add_argument("--openrouter-key", default=None,
                         help="OpenRouter API key (or set OPENROUTER_API_KEY)")
+    parser.add_argument("--openai-key", default=None,
+                        help="OpenAI API key (or set OPENAI_API_KEY)")
     parser.add_argument("--consensus-prefer", default=None,
                         help="Model to prefer when breaking ties in consensus")
     parser.add_argument("--consensus-threshold", type=float, default=0.5,
@@ -1905,11 +2035,11 @@ def main():
 
     args = parser.parse_args()
 
-    # Resolve OpenRouter key
+    # Resolve API keys from env vars
     if not args.openrouter_key:
         args.openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-
-    # Resolve Anthropic API key (for single-model legacy mode)
+    if not args.openai_key:
+        args.openai_key = os.environ.get("OPENAI_API_KEY")
     if not args.api_key:
         args.api_key = os.environ.get("ANTHROPIC_API_KEY")
 
@@ -1917,21 +2047,47 @@ def main():
     if args.models:
         args.model_list = [m.strip() for m in args.models.split(",")]
         args.consensus_mode = len(args.model_list) >= 2
-        # Consensus mode requires OpenRouter key
-        if not args.openrouter_key and not args.dry_run:
-            print("ERROR: Consensus mode requires --openrouter-key or "
-                  "OPENROUTER_API_KEY")
-            sys.exit(1)
+        # Consensus mode needs keys for every model provider in the list
+        if not args.dry_run:
+            has_anthropic = any(
+                not _is_openai_model(m) and "/" not in m
+                for m in args.model_list
+            )
+            has_openai = any(
+                _is_openai_model(m) for m in args.model_list
+            )
+            has_openrouter = any("/" in m for m in args.model_list)
+            if has_anthropic and not args.api_key:
+                print("ERROR: Anthropic model in --models but no "
+                      "--api-key or ANTHROPIC_API_KEY")
+                sys.exit(1)
+            if has_openai and not args.openai_key:
+                print("ERROR: OpenAI model in --models but no "
+                      "--openai-key or OPENAI_API_KEY")
+                sys.exit(1)
+            if has_openrouter and not args.openrouter_key:
+                print("ERROR: OpenRouter model (with /) in --models but no "
+                      "--openrouter-key or OPENROUTER_API_KEY")
+                sys.exit(1)
     else:
         args.model_list = [args.model]
         args.consensus_mode = False
 
-    # Single-model mode requires either direct API key or OpenRouter key
-    if not args.consensus_mode and not args.api_key and not args.openrouter_key \
-       and not args.dry_run:
-        print("ERROR: No API key provided. Use --api-key or set "
-              "ANTHROPIC_API_KEY (or use --openrouter-key for OpenRouter)")
-        sys.exit(1)
+    # Single-model mode requires the right key for the chosen model
+    if not args.consensus_mode and not args.dry_run:
+        m = args.model
+        if "/" in m and not args.openrouter_key:
+            print("ERROR: OpenRouter model requires --openrouter-key or "
+                  "OPENROUTER_API_KEY")
+            sys.exit(1)
+        elif _is_openai_model(m) and not args.openai_key:
+            print("ERROR: OpenAI model requires --openai-key or "
+                  "OPENAI_API_KEY")
+            sys.exit(1)
+        elif not _is_openai_model(m) and "/" not in m and not args.api_key:
+            print("ERROR: No API key provided. Use --api-key or set "
+                  "ANTHROPIC_API_KEY")
+            sys.exit(1)
 
     run_extraction(args)
 

@@ -29,8 +29,10 @@ from extract_passages import (
     EXCERPT_ID_RE,
     MODEL_PRICING,
     _extract_atom_id,
+    _is_openai_model,
     _normalize_atom_entries,
     _model_short,
+    call_llm_dispatch,
     extract_taxonomy_leaves,
     generate_review_md,
     get_model_cost,
@@ -1058,3 +1060,128 @@ class TestCorrectionPromptHasPassageText:
         from tools.extract_passages import attempt_correction
         sig = inspect.signature(attempt_correction)
         assert "passage_text" in sig.parameters
+
+
+# ========================================================================
+# OpenAI direct API routing
+# ========================================================================
+
+class TestIsOpenaiModel:
+    """_is_openai_model correctly identifies OpenAI model names."""
+
+    def test_gpt4o(self):
+        assert _is_openai_model("gpt-4o") is True
+
+    def test_gpt4o_dated(self):
+        assert _is_openai_model("gpt-4o-2024-08-06") is True
+
+    def test_gpt41(self):
+        assert _is_openai_model("gpt-4.1") is True
+
+    def test_gpt41_mini(self):
+        assert _is_openai_model("gpt-4.1-mini") is True
+
+    def test_o1_prefix(self):
+        assert _is_openai_model("o1-preview") is True
+
+    def test_o3_prefix(self):
+        assert _is_openai_model("o3-mini") is True
+
+    def test_o4_prefix(self):
+        assert _is_openai_model("o4-mini") is True
+
+    def test_claude_not_openai(self):
+        assert _is_openai_model("claude-sonnet-4-5-20250929") is False
+
+    def test_openrouter_prefixed_not_detected(self):
+        """OpenRouter-prefixed models should NOT match bare prefix check."""
+        assert _is_openai_model("openai/gpt-4o") is False
+
+    def test_anthropic_prefixed_not_detected(self):
+        assert _is_openai_model("anthropic/claude-sonnet-4-5-20250929") is False
+
+
+class TestOpenAIPricing:
+    """MODEL_PRICING has entries for bare OpenAI model names."""
+
+    def test_gpt4o_in_pricing(self):
+        assert "gpt-4o" in MODEL_PRICING
+
+    def test_gpt41_in_pricing(self):
+        assert "gpt-4.1" in MODEL_PRICING
+
+    def test_gpt4o_mini_in_pricing(self):
+        assert "gpt-4o-mini" in MODEL_PRICING
+
+    def test_cost_calculation(self):
+        cost = get_model_cost("gpt-4o", 1000, 500)
+        assert cost > 0
+
+
+class TestCallLlmDispatchRouting:
+    """call_llm_dispatch routes to the correct provider based on model name."""
+
+    def test_openrouter_route_takes_priority(self):
+        """OpenRouter-prefixed models route to OpenRouter when key present."""
+        from unittest.mock import patch, MagicMock
+        mock_resp = {"parsed": {}, "input_tokens": 0,
+                     "output_tokens": 0, "stop_reason": "stop"}
+        with patch("extract_passages.call_llm_openrouter",
+                   return_value=mock_resp) as mock_or:
+            call_llm_dispatch("sys", "usr", "anthropic/claude-sonnet-4-5-20250929",
+                              "ant-key", openrouter_key="or-key")
+            mock_or.assert_called_once()
+
+    def test_openai_route(self):
+        """Bare gpt-* models route to OpenAI when openai_key present."""
+        from unittest.mock import patch, MagicMock
+        mock_resp = {"parsed": {}, "input_tokens": 0,
+                     "output_tokens": 0, "stop_reason": "stop"}
+        with patch("extract_passages.call_llm_openai",
+                   return_value=mock_resp) as mock_oa:
+            call_llm_dispatch("sys", "usr", "gpt-4o", "ant-key",
+                              openai_key="oa-key")
+            mock_oa.assert_called_once_with("sys", "usr", "gpt-4o", "oa-key")
+
+    def test_anthropic_fallback(self):
+        """Non-OpenAI, non-OpenRouter models route to Anthropic."""
+        from unittest.mock import patch, MagicMock
+        mock_resp = {"parsed": {}, "input_tokens": 0,
+                     "output_tokens": 0, "stop_reason": "stop"}
+        with patch("extract_passages.call_llm",
+                   return_value=mock_resp) as mock_ant:
+            call_llm_dispatch("sys", "usr", "claude-sonnet-4-5-20250929",
+                              "ant-key")
+            mock_ant.assert_called_once_with("sys", "usr",
+                                             "claude-sonnet-4-5-20250929",
+                                             "ant-key")
+
+    def test_openai_without_key_falls_to_anthropic(self):
+        """If no openai_key, a gpt-* model falls through to Anthropic."""
+        from unittest.mock import patch
+        mock_resp = {"parsed": {}, "input_tokens": 0,
+                     "output_tokens": 0, "stop_reason": "stop"}
+        with patch("extract_passages.call_llm",
+                   return_value=mock_resp) as mock_ant:
+            call_llm_dispatch("sys", "usr", "gpt-4o", "ant-key")
+            mock_ant.assert_called_once()
+
+
+class TestAttemptCorrectionAcceptsOpenaiKey:
+    """attempt_correction signature includes openai_key."""
+
+    def test_signature_has_openai_key(self):
+        import inspect
+        from tools.extract_passages import attempt_correction
+        sig = inspect.signature(attempt_correction)
+        assert "openai_key" in sig.parameters
+
+
+class TestExtractSingleModelAcceptsOpenaiKey:
+    """extract_single_model signature includes openai_key."""
+
+    def test_signature_has_openai_key(self):
+        import inspect
+        from tools.extract_passages import extract_single_model
+        sig = inspect.signature(extract_single_model)
+        assert "openai_key" in sig.parameters
