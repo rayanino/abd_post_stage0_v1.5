@@ -29,8 +29,11 @@ from extract_passages import (
     EXCERPT_ID_RE,
     MODEL_PRICING,
     _extract_atom_id,
+    _is_openai_model,
+    _resolve_key_for_model,
     _normalize_atom_entries,
     _model_short,
+    call_llm_dispatch,
     extract_taxonomy_leaves,
     generate_review_md,
     get_model_cost,
@@ -38,6 +41,7 @@ from extract_passages import (
     get_passage_text,
     load_gold_example,
     post_process_extraction,
+    repair_truncated_json,
     validate_extraction,
 )
 
@@ -935,3 +939,284 @@ class TestModelPricingRegistry:
         assert "claude-sonnet-4-5-20250929" in MODEL_PRICING
         assert "openai/gpt-4o" in MODEL_PRICING
         assert "anthropic/claude-sonnet-4-5-20250929" in MODEL_PRICING
+
+
+# ========================================================================
+# G02: extract_taxonomy_leaves handles v1 YAML format
+# ========================================================================
+
+class TestExtractTaxonomyLeavesV1:
+    """G02: Leaf extraction must work with both v0 and v1 taxonomy YAML."""
+
+    def test_v1_format(self):
+        yaml_text = (
+            "taxonomy:\n"
+            "  id: imlaa_v1_0\n"
+            "  nodes:\n"
+            "  - id: muqaddimat\n"
+            "    title: مقدمات\n"
+            "    children:\n"
+            "    - id: ta3rif_alimlaa_lugha\n"
+            "      title: تعريف الإملاء لغة\n"
+            "      leaf: true\n"
+            "    - id: ta3rif_alimlaa_istilah\n"
+            "      title: تعريف الإملاء اصطلاحا\n"
+            "      leaf: true\n"
+            "    - id: branch_node\n"
+            "      title: فرع\n"
+            "      children:\n"
+            "      - id: deep_leaf\n"
+            "        title: ورقة عميقة\n"
+            "        leaf: true\n"
+        )
+        leaves = extract_taxonomy_leaves(yaml_text)
+        assert "ta3rif_alimlaa_lugha" in leaves
+        assert "ta3rif_alimlaa_istilah" in leaves
+        assert "deep_leaf" in leaves
+        # Branch nodes should NOT be leaves
+        assert "muqaddimat" not in leaves
+        assert "branch_node" not in leaves
+
+    def test_v0_format_still_works(self):
+        yaml_text = (
+            "ta3rif_alimlaa_lugha:\n"
+            "  _leaf: true\n"
+            "mawdu3_alimlaa:\n"
+            "  _leaf: true\n"
+            "branch:\n"
+            "  children:\n"
+        )
+        leaves = extract_taxonomy_leaves(yaml_text)
+        assert "ta3rif_alimlaa_lugha" in leaves
+        assert "mawdu3_alimlaa" in leaves
+        assert "branch" not in leaves
+
+    def test_real_v1_taxonomy_file(self):
+        """Test against the actual imlaa v1 taxonomy file."""
+        import os
+        path = os.path.join("taxonomy", "imlaa", "imlaa_v1_0.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("v1 taxonomy file not found")
+        with open(path, encoding="utf-8") as f:
+            yaml_text = f.read()
+        leaves = extract_taxonomy_leaves(yaml_text)
+        # v1 imlaa has 105 leaves per CLAUDE.md
+        assert len(leaves) >= 100, f"Expected ~105 leaves, got {len(leaves)}"
+        # Spot check known leaves
+        assert "ta3rif_alimlaa_lugha" in leaves
+
+    def test_empty_yaml(self):
+        assert extract_taxonomy_leaves("") == set()
+        assert extract_taxonomy_leaves("# just a comment\n") == set()
+
+
+# ========================================================================
+# G04: repair_truncated_json backslash edge case
+# ========================================================================
+
+class TestRepairTruncatedJsonBackslash:
+    """G04: Truncation right after a backslash inside a JSON string
+    must not produce escaped-quote that breaks JSON."""
+
+    def test_truncated_after_backslash(self):
+        # Truncated right after \ inside a string
+        text = '{"text": "some text\\'
+        repaired = repair_truncated_json(text)
+        # Should be parseable JSON
+        import json
+        parsed = json.loads(repaired)
+        assert "text" in parsed
+
+    def test_truncated_after_backslash_n(self):
+        # \n is a complete escape — truncation after \n is fine
+        text = '{"text": "line1\\nline2'
+        repaired = repair_truncated_json(text)
+        import json
+        parsed = json.loads(repaired)
+        assert "line1\nline2" == parsed["text"]
+
+    def test_truncated_with_arabic_and_backslash(self):
+        text = '{"atom_id": "q:m:001", "text": "وقد اختلف العلماء في هذ\\'
+        repaired = repair_truncated_json(text)
+        import json
+        parsed = json.loads(repaired)
+        assert "atom_id" in parsed
+
+
+# ========================================================================
+# G05: Correction prompt includes passage text
+# ========================================================================
+
+class TestCorrectionPromptHasPassageText:
+    """G05: The correction prompt template must include passage_text."""
+
+    def test_template_has_passage_text_field(self):
+        from tools.extract_passages import CORRECTION_PROMPT
+        assert "{passage_text}" in CORRECTION_PROMPT
+
+    def test_attempt_correction_accepts_passage_text(self):
+        """The function signature accepts passage_text parameter."""
+        import inspect
+        from tools.extract_passages import attempt_correction
+        sig = inspect.signature(attempt_correction)
+        assert "passage_text" in sig.parameters
+
+
+# ========================================================================
+# OpenAI direct API routing
+# ========================================================================
+
+class TestIsOpenaiModel:
+    """_is_openai_model correctly identifies OpenAI model names."""
+
+    def test_gpt4o(self):
+        assert _is_openai_model("gpt-4o") is True
+
+    def test_gpt4o_dated(self):
+        assert _is_openai_model("gpt-4o-2024-08-06") is True
+
+    def test_gpt41(self):
+        assert _is_openai_model("gpt-4.1") is True
+
+    def test_gpt41_mini(self):
+        assert _is_openai_model("gpt-4.1-mini") is True
+
+    def test_o1_prefix(self):
+        assert _is_openai_model("o1-preview") is True
+
+    def test_o3_prefix(self):
+        assert _is_openai_model("o3-mini") is True
+
+    def test_o4_prefix(self):
+        assert _is_openai_model("o4-mini") is True
+
+    def test_claude_not_openai(self):
+        assert _is_openai_model("claude-sonnet-4-5-20250929") is False
+
+    def test_openrouter_prefixed_not_detected(self):
+        """OpenRouter-prefixed models should NOT match bare prefix check."""
+        assert _is_openai_model("openai/gpt-4o") is False
+
+    def test_anthropic_prefixed_not_detected(self):
+        assert _is_openai_model("anthropic/claude-sonnet-4-5-20250929") is False
+
+
+class TestOpenAIPricing:
+    """MODEL_PRICING has entries for bare OpenAI model names."""
+
+    def test_gpt4o_in_pricing(self):
+        assert "gpt-4o" in MODEL_PRICING
+
+    def test_gpt41_in_pricing(self):
+        assert "gpt-4.1" in MODEL_PRICING
+
+    def test_gpt4o_mini_in_pricing(self):
+        assert "gpt-4o-mini" in MODEL_PRICING
+
+    def test_cost_calculation(self):
+        cost = get_model_cost("gpt-4o", 1000, 500)
+        assert cost > 0
+
+
+class TestCallLlmDispatchRouting:
+    """call_llm_dispatch routes to the correct provider based on model name."""
+
+    def test_openrouter_route_takes_priority(self):
+        """OpenRouter-prefixed models route to OpenRouter when key present."""
+        from unittest.mock import patch, MagicMock
+        mock_resp = {"parsed": {}, "input_tokens": 0,
+                     "output_tokens": 0, "stop_reason": "stop"}
+        with patch("extract_passages.call_llm_openrouter",
+                   return_value=mock_resp) as mock_or:
+            call_llm_dispatch("sys", "usr", "anthropic/claude-sonnet-4-5-20250929",
+                              "ant-key", openrouter_key="or-key")
+            mock_or.assert_called_once()
+
+    def test_openai_route(self):
+        """Bare gpt-* models route to OpenAI when openai_key present."""
+        from unittest.mock import patch, MagicMock
+        mock_resp = {"parsed": {}, "input_tokens": 0,
+                     "output_tokens": 0, "stop_reason": "stop"}
+        with patch("extract_passages.call_llm_openai",
+                   return_value=mock_resp) as mock_oa:
+            call_llm_dispatch("sys", "usr", "gpt-4o", "ant-key",
+                              openai_key="oa-key")
+            mock_oa.assert_called_once_with("sys", "usr", "gpt-4o", "oa-key")
+
+    def test_anthropic_fallback(self):
+        """Non-OpenAI, non-OpenRouter models route to Anthropic."""
+        from unittest.mock import patch, MagicMock
+        mock_resp = {"parsed": {}, "input_tokens": 0,
+                     "output_tokens": 0, "stop_reason": "stop"}
+        with patch("extract_passages.call_llm",
+                   return_value=mock_resp) as mock_ant:
+            call_llm_dispatch("sys", "usr", "claude-sonnet-4-5-20250929",
+                              "ant-key")
+            mock_ant.assert_called_once_with("sys", "usr",
+                                             "claude-sonnet-4-5-20250929",
+                                             "ant-key")
+
+    def test_openai_without_key_falls_to_anthropic(self):
+        """If no openai_key, a gpt-* model falls through to Anthropic."""
+        from unittest.mock import patch
+        mock_resp = {"parsed": {}, "input_tokens": 0,
+                     "output_tokens": 0, "stop_reason": "stop"}
+        with patch("extract_passages.call_llm",
+                   return_value=mock_resp) as mock_ant:
+            call_llm_dispatch("sys", "usr", "gpt-4o", "ant-key")
+            mock_ant.assert_called_once()
+
+
+class TestAttemptCorrectionAcceptsOpenaiKey:
+    """attempt_correction signature includes openai_key."""
+
+    def test_signature_has_openai_key(self):
+        import inspect
+        from tools.extract_passages import attempt_correction
+        sig = inspect.signature(attempt_correction)
+        assert "openai_key" in sig.parameters
+
+
+class TestExtractSingleModelAcceptsOpenaiKey:
+    """extract_single_model signature includes openai_key."""
+
+    def test_signature_has_openai_key(self):
+        import inspect
+        from tools.extract_passages import extract_single_model
+        sig = inspect.signature(extract_single_model)
+        assert "openai_key" in sig.parameters
+
+
+class TestResolveKeyForModel:
+    """_resolve_key_for_model returns the correct key per provider."""
+
+    def test_anthropic_model_gets_anthropic_key(self):
+        key = _resolve_key_for_model(
+            "claude-sonnet-4-5-20250929", "ant-key",
+            openrouter_key=None, openai_key="oa-key")
+        assert key == "ant-key"
+
+    def test_openai_model_gets_openai_key(self):
+        key = _resolve_key_for_model(
+            "gpt-4o", "ant-key",
+            openrouter_key=None, openai_key="oa-key")
+        assert key == "oa-key"
+
+    def test_openrouter_model_gets_openrouter_key(self):
+        key = _resolve_key_for_model(
+            "anthropic/claude-sonnet-4-5-20250929", "ant-key",
+            openrouter_key="or-key", openai_key="oa-key")
+        assert key == "or-key"
+
+    def test_openai_model_without_key_falls_to_anthropic(self):
+        key = _resolve_key_for_model(
+            "gpt-4o", "ant-key",
+            openrouter_key=None, openai_key=None)
+        assert key == "ant-key"
+
+    def test_o1_model_gets_openai_key(self):
+        key = _resolve_key_for_model(
+            "o1-preview", "ant-key",
+            openrouter_key=None, openai_key="oa-key")
+        assert key == "oa-key"

@@ -4,6 +4,7 @@ Tests for Multi-Model Consensus Engine (tools/consensus.py)
 Run: python -m pytest tests/test_consensus.py -q
 """
 
+import json
 import sys
 import os
 import pytest
@@ -32,6 +33,7 @@ from tools.consensus import (
     build_consensus,
     generate_consensus_review_section,
     _extract_taxonomy_context,
+    resolve_placement_disagreement,
 )
 
 
@@ -569,14 +571,15 @@ class TestBuildConsensusPlacementDisagreement:
             issues_a, issues_b,
             # No call_llm_fn → no arbiter
         )
-        # Disagreement excerpt should have medium confidence
+        # H05: Disagreement with no arbiter should have "low" confidence
+        # (uncertain decisions must surface in human review)
         meta = consensus["consensus_meta"]
         disagreement_excerpts = [
             pe for pe in meta["per_excerpt"]
             if pe["agreement"] == "placement_disagreement"
         ]
         assert len(disagreement_excerpts) == 1
-        assert disagreement_excerpts[0]["confidence"] == "medium"
+        assert disagreement_excerpts[0]["confidence"] == "low"
 
 
 class TestBuildConsensusUnmatchedExcerpts:
@@ -1718,12 +1721,20 @@ class TestMergeAtomsForConsensus:
         ids = {a["atom_id"] for a in merged}
         # shared:001 is in winning (A), collision means B's gets tagged
         assert "shared:001" in ids  # A's version
-        tagged = [aid for aid in ids if ":gpt4o" in aid]
+        # G03: disambiguation uses _tag suffix (not :tag) to keep valid ID format
+        tagged = [aid for aid in ids if "_gpt4o" in aid]
         assert len(tagged) == 1  # B's version disambiguated
-        # Excerpt should be remapped too
-        exc_ref = exc_b["core_atoms"][0]
-        remapped_id = exc_ref["atom_id"] if isinstance(exc_ref, dict) else exc_ref
+        assert tagged[0] == "shared:001_gpt4o"
+        # The consensus_excerpts entry should have been deep-copied and remapped
+        # (original exc_b is not mutated thanks to F03 deep-copy fix)
+        ce_exc = consensus_excerpts[0]["excerpt"]
+        ce_ref = ce_exc["core_atoms"][0]
+        remapped_id = ce_ref["atom_id"] if isinstance(ce_ref, dict) else ce_ref
         assert "gpt4o" in remapped_id
+        # Original should be UNCHANGED (F03: deep-copy protects originals)
+        orig_ref = exc_b["core_atoms"][0]
+        orig_id = orig_ref["atom_id"] if isinstance(orig_ref, dict) else orig_ref
+        assert orig_id == "shared:001"
 
     def test_no_collision_same_text(self):
         """Same atom_id same text → no disambiguation needed."""
@@ -2295,3 +2306,664 @@ class TestReviewSectionContextAtoms:
         md = generate_consensus_review_section(meta)
         assert "Context Atom Disagreements" in md
         assert "ea:001" in md
+
+
+# ===========================================================================
+# AUDIT ROUND 2 TESTS — verify F01-F26 fixes
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# F01: Stack-based JSON repair
+# ---------------------------------------------------------------------------
+
+class TestRepairTruncatedJson:
+    """Test that the new stack-based repair handles brackets inside strings."""
+
+    def test_brackets_inside_strings_not_counted(self):
+        from tools.extract_passages import repair_truncated_json
+        # Arabic text with [1] inside a string, then truncated
+        text = '{"atoms": [{"text": "أقسام [1]", "id": "a1"'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert parsed["atoms"][0]["text"] == "أقسام [1]"
+        assert parsed["atoms"][0]["id"] == "a1"
+
+    def test_truncated_mid_string(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"key": "value", "trunc": "abc'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert parsed["key"] == "value"
+        assert "abc" in parsed["trunc"]
+
+    def test_nested_structures(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"a": [{"b": [1, 2'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert parsed["a"][0]["b"] == [1, 2]
+
+    def test_already_complete_json(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"key": "value"}'
+        assert repair_truncated_json(text) == text
+
+    def test_escaped_quotes(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"key": "val\\"ue'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert 'val"ue' in parsed["key"]
+
+
+# ---------------------------------------------------------------------------
+# F03: Deep-copy protects original model results from remap mutation
+# ---------------------------------------------------------------------------
+
+class TestDeepCopyProtectsOriginals:
+    def test_original_result_not_mutated_by_consensus(self):
+        """After consensus, original per_model_results should be unchanged."""
+        atoms_a = [_make_atom("shared:001", "prose_sentence", "Text A version")]
+        atoms_b = [_make_atom("shared:001", "prose_sentence", "Text B different")]
+        exc_a = _make_excerpt("ea:001", ["shared:001"], taxonomy_node_id="leaf_a")
+        exc_b = _make_excerpt("eb:001", ["shared:001"], taxonomy_node_id="leaf_b")
+        ra = _make_result(atoms_a, [exc_a])
+        rb = _make_result(atoms_b, [exc_b])
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        # Save original state of model B's excerpt
+        orig_b_atom_id = rb["excerpts"][0]["core_atoms"][0]["atom_id"]
+
+        def pick_b_llm(system, user, model, api_key):
+            return {
+                "parsed": {
+                    "correct_placement": "leaf_b",
+                    "reasoning": "B is right",
+                    "confidence": "certain",
+                },
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "stop_reason": "end_turn",
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=pick_b_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+
+        # Original model B result should NOT have remapped atom IDs
+        assert rb["excerpts"][0]["core_atoms"][0]["atom_id"] == orig_b_atom_id
+
+
+# ---------------------------------------------------------------------------
+# F05: _unmapped variant mismatch doesn't trigger arbiter
+# ---------------------------------------------------------------------------
+
+class TestUnmappedVariantMismatch:
+    def test_different_unmapped_variants_no_arbiter(self):
+        """_unmapped vs __unmapped should be both_unmapped, not placement_disagreement."""
+        atoms_a = [_make_atom("a1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        atoms_b = [_make_atom("b1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        exc_a = _make_excerpt("ea:001", ["a1"], taxonomy_node_id="_unmapped")
+        exc_b = _make_excerpt("eb:001", ["b1"], taxonomy_node_id="__unmapped")
+        ra = _make_result(atoms_a, [exc_a])
+        rb = _make_result(atoms_b, [exc_b])
+
+        arbiter_called = [False]
+
+        def spy_llm(system, user, model, api_key):
+            arbiter_called[0] = True
+            return {
+                "parsed": {"correct_placement": "_unmapped",
+                           "reasoning": "test", "confidence": "certain"},
+                "input_tokens": 10, "output_tokens": 5, "stop_reason": "end_turn",
+            }
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=spy_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+        meta = consensus["consensus_meta"]
+        assert meta["both_unmapped_count"] == 1
+        assert meta["placement_disagreement_count"] == 0
+        # Arbiter should NOT have been called
+        assert not arbiter_called[0]
+
+
+# ---------------------------------------------------------------------------
+# F09: Consensus output atoms are filtered to referenced-only
+# ---------------------------------------------------------------------------
+
+class TestConsensusAtomFiltering:
+    def test_unreferenced_atoms_removed(self):
+        """Winning model atoms not in any consensus excerpt should be filtered out."""
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_different_taxonomy()
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def pick_b_llm(system, user, model, api_key):
+            return {
+                "parsed": {
+                    "correct_placement": "al_hala_2_tursam_wawan",
+                    "reasoning": "B is right",
+                    "confidence": "certain",
+                },
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "stop_reason": "end_turn",
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=pick_b_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+
+        # Every atom in the output should be referenced by some excerpt,
+        # or be a heading/prose_tail/exclusion
+        atom_ids = {a["atom_id"] for a in consensus["atoms"]}
+        referenced = set()
+        for exc in consensus["excerpts"]:
+            for entry in (exc.get("core_atoms") or []):
+                aid = entry["atom_id"] if isinstance(entry, dict) else entry
+                referenced.add(aid)
+            for entry in (exc.get("context_atoms") or []):
+                aid = entry["atom_id"] if isinstance(entry, dict) else entry
+                referenced.add(aid)
+        excluded = {e.get("atom_id", "") for e in consensus["exclusions"]}
+        heading_or_tail = set()
+        for a in consensus["atoms"]:
+            if a.get("atom_type") == "heading" or a.get("is_prose_tail"):
+                heading_or_tail.add(a["atom_id"])
+        allowed = referenced | excluded | heading_or_tail
+        orphan_atoms = atom_ids - allowed
+        assert orphan_atoms == set(), f"Unreferenced atoms in output: {orphan_atoms}"
+
+    def test_full_agreement_atoms_filtered(self):
+        """Even in full agreement, only referenced atoms should remain."""
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_same_taxonomy()
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        # Should have atoms referenced by the 2 excerpts + heading in exclusions
+        assert len(consensus["atoms"]) >= 2  # at least the 2 core atoms
+
+
+# ========================================================================
+# G01: _extract_taxonomy_context parses both v0 and v1 YAML
+# ========================================================================
+
+class TestExtractTaxonomyContextV1:
+    """G01: The arbiter taxonomy context parser must find node IDs in both
+    v0 (dict-key) and v1 (- id: value) YAML formats."""
+
+    def test_v1_format_finds_node(self):
+        yaml_text = (
+            "  - id: ta3rif_alimlaa_lugha\n"
+            "    title: تعريف الإملاء لغة\n"
+            "    leaf: true\n"
+            "  - id: other_node\n"
+            "    title: Other\n"
+            "    leaf: true\n"
+        )
+        result = _extract_taxonomy_context(
+            yaml_text, "ta3rif_alimlaa_lugha", "other_node"
+        )
+        assert "ta3rif_alimlaa_lugha" in result
+        assert "other_node" in result
+        assert "not found" not in result
+
+    def test_v0_format_finds_node(self):
+        yaml_text = (
+            "  ta3rif_alimlaa_lugha:\n"
+            "    _leaf: true\n"
+            "  other_node:\n"
+            "    _leaf: true\n"
+        )
+        result = _extract_taxonomy_context(
+            yaml_text, "ta3rif_alimlaa_lugha", "other_node"
+        )
+        assert "ta3rif_alimlaa_lugha" in result
+        assert "not found" not in result
+
+    def test_fallback_when_not_found(self):
+        yaml_text = "  - id: something_else\n    leaf: true\n"
+        result = _extract_taxonomy_context(
+            yaml_text, "nonexistent_a", "nonexistent_b"
+        )
+        assert "not found" in result
+
+    def test_deduplicates_overlapping_context(self):
+        """Two nodes close together should not produce duplicate lines."""
+        lines = []
+        for i in range(20):
+            lines.append(f"  - id: node_{i:03d}")
+            lines.append(f"    title: Node {i}")
+            lines.append(f"    leaf: true")
+        yaml_text = "\n".join(lines)
+        # node_002 and node_003 are adjacent — context windows overlap
+        result = _extract_taxonomy_context(yaml_text, "node_002", "node_003")
+        # Count occurrences of "node_002" — should appear only once
+        assert result.count("- id: node_002") == 1
+
+
+# ========================================================================
+# G03: Atom ID disambiguation keeps 3-segment format
+# ========================================================================
+
+class TestAtomIdDisambiguationFormat:
+    """G03: Disambiguated atom IDs must use _tag suffix, not :tag,
+    to maintain the 3-segment book:section:seq format."""
+
+    def test_3_segment_id_stays_3_segments(self):
+        atoms_a = [_make_atom("qimlaa:matn:000001", "prose_sentence", "Version A")]
+        atoms_b = [_make_atom("qimlaa:matn:000001", "prose_sentence", "Version B")]
+        exc_b = _make_excerpt("eb:001", ["qimlaa:matn:000001"])
+        ra = _make_result(atoms_a, [])
+        rb = _make_result(atoms_b, [exc_b])
+        consensus_excerpts = [
+            {"excerpt": exc_b, "source_model": "gpt4o"},
+        ]
+        merged = _merge_atoms_for_consensus(
+            ra, rb, consensus_excerpts, "claude", "gpt4o", "claude",
+        )
+        ids = {a["atom_id"] for a in merged}
+        assert "qimlaa:matn:000001" in ids  # winning model's version
+        assert "qimlaa:matn:000001_gpt4o" in ids  # losing model's version
+        # Must still have exactly 3 colon-separated segments
+        for aid in ids:
+            assert len(aid.split(":")) == 3, f"ID {aid} should have 3 segments"
+
+    def test_2_segment_id_gets_underscore_tag(self):
+        atoms_a = [_make_atom("shared:001", "prose_sentence", "A")]
+        atoms_b = [_make_atom("shared:001", "prose_sentence", "B")]
+        exc_b = _make_excerpt("eb:001", ["shared:001"])
+        ra = _make_result(atoms_a, [])
+        rb = _make_result(atoms_b, [exc_b])
+        consensus_excerpts = [
+            {"excerpt": exc_b, "source_model": "gpt4o"},
+        ]
+        merged = _merge_atoms_for_consensus(
+            ra, rb, consensus_excerpts, "claude", "gpt4o", "claude",
+        )
+        ids = {a["atom_id"] for a in merged}
+        assert "shared:001_gpt4o" in ids
+
+
+# ========================================================================
+# G06: One-unmapped-one-real auto-picks real placement
+# ========================================================================
+
+class TestOneUnmappedOneReal:
+    """G06: When one model places at _unmapped and the other at a real leaf,
+    auto-pick the real placement without calling the arbiter."""
+
+    def test_model_a_unmapped_model_b_real(self):
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "Some Arabic text")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="_unmapped")],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "Some Arabic text")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="real_leaf_node")],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+        arbiter_called = []
+
+        def mock_arbiter(sys, usr, mdl, key):
+            arbiter_called.append(True)
+            return {"parsed": {"correct_placement": "real_leaf_node"},
+                    "input_tokens": 0, "output_tokens": 0}
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=mock_arbiter, arbiter_model="arb", arbiter_api_key="k",
+        )
+        # Arbiter should NOT have been called for this case
+        assert len(arbiter_called) == 0
+        # The real placement should be chosen
+        exc = consensus["excerpts"][0]
+        assert exc.get("taxonomy_node_id") == "real_leaf_node"
+        # Metadata should show one_unmapped
+        meta = consensus["consensus_meta"]
+        assert meta["one_unmapped_count"] == 1
+        assert meta["placement_disagreement_count"] == 0
+
+    def test_model_a_real_model_b_unmapped(self):
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "Same text here")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="real_node")],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "Same text here")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="__unmapped")],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        exc = consensus["excerpts"][0]
+        assert exc.get("taxonomy_node_id") == "real_node"
+
+
+# ========================================================================
+# G07: Arbiter fallback uses preferred model, not Model A
+# ========================================================================
+
+class TestArbiterFallbackUsesPreferred:
+    """G07: When arbiter fails or returns garbage, fallback should use
+    the winning/preferred model's placement, not hardcoded Model A."""
+
+    def test_fallback_uses_model_b_when_preferred(self):
+        match = {
+            "excerpt_a": _make_excerpt("ea:001", ["qa:m:001"],
+                                       taxonomy_node_id="node_a_place"),
+            "excerpt_b": _make_excerpt("eb:001", ["qb:m:001"],
+                                       taxonomy_node_id="node_b_place"),
+            "taxonomy_a": "node_a_place",
+            "taxonomy_b": "node_b_place",
+            "text_a": "Some text",
+            "text_overlap": 0.8,
+        }
+
+        def mock_failing_arbiter(sys, usr, mdl, key):
+            raise RuntimeError("API down")
+
+        result = resolve_placement_disagreement(
+            match, "claude", "gpt4o", "",
+            mock_failing_arbiter, "arb", "key",
+            preferred_placement="node_b_place",
+        )
+        # Should fall back to preferred (model B), not model A
+        assert result["correct_placement"] == "node_b_place"
+        assert "preferred" in result["reasoning"].lower()
+
+    def test_invalid_placement_falls_back_to_preferred(self):
+        match = {
+            "excerpt_a": _make_excerpt("ea:001", ["qa:m:001"],
+                                       taxonomy_node_id="node_a"),
+            "excerpt_b": _make_excerpt("eb:001", ["qb:m:001"],
+                                       taxonomy_node_id="node_b"),
+            "taxonomy_a": "node_a",
+            "taxonomy_b": "node_b",
+            "text_a": "Some text",
+            "text_overlap": 0.8,
+        }
+
+        def mock_arbiter(sys, usr, mdl, key):
+            return {
+                "parsed": {"correct_placement": "totally_wrong_node",
+                           "reasoning": "test", "confidence": "high"},
+                "input_tokens": 10, "output_tokens": 10,
+            }
+
+        result = resolve_placement_disagreement(
+            match, "claude", "gpt4o", "",
+            mock_arbiter, "arb", "key",
+            preferred_placement="node_b",
+        )
+        assert result["correct_placement"] == "node_b"
+
+
+# ========================================================================
+# G08+G09: Exclusions merged from both models
+# ========================================================================
+
+class TestExclusionMerge:
+    """G08+G09: Consensus should merge exclusions from both models,
+    not just use the winning model's."""
+
+    def test_losing_model_exclusion_added(self):
+        """If losing model excludes a heading that winning model missed,
+        the exclusion should appear in consensus output."""
+        heading_atom_a = _make_atom("qa:h:001", "heading", "باب الأول")
+        main_atom_a = _make_atom("qa:m:001", "prose_sentence", "Main content A")
+        heading_atom_b = _make_atom("qb:h:001", "heading", "باب الأول")
+        main_atom_b = _make_atom("qb:m:001", "prose_sentence", "Main content A")
+
+        ra = _make_result(
+            [heading_atom_a, main_atom_a],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_1")],
+        )
+        # Winning model (A) has no exclusions
+        ra["exclusions"] = []
+
+        rb = _make_result(
+            [heading_atom_b, main_atom_b],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_1")],
+        )
+        # Losing model (B) correctly excludes the heading
+        rb["exclusions"] = [
+            {"atom_id": "qb:h:001", "exclusion_reason": "heading_structural"}
+        ]
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        # Model A wins (default: fewer issues, tie goes to A)
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+
+        excl_reasons = [e.get("exclusion_reason") for e in consensus["exclusions"]]
+        assert "heading_structural" in excl_reasons
+        # Should be flagged as coming from losing model
+        flagged = [e for e in consensus["exclusions"]
+                   if e.get("_consensus_flag")]
+        assert len(flagged) >= 1
+
+
+# ========================================================================
+# H02: Exclusion merge checks atom_type to avoid cross-type collisions
+# ========================================================================
+
+class TestExclusionMergeAtomTypeCheck:
+    """H02: When merging exclusions from the losing model, the match must
+    check atom_type too, not just normalized text. Short Arabic headings
+    like 'باب' could collide with prose atoms containing the same word."""
+
+    def test_exclusion_does_not_target_core_atom(self):
+        """An exclusion from the losing model must NOT point at an atom
+        that is actively used in a consensus excerpt's core_atoms."""
+        # Both models have an atom with the same text "باب"
+        heading_a = _make_atom("qa:h:001", "heading", "باب")
+        prose_a = _make_atom("qa:m:001", "prose_sentence", "باب")
+        heading_b = _make_atom("qb:h:001", "heading", "باب")
+        prose_b = _make_atom("qb:m:001", "prose_sentence", "باب")
+
+        ra = _make_result(
+            [heading_a, prose_a],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_1")],
+        )
+        ra["exclusions"] = []  # Winning model forgot to exclude heading
+
+        rb = _make_result(
+            [heading_b, prose_b],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_1")],
+        )
+        rb["exclusions"] = [
+            {"atom_id": "qb:h:001", "exclusion_reason": "heading_structural"}
+        ]
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+
+        # The exclusion should NOT point at qa:m:001 (the core prose atom)
+        for excl in consensus["exclusions"]:
+            excl_id = excl.get("atom_id", "")
+            for exc in consensus["excerpts"]:
+                core_ids = [
+                    (e["atom_id"] if isinstance(e, dict) else e)
+                    for e in exc.get("core_atoms", [])
+                ]
+                assert excl_id not in core_ids, \
+                    f"Exclusion {excl_id} conflicts with core atom in {exc.get('excerpt_id')}"
+
+
+# ========================================================================
+# H03: "Neither" verdict sets taxonomy_node_id to _unmapped
+# ========================================================================
+
+class TestNeitherVerdictSetsUnmapped:
+    """H03: When arbiter says 'neither' placement is correct,
+    the excerpt's taxonomy_node_id must be overridden to _unmapped."""
+
+    def test_neither_sets_unmapped(self):
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "نص عربي طويل يكفي")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_a")],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "نص عربي طويل يكفي")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_b")],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def mock_arbiter(sys, usr, mdl, key):
+            return {
+                "parsed": {"correct_placement": "neither",
+                           "reasoning": "both wrong", "confidence": "high"},
+                "input_tokens": 10, "output_tokens": 10,
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=mock_arbiter, arbiter_model="arb", arbiter_api_key="k",
+        )
+        exc = consensus["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "_unmapped"
+        assert exc["taxonomy_path"] == "_unmapped"
+
+
+# ========================================================================
+# H04: Trailing-comma repair produces valid JSON
+# ========================================================================
+
+class TestTrailingCommaRepair:
+    """H04: Truncation at comma boundaries must be repaired to valid JSON."""
+
+    def test_trailing_comma_nested(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"atoms": [{"id": "a"}, {"id": "b"}, '
+        repaired = repair_truncated_json(text)
+        import json
+        parsed = json.loads(repaired)
+        assert len(parsed["atoms"]) == 2
+
+    def test_trailing_comma_in_array(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"atoms": [{"id": "a"}, '
+        repaired = repair_truncated_json(text)
+        import json
+        parsed = json.loads(repaired)
+        assert len(parsed["atoms"]) == 1
+
+    def test_trailing_comma_after_value(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"a": 1, "b": 2, '
+        repaired = repair_truncated_json(text)
+        import json
+        parsed = json.loads(repaired)
+        assert parsed["a"] == 1
+        assert parsed["b"] == 2
+
+
+# ========================================================================
+# H05: Arbiter uncertain → confidence "low"
+# ========================================================================
+
+class TestArbiterUncertainIsLow:
+    """H05: When arbiter is unavailable or uncertain, confidence must be
+    'low' not 'medium', so these items surface in human review."""
+
+    def test_uncertain_arbiter_gives_low_confidence(self):
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "Arabic text here long")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_x")],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "Arabic text here long")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_y")],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def mock_uncertain_arbiter(sys, usr, mdl, key):
+            return {
+                "parsed": {"correct_placement": "leaf_x",
+                           "reasoning": "unsure", "confidence": "uncertain"},
+                "input_tokens": 10, "output_tokens": 10,
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=mock_uncertain_arbiter,
+            arbiter_model="arb", arbiter_api_key="k",
+        )
+        meta = consensus["consensus_meta"]
+        pe = [p for p in meta["per_excerpt"]
+              if p["agreement"] == "placement_disagreement"]
+        assert len(pe) == 1
+        assert pe[0]["confidence"] == "low"
+
+
+# ========================================================================
+# H06: Enrichment of winning model's empty fields from losing model
+# ========================================================================
+
+class TestFieldEnrichmentOnFullAgreement:
+    """H06: When both models agree on taxonomy but the winning model has
+    empty metadata fields, enrich from the losing model."""
+
+    def test_empty_case_types_enriched(self):
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "Test text content")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_1",
+                           case_types=[])],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "Test text content")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_1",
+                           case_types=["A1_pure_definition", "B2_rule_statement"])],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+        # Model A wins (tie goes to A)
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        exc = consensus["excerpts"][0]
+        assert exc["case_types"] == ["A1_pure_definition", "B2_rule_statement"]
+        # Check enrichment flag
+        meta = consensus["consensus_meta"]
+        pe = meta["per_excerpt"][0]
+        assert any("Enriched" in f for f in pe["flags"])
+
+    def test_nonempty_fields_not_overwritten(self):
+        """Winning model's non-empty fields should NOT be overwritten."""
+        ra = _make_result(
+            [_make_atom("qa:m:001", "prose_sentence", "Test text content")],
+            [_make_excerpt("ea:001", ["qa:m:001"], taxonomy_node_id="leaf_1",
+                           case_types=["A1_pure_definition"],
+                           boundary_reasoning="Good reasoning here")],
+        )
+        rb = _make_result(
+            [_make_atom("qb:m:001", "prose_sentence", "Test text content")],
+            [_make_excerpt("eb:001", ["qb:m:001"], taxonomy_node_id="leaf_1",
+                           case_types=["B2_rule_statement"],
+                           boundary_reasoning="Different reasoning")],
+        )
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        exc = consensus["excerpts"][0]
+        # Winning model's values should be preserved
+        assert exc["case_types"] == ["A1_pure_definition"]
+        assert exc["boundary_reasoning"] == "Good reasoning here"

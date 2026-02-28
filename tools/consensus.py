@@ -11,6 +11,7 @@ outputs (different atom counts, boundaries, IDs). Comparison works at the
 excerpt level using text overlap, not atom-ID matching.
 """
 
+import copy
 import json
 import re
 import unicodedata
@@ -190,10 +191,14 @@ def _merge_atoms_for_consensus(
         if aid:
             losing_atoms[aid] = a
 
-    # Identify which excerpts come from the losing model
+    # Identify which excerpts come from the losing model.
+    # Deep-copy them so _remap_atom_refs doesn't mutate the original
+    # model results (which may still be referenced for audit/raw saves).
     losing_excerpts = []
     for ce in consensus_excerpts:
         if ce["source_model"] != winning_model:
+            # Deep-copy so remap doesn't corrupt the original result dicts
+            ce["excerpt"] = copy.deepcopy(ce["excerpt"])
             losing_excerpts.append(ce["excerpt"])
 
     if not losing_excerpts:
@@ -220,8 +225,13 @@ def _merge_atoms_for_consensus(
             w_text = winning_atoms[aid].get("text", "")
             l_text = losing_atoms[aid].get("text", "")
             if w_text != l_text:
-                # Real collision — disambiguate
-                remap[aid] = f"{aid}:{tag}"
+                # Real collision — disambiguate with _tag suffix to keep
+                # the 3-segment atom ID format (book:section:seq)
+                parts = aid.rsplit(":", 1)
+                if len(parts) == 2:
+                    remap[aid] = f"{parts[0]}:{parts[1]}_{tag}"
+                else:
+                    remap[aid] = f"{aid}_{tag}"
 
     # Build merged atom list
     merged = list(winning_result.get("atoms", []))
@@ -862,10 +872,13 @@ def resolve_placement_disagreement(
     arbiter_model: str,
     arbiter_api_key: str,
     arbiter_pricing: tuple[float, float] | None = None,
+    preferred_placement: str | None = None,
 ) -> dict:
     """Call arbiter LLM to resolve a taxonomy placement disagreement.
 
-    Returns dict with: correct_placement, reasoning, confidence, cost
+    Returns dict with: correct_placement, reasoning, confidence, cost.
+    ``preferred_placement`` should be the winning model's taxonomy node,
+    used as fallback when the arbiter returns invalid output or fails.
     """
     excerpt_text = match["text_a"]  # use model A's text (they overlap)
 
@@ -923,8 +936,9 @@ def resolve_placement_disagreement(
                 "output_tokens": out_tok,
             }
         # Validate placement is one of the two options
+        fallback = preferred_placement or match["taxonomy_a"]
         if raw_placement not in (match["taxonomy_a"], match["taxonomy_b"]):
-            raw_placement = match["taxonomy_a"]  # fall back
+            raw_placement = fallback
 
         return {
             "correct_placement": raw_placement,
@@ -936,9 +950,10 @@ def resolve_placement_disagreement(
         }
     except Exception as e:
         # Arbiter failed -- fall back to preferred model
+        fallback = preferred_placement or match["taxonomy_a"]
         return {
-            "correct_placement": match["taxonomy_a"],
-            "reasoning": f"Arbiter call failed: {e}. Falling back to model A placement.",
+            "correct_placement": fallback,
+            "reasoning": f"Arbiter call failed: {e}. Falling back to preferred model placement.",
             "confidence": "uncertain",
             "cost": 0.0,
             "input_tokens": 0,
@@ -1024,19 +1039,45 @@ def resolve_unmatched_excerpt(
 
 
 def _extract_taxonomy_context(taxonomy_yaml: str, node_a: str, node_b: str) -> str:
-    """Extract the taxonomy YAML lines around two nodes for arbiter context."""
+    """Extract the taxonomy YAML lines around two nodes for arbiter context.
+
+    Handles both v0 format (``node_id:\\n  _leaf: true``) and v1 format
+    (``- id: node_id\\n  leaf: true``).
+    """
     lines = taxonomy_yaml.split("\n")
     relevant = []
+    matched_indices: set[int] = set()
+    targets = {node_a, node_b}
+
     for i, line in enumerate(lines):
-        stripped = line.split("#")[0].strip().rstrip(":")
-        if stripped in (node_a, node_b):
-            # Include 5 lines before and after for context
-            start = max(0, i - 5)
-            end = min(len(lines), i + 6)
-            relevant.extend(lines[start:end])
-            relevant.append("---")
+        stripped = line.split("#")[0].strip()
+        # v1 format: ``- id: node_id`` or ``id: node_id``
+        if stripped.startswith("- id:") or stripped.startswith("id:"):
+            value = stripped.split(":", 1)[1].strip()
+            if value in targets:
+                matched_indices.add(i)
+                continue
+        # v0 format: ``node_id:`` as a dict key on its own line
+        bare = stripped.rstrip(":")
+        if bare in targets and bare != stripped:  # must have had a trailing ':'
+            matched_indices.add(i)
+
+    for idx in sorted(matched_indices):
+        start = max(0, idx - 5)
+        end = min(len(lines), idx + 6)
+        relevant.extend(lines[start:end])
+        relevant.append("---")
+
     if relevant:
-        return "\n".join(relevant)
+        # Deduplicate overlapping context windows while preserving order
+        seen: set[str] = set()
+        deduped = []
+        for line in relevant:
+            key = line.rstrip()
+            if key not in seen:
+                seen.add(key)
+                deduped.append(line)
+        return "\n".join(deduped)
     return f"(nodes {node_a} and {node_b} not found in taxonomy)"
 
 
@@ -1046,6 +1087,11 @@ def _extract_taxonomy_context(taxonomy_yaml: str, node_a: str, node_b: str) -> s
 
 # Taxonomy nodes that indicate classification failure, not real agreement
 _UNMAPPED_NODES = {"_unmapped", "__unmapped", "unmapped"}
+
+
+def _is_unmapped(node: str) -> bool:
+    """Check if a taxonomy node is an unmapped variant."""
+    return node in _UNMAPPED_NODES
 
 
 def build_consensus(
@@ -1106,21 +1152,13 @@ def build_consensus(
     for m in matched:
         tax_a = m["taxonomy_a"]
         tax_b = m["taxonomy_b"]
-        both_unmapped = tax_a in _UNMAPPED_NODES and tax_b in _UNMAPPED_NODES
+        both_unmapped = _is_unmapped(tax_a) and _is_unmapped(tax_b)
 
-        if m["same_taxonomy"] and not both_unmapped:
-            # FULL AGREEMENT -- high confidence
-            exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
-            consensus_excerpts.append({
-                "excerpt": exc,
-                "source_model": winning,
-                "confidence": "high",
-                "agreement": "full",
-                "flags": [],
-                "disagreement_detail": None,
-            })
-        elif both_unmapped:
-            # BOTH UNMAPPED -- classification failure, NOT real agreement
+        if both_unmapped:
+            # BOTH UNMAPPED -- classification failure, NOT real agreement.
+            # Checked first because _unmapped variants (e.g., "_unmapped" vs
+            # "__unmapped") may have same_taxonomy=False, but both indicate
+            # the same failure — don't waste arbiter calls on that.
             exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
             detail = {
                 "type": "both_unmapped",
@@ -1138,14 +1176,73 @@ def build_consensus(
                 ],
                 "disagreement_detail": detail,
             })
+        elif _is_unmapped(tax_a) != _is_unmapped(tax_b):
+            # ONE UNMAPPED, ONE REAL -- auto-pick the real placement.
+            # No arbiter needed: the model that found a real node is clearly
+            # more informative than one that couldn't classify at all.
+            if _is_unmapped(tax_a):
+                chosen_exc = m["excerpt_b"]
+                source = model_b
+                real_tax = tax_b
+            else:
+                chosen_exc = m["excerpt_a"]
+                source = model_a
+                real_tax = tax_a
+            detail = {
+                "type": "one_unmapped",
+                "unmapped_model": model_a if _is_unmapped(tax_a) else model_b,
+                "real_placement": real_tax,
+                "text_overlap": round(m["text_overlap"], 4),
+                "arbiter_resolution": None,
+            }
+            disagreements.append(detail)
+            consensus_excerpts.append({
+                "excerpt": chosen_exc,
+                "source_model": source,
+                "confidence": "medium",
+                "agreement": "one_unmapped",
+                "flags": [
+                    f"One model placed at {real_tax}, other at _unmapped — "
+                    f"auto-picked real placement"
+                ],
+                "disagreement_detail": detail,
+            })
+        elif m["same_taxonomy"]:
+            # FULL AGREEMENT -- high confidence
+            exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
+            other_exc = m["excerpt_b"] if winning == model_a else m["excerpt_a"]
+            # H06: Enrich winning excerpt's empty metadata from losing model.
+            # Only metadata fields — never overwrite content (core_atoms, etc.)
+            _ENRICHABLE = ("case_types", "boundary_reasoning", "content_type",
+                           "excerpt_kind", "relations")
+            enriched_fields = []
+            for field in _ENRICHABLE:
+                val = exc.get(field)
+                other_val = other_exc.get(field)
+                if (not val or val == "test") and other_val and other_val != "test":
+                    exc[field] = other_val
+                    enriched_fields.append(field)
+            flags = []
+            if enriched_fields:
+                flags.append(f"Enriched from other model: {', '.join(enriched_fields)}")
+            consensus_excerpts.append({
+                "excerpt": exc,
+                "source_model": winning,
+                "confidence": "high",
+                "agreement": "full",
+                "flags": flags,
+                "disagreement_detail": None,
+            })
         else:
             # PLACEMENT DISAGREEMENT -- call arbiter
             resolution = None
             if call_llm_fn and arbiter_model and arbiter_api_key:
+                # Pass preferred placement so fallback uses winning model
+                pref_tax = tax_a if winning == model_a else tax_b
                 resolution = resolve_placement_disagreement(
                     m, model_a, model_b, taxonomy_yaml,
                     call_llm_fn, arbiter_model, arbiter_api_key,
-                    arbiter_pricing,
+                    arbiter_pricing, preferred_placement=pref_tax,
                 )
                 arbiter_cost["input_tokens"] += resolution.get("input_tokens", 0)
                 arbiter_cost["output_tokens"] += resolution.get("output_tokens", 0)
@@ -1157,6 +1254,11 @@ def build_consensus(
                 if correct_tax == "neither":
                     # Arbiter says both are wrong — flag for human review
                     chosen_exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
+                    # H03: Override taxonomy to _unmapped since arbiter
+                    # rejected both placements
+                    chosen_exc = dict(chosen_exc)  # shallow copy to avoid mutating original
+                    chosen_exc["taxonomy_node_id"] = "_unmapped"
+                    chosen_exc["taxonomy_path"] = "_unmapped"
                     source = winning
                     confidence = "low"
                 elif correct_tax == m["taxonomy_a"]:
@@ -1171,7 +1273,9 @@ def build_consensus(
                 # Arbiter unavailable or uncertain -- use preferred model
                 chosen_exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
                 source = winning
-                confidence = "medium"
+                # H05: "low" not "medium" — uncertain arbiter should surface
+                # in human review, not be confused with confident decisions
+                confidence = "low"
 
             detail = {
                 "type": "placement_disagreement",
@@ -1300,11 +1404,16 @@ def build_consensus(
         ),
         "both_unmapped_count": sum(
             1 for m in matched
-            if m["taxonomy_a"] in _UNMAPPED_NODES and m["taxonomy_b"] in _UNMAPPED_NODES
+            if _is_unmapped(m["taxonomy_a"]) and _is_unmapped(m["taxonomy_b"])
+        ),
+        "one_unmapped_count": sum(
+            1 for m in matched
+            if _is_unmapped(m["taxonomy_a"]) != _is_unmapped(m["taxonomy_b"])
         ),
         "placement_disagreement_count": sum(
             1 for m in matched
             if not m["same_taxonomy"]
+            and not (_is_unmapped(m["taxonomy_a"]) or _is_unmapped(m["taxonomy_b"]))
         ),
         "unmatched_a_count": len(unmatched_a),
         "unmatched_b_count": len(unmatched_b),
@@ -1342,12 +1451,113 @@ def build_consensus(
         result_a, result_b, model_a, model_b, winning, footnote_comparison,
     )
 
+    # Build the final excerpt list and exclusions (merge from both models)
+    final_excerpts = [ce["excerpt"] for ce in consensus_excerpts]
+
+    # H01: Fix footnote linked_matn_excerpt dangling references.
+    # After consensus, footnotes from the losing model may reference excerpt IDs
+    # that don't exist in final_excerpts. Try to find the best match by text
+    # overlap, or flag as dangling.
+    final_excerpt_ids = {e.get("excerpt_id", "") for e in final_excerpts}
+    for fn in merged_footnotes:
+        linked = fn.get("linked_matn_excerpt", "")
+        if linked and linked not in final_excerpt_ids:
+            # Try to find the best matching excerpt by taxonomy + text similarity
+            fn_text = fn.get("text", "")
+            best_id = None
+            best_score = 0.0
+            for fe in final_excerpts:
+                # Prefer excerpts in the same taxonomy area
+                score = text_overlap_ratio(
+                    fn_text, compute_excerpt_text_span(
+                        fe, {**atoms_a, **atoms_b}
+                    )
+                ) if fn_text else 0.0
+                if score > best_score:
+                    best_score = score
+                    best_id = fe.get("excerpt_id", "")
+            if best_id and best_score > 0.3:
+                fn["linked_matn_excerpt"] = best_id
+                fn.setdefault("_consensus_flags", []).append(
+                    f"linked_matn_excerpt remapped from {linked} (overlap={best_score:.2f})"
+                )
+            else:
+                fn.setdefault("_consensus_flags", []).append(
+                    f"linked_matn_excerpt '{linked}' not found in consensus output"
+                )
+
+    losing_result = result_b if winning == model_a else result_a
+    losing_model = model_b if winning == model_a else model_a
+    final_exclusions = list(winning_result.get("exclusions") or [])
+    # Add exclusions from the losing model that the winning model missed,
+    # using normalized text to detect duplicates.
+    winning_excl_texts = set()
+    for exc in final_exclusions:
+        atom = atoms_a.get(exc.get("atom_id", "")) if winning == model_a \
+            else atoms_b.get(exc.get("atom_id", ""))
+        if atom:
+            winning_excl_texts.add(normalize_for_comparison(atom.get("text", "")))
+    losing_atoms_lookup = atoms_b if winning == model_a else atoms_a
+    # H02: Also check atom_type when matching, not just text, to avoid
+    # pointing an exclusion at a prose atom with the same short text as a heading.
+    # Build set of atom IDs referenced by any consensus excerpt (core or context).
+    _excerpt_atom_ids = set()
+    for _exc in final_excerpts:
+        for _entry in (_exc.get("core_atoms") or []):
+            _excerpt_atom_ids.add(_extract_atom_id(_entry))
+        for _entry in (_exc.get("context_atoms") or []):
+            _excerpt_atom_ids.add(_extract_atom_id(_entry))
+
+    for exc in (losing_result.get("exclusions") or []):
+        atom = losing_atoms_lookup.get(exc.get("atom_id", ""))
+        if atom:
+            norm = normalize_for_comparison(atom.get("text", ""))
+            src_type = atom.get("atom_type", atom.get("type", ""))
+            if norm and norm not in winning_excl_texts:
+                # Find a matching atom in merged_atoms by text AND type,
+                # excluding atoms that are actively used in excerpts.
+                matched_id = None
+                for ma in merged_atoms:
+                    ma_type = ma.get("atom_type", ma.get("type", ""))
+                    if (normalize_for_comparison(ma.get("text", "")) == norm
+                            and ma_type == src_type
+                            and ma.get("atom_id", "") not in _excerpt_atom_ids):
+                        matched_id = ma.get("atom_id")
+                        break
+                if matched_id:
+                    excl_copy = dict(exc)
+                    excl_copy["atom_id"] = matched_id
+                    excl_copy["_consensus_flag"] = f"only_excluded_by_{losing_model}"
+                    final_exclusions.append(excl_copy)
+                    winning_excl_texts.add(norm)
+
+    # F09: Filter merged atoms to only those referenced by consensus excerpts
+    # or exclusions. Without this, validation Check 7 (coverage) produces
+    # false positives because winning-model atoms from non-chosen excerpts
+    # appear in the atom list but aren't covered by any excerpt.
+    referenced_ids = set()
+    for exc in final_excerpts:
+        for entry in (exc.get("core_atoms") or []):
+            referenced_ids.add(_extract_atom_id(entry))
+        for entry in (exc.get("context_atoms") or []):
+            referenced_ids.add(_extract_atom_id(entry))
+    excluded_ids = set()
+    for excl in final_exclusions:
+        excluded_ids.add(excl.get("atom_id", ""))
+    keep_ids = referenced_ids | excluded_ids
+    # Also keep heading atoms (they're excluded from coverage by the validator)
+    for a in merged_atoms:
+        atype = a.get("atom_type", a.get("type", ""))
+        if atype == "heading" or a.get("is_prose_tail"):
+            keep_ids.add(a.get("atom_id", ""))
+    filtered_atoms = [a for a in merged_atoms if a.get("atom_id", "") in keep_ids]
+
     return {
         "passage_id": passage_id,
-        "atoms": merged_atoms,
-        "excerpts": [ce["excerpt"] for ce in consensus_excerpts],
+        "atoms": filtered_atoms,
+        "excerpts": final_excerpts,
         "footnote_excerpts": merged_footnotes,
-        "exclusions": winning_result.get("exclusions", []),
+        "exclusions": final_exclusions,
         "notes": winning_result.get("notes", ""),
         "consensus_meta": consensus_meta,
     }
@@ -1373,6 +1583,7 @@ def generate_consensus_review_section(consensus_meta: dict) -> str:
     total_matched = consensus_meta.get("matched_count", 0)
     full = consensus_meta.get("full_agreement_count", 0)
     both_unmapped = consensus_meta.get("both_unmapped_count", 0)
+    one_unmapped = consensus_meta.get("one_unmapped_count", 0)
     placement_dis = consensus_meta.get("placement_disagreement_count", 0)
     unmatched_a = consensus_meta.get("unmatched_a_count", 0)
     unmatched_b = consensus_meta.get("unmatched_b_count", 0)
@@ -1383,6 +1594,8 @@ def generate_consensus_review_section(consensus_meta: dict) -> str:
     lines.append(f"- Full agreement (text + taxonomy): {full}")
     if both_unmapped:
         lines.append(f"- **Both unmapped (classification failure): {both_unmapped}**")
+    if one_unmapped:
+        lines.append(f"- One unmapped (auto-picked real placement): {one_unmapped}")
     lines.append(f"- Placement disagreements: {placement_dis}")
     lines.append(f"- Unmatched ({consensus_meta.get('model_a', 'A')} only): {unmatched_a}")
     lines.append(f"- Unmatched ({consensus_meta.get('model_b', 'B')} only): {unmatched_b}")
