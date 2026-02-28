@@ -40,18 +40,37 @@ from typing import Optional
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Graceful shutdown
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+_SHUTDOWN_REQUESTED = False
+
+
+def _handle_shutdown(signum, frame):
+    """Handle Ctrl+C gracefully — finish current task, save state, exit."""
+    global _SHUTDOWN_REQUESTED
+    if _SHUTDOWN_REQUESTED:
+        # Second Ctrl+C = force exit
+        print("\n[FORCED EXIT] Exiting immediately.", flush=True)
+        sys.exit(1)
+    _SHUTDOWN_REQUESTED = True
+    print("\n[SHUTDOWN] Ctrl+C received. Will finish current task and exit cleanly.", flush=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Configuration
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 CLAUDE_CMD = "claude"
-MAX_TURNS_PER_TASK = 40           # Claude Code turns per task
-BUDGET_PER_TASK_USD = 1.50        # Per-task budget cap
-TASK_TIMEOUT_SECONDS = 600        # 10 min timeout per task
+MAX_TURNS_PER_TASK = 60           # Claude Code turns per task (deeper work)
+BUDGET_PER_TASK_USD = 5.00        # Per-task budget cap (stage-building needs more)
+TASK_TIMEOUT_SECONDS = 900        # 15 min timeout per task
 MAX_FAILURES_PER_BUG = 2          # Skip bug after N failures
-CIRCUIT_BREAKER_THRESHOLD = 4     # Stop after N consecutive failures
-COOLDOWN_SECONDS = 3              # Pause between tasks
+CIRCUIT_BREAKER_THRESHOLD = 5     # Stop after N consecutive failures (was 4)
+COOLDOWN_SECONDS = 120            # 2 min pause between tasks (Max rate limit buffer)
 STATE_FILE = ".overnight_state.json"
 REPORT_FILE = "OVERNIGHT_REPORT.md"
+ROADMAP_FILE = "ROADMAP.md"       # Strategic task list (Phase 2 reads this)
 
 # Tools Claude Code is NOT allowed to use
 DISALLOWED_TOOLS = [
@@ -218,6 +237,59 @@ def git_diff_stat_since(base_commit: str) -> str:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Critical file protection
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Files that must NEVER be deleted by overnight automation.
+# These are the exact files Codex kept deleting across branches.
+PROTECTED_FILES = [
+    "BUGS.md",
+    "CLAUDE.md",
+    ".gitignore",
+    "automation/overnight/abd_overnight.py",
+    "automation/overnight/README.md",
+    "scripts/OVERNIGHT_PROMPT.md",
+    "scripts/overnight.sh",
+    "taxonomy/balagha/balagha_v1_0.yaml",
+    "taxonomy/imlaa/imlaa_v1_0.yaml",
+    "taxonomy/nahw/nahw_v1_0.yaml",
+    "taxonomy/sarf/sarf_v1_0.yaml",
+]
+
+
+def _check_critical_file_deletions() -> list[str]:
+    """Check if any protected files were deleted (staged or unstaged).
+
+    Returns list of deleted file paths, empty if all OK.
+    """
+    deleted = []
+    try:
+        # Check both staged and unstaged deletions
+        status_output = git("status", "--porcelain", check=False)
+        for line in status_output.splitlines():
+            if not line.strip():
+                continue
+            # Porcelain format: XY filename (D = deleted)
+            status_code = line[:2]
+            filepath = line[3:].strip()
+            if "D" in status_code:
+                if filepath in PROTECTED_FILES:
+                    deleted.append(filepath)
+
+        # Also check committed deletions (in case Claude already committed)
+        diff_output = git("diff", "--name-status", "HEAD~1..HEAD", check=False)
+        for line in diff_output.splitlines():
+            if line.startswith("D\t"):
+                filepath = line[2:].strip()
+                if filepath in PROTECTED_FILES:
+                    deleted.append(filepath)
+    except Exception:
+        pass  # If we can't check, don't block
+
+    return list(set(deleted))
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Test runner
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -294,8 +366,9 @@ def parse_bugs_md(filepath: str = "BUGS.md") -> list[BugEntry]:
 
     for section in sections:
         # Match: ### BUG-001 🔴 OPEN — Title
+        # Accept any status word (OPEN, FIXED, NEW, DONE, etc.)
         m = re.match(
-            r"### (BUG-\d+)\s+(🔴|🟡|🟢)\s+(OPEN|FIXED|NEW)\s+—\s+(.+)",
+            r"### (BUG-\d+)\s+(🔴|🟡|🟢)\s+(\w+)\s+—\s+(.+)",
             section.strip()
         )
         if not m:
@@ -327,7 +400,7 @@ def get_actionable_bugs(bugs: list[BugEntry], state: OvernightState) -> list[Bug
     """Filter to bugs that are OPEN/NEW and haven't been skipped."""
     actionable = []
     for bug in bugs:
-        if bug.status == "FIXED":
+        if bug.status.upper() in ("FIXED", "DONE", "RESOLVED"):
             continue
         attempts = state.bug_attempts.get(bug.bug_id, {})
         if attempts.get("status") in ("fixed", "skipped"):
@@ -346,6 +419,9 @@ def run_claude(prompt: str, dry_run: bool = False) -> tuple[bool, str]:
     """
     Run Claude Code in headless mode with the given prompt.
     Returns (success, output_text).
+
+    On Windows, uses CREATE_NEW_PROCESS_GROUP + taskkill to prevent
+    zombie Claude Code processes on timeout.
     """
     if dry_run:
         log("[DRY RUN] Would send prompt to Claude Code", "DEBUG")
@@ -364,11 +440,17 @@ def run_claude(prompt: str, dry_run: bool = False) -> tuple[bool, str]:
         cmd.extend(["--disallowedTools", tool])
 
     try:
+        # On Windows, create a new process group so we can kill the whole tree
+        kwargs = {}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
         result = subprocess.run(
             cmd,
             capture_output=True, text=True, encoding="utf-8",
             timeout=TASK_TIMEOUT_SECONDS,
-            env={**os.environ}  # Inherit ANTHROPIC_API_KEY
+            env={**os.environ},
+            **kwargs,
         )
         output = result.stdout + result.stderr
         success = result.returncode == 0
@@ -376,6 +458,13 @@ def run_claude(prompt: str, dry_run: bool = False) -> tuple[bool, str]:
 
     except subprocess.TimeoutExpired:
         log(f"Claude Code timed out after {TASK_TIMEOUT_SECONDS}s", "WARN")
+        # On Windows, kill the entire process tree to prevent zombies
+        if sys.platform == "win32":
+            try:
+                subprocess.run(["taskkill", "/F", "/T", "/IM", "claude.exe"],
+                               capture_output=True, timeout=10)
+            except Exception:
+                pass
         return False, "TIMEOUT"
 
     except FileNotFoundError:
@@ -385,6 +474,35 @@ def run_claude(prompt: str, dry_run: bool = False) -> tuple[bool, str]:
     except Exception as e:
         log(f"Claude Code error: {e}", "ERROR")
         return False, str(e)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Project context loader (ensures Claude Code understands the project)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROJECT_CONTEXT_PREAMBLE = """## IMPORTANT: Read project context first!
+Before making ANY changes, read these files for project understanding:
+1. `CLAUDE.md` — Full project orientation, architecture, and conventions
+2. `BUGS.md` — Known bugs and their status
+
+This is the Arabic Book Digester (ABD) project — a precision pipeline for
+extracting scholarly excerpts from classical Arabic texts. Accuracy is the
+non-negotiable standard. Follow all conventions in CLAUDE.md.
+
+## CRITICAL: Files you must NEVER delete or modify (unless the task explicitly requires it)
+- `BUGS.md` — Bug tracker
+- `ROADMAP.md` — Strategic task list
+- `PROGRESS.md` — Session state tracker
+- `CLAUDE.md` — Project orientation
+- `automation/overnight/abd_overnight.py` — Overnight automation system
+- `automation/overnight/README.md` — Overnight docs
+- `scripts/OVERNIGHT_PROMPT.md` — Overnight prompt
+- `scripts/overnight.sh` — Overnight shell script
+- `taxonomy/**/*.yaml` — Taxonomy trees (hand-crafted, weeks of work)
+- `gold_baselines/**/*` — Gold standard excerpts (hand-crafted)
+- `.gitignore` — Git configuration
+
+"""
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -403,7 +521,7 @@ def build_bug_fix_prompt(bug: BugEntry, failed_before: list[str]) -> str:
             + "\n".join(f"- {f}" for f in failed_before)
         )
 
-    return f"""You are fixing exactly ONE bug in the Arabic Book Digester (ABD) project.
+    return PROJECT_CONTEXT_PREAMBLE + f"""You are fixing exactly ONE bug in the Arabic Book Digester (ABD) project.
 
 ## Your target
 
@@ -424,21 +542,51 @@ def build_bug_fix_prompt(bug: BugEntry, failed_before: list[str]) -> str:
 - Do NOT fix other bugs. Do NOT refactor unrelated code. Do NOT add features.
 - Do NOT modify test files to make tests pass — fix the source code.
 - Do NOT modify gold baselines, schemas, or committed extraction outputs unless the bug specifically requires it.
+- Do NOT delete ANY files that are not directly related to this bug fix.
 - Keep changes MINIMAL and SURGICAL.
 - If the fix requires a design decision you're unsure about, implement the safest option and add a comment explaining the tradeoff.
 """
 
 
 def build_analyze_prompt(state: OvernightState) -> str:
-    """Build a prompt for the ANALYZE phase — read-only, produces a plan."""
+    """Build a prompt for the ANALYZE phase.
 
+    Priority: ROADMAP.md tasks first, then freestyle improvements.
+    """
     completed = []
     for task in state.task_history:
         if task.get("status") == "success":
             completed.append(f"- {task['task_id']}: {task['description']}")
     completed_text = "\n".join(completed) if completed else "(none yet)"
 
-    return f"""You are analyzing the Arabic Book Digester (ABD) project to find concrete improvements.
+    # Load ROADMAP if it exists
+    roadmap_section = ""
+    if os.path.exists(ROADMAP_FILE):
+        with open(ROADMAP_FILE, encoding="utf-8") as f:
+            roadmap_content = f.read()
+        roadmap_section = f"""
+### Priority 1: Check ROADMAP.md for structured tasks
+
+Here is the current ROADMAP.md:
+
+<roadmap>
+{roadmap_content}
+</roadmap>
+
+Find the FIRST task in the roadmap with:
+- Status: `TODO`
+- All "Depends on" tasks have status: `DONE` (or no dependencies)
+- Not already completed this session (see list above)
+
+If you find such a task, output ONLY that one task as a JSON array with one item.
+The "description" field MUST include the full acceptance criteria from the roadmap.
+
+### Priority 2: If no ROADMAP task is ready, find freestyle improvements
+"""
+    else:
+        roadmap_section = "### Find concrete improvements\n"
+
+    return PROJECT_CONTEXT_PREAMBLE + f"""You are analyzing the Arabic Book Digester (ABD) project to find the next task.
 
 ## Context
 Read CLAUDE.md for full project context and BUGS.md for known issues.
@@ -446,8 +594,8 @@ Read CLAUDE.md for full project context and BUGS.md for known issues.
 ## Already completed this session
 {completed_text}
 
-## Your task
-
+## Task selection
+{roadmap_section}
 Examine the codebase and identify up to 5 CONCRETE, TESTABLE improvements that are NOT already in BUGS.md. Focus on:
 
 1. Test coverage gaps (functions with no tests, edge cases not covered)
@@ -461,13 +609,13 @@ Examine the codebase and identify up to 5 CONCRETE, TESTABLE improvements that a
 Respond with ONLY a JSON array. No markdown, no explanation, no preamble. Example:
 [
   {{
-    "id": "IMP-001",
-    "type": "test_coverage",
-    "title": "Add tests for extract_taxonomy_leaves with list-based YAML",
-    "description": "The function has 0 test coverage for the balagha taxonomy format",
-    "files": ["tests/test_extraction.py", "tools/extract_passages.py"],
-    "complexity": "low",
-    "verification": "python -m pytest tests/test_extraction.py -q"
+    "id": "1.1",
+    "type": "roadmap",
+    "title": "Fix taxonomy leaf extraction for v1 format",
+    "description": "The full task description with acceptance criteria...",
+    "files": ["tools/extract_passages.py", "tests/test_extraction.py"],
+    "complexity": "medium",
+    "verification": "python -m pytest tests/ -q"
   }}
 ]
 
@@ -475,6 +623,48 @@ Only suggest things you are CONFIDENT can be implemented correctly. No speculati
 Do NOT suggest anything that would require changing the project's architecture or design decisions.
 Do NOT suggest things already listed in BUGS.md.
 """
+
+
+def _parse_json_from_output(output: str) -> list[dict]:
+    """Robustly extract a JSON array from Claude Code's output.
+
+    Claude Code output includes tool calls, file contents, and other artifacts.
+    We need to find the actual JSON array among all that text.
+    Strategy: try multiple extraction approaches, from most to least specific.
+    """
+    # Approach 1: Look for a JSON array that starts at a line beginning
+    for line_start in re.finditer(r"^\[", output, re.MULTILINE):
+        # Find the matching closing bracket
+        depth = 0
+        start = line_start.start()
+        for i in range(start, len(output)):
+            if output[i] == "[":
+                depth += 1
+            elif output[i] == "]":
+                depth -= 1
+                if depth == 0:
+                    candidate = output[start:i + 1]
+                    try:
+                        parsed = json.loads(candidate)
+                        if isinstance(parsed, list) and len(parsed) > 0:
+                            # Validate structure
+                            if all(isinstance(item, dict) and "id" in item for item in parsed):
+                                return parsed
+                    except json.JSONDecodeError:
+                        continue
+                    break
+
+    # Approach 2: Try the old regex as fallback
+    json_match = re.search(r"\[[\s\S]*\]", output)
+    if json_match:
+        try:
+            parsed = json.loads(json_match.group())
+            if isinstance(parsed, list):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+
+    return []
 
 
 def build_improvement_prompt(improvement: dict, failed_before: list[str]) -> str:
@@ -489,7 +679,18 @@ def build_improvement_prompt(improvement: dict, failed_before: list[str]) -> str
 
     files_str = ", ".join(improvement.get("files", []))
 
-    return f"""You are implementing exactly ONE improvement in the Arabic Book Digester (ABD) project.
+    # For ROADMAP tasks, add extra instructions to update ROADMAP.md status
+    roadmap_instructions = ""
+    if improvement.get("type") == "roadmap":
+        roadmap_instructions = f"""
+
+## After completing the fix — UPDATE ROADMAP.md
+This task is from ROADMAP.md. After successful implementation:
+1. In ROADMAP.md, change this task's `**Status:** \\`TODO\\`` to `**Status:** \\`DONE\\``
+2. Commit all changes together (code + test + ROADMAP.md update)
+"""
+
+    return PROJECT_CONTEXT_PREAMBLE + f"""You are implementing exactly ONE improvement in the Arabic Book Digester (ABD) project.
 
 ## Your target
 
@@ -514,7 +715,7 @@ Relevant files: {files_str}
 - Do NOT modify gold baselines or schemas.
 - Keep changes MINIMAL.
 - If adding tests, make sure they actually test something meaningful and pass.
-"""
+{roadmap_instructions}"""
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -554,6 +755,19 @@ def execute_task_safely(
         return TaskResult(
             task_id=task_id, task_type=task_type, description=description,
             status="failed", error_reason=f"Claude Code failed: {output[:200]}",
+            duration_seconds=duration
+        )
+
+    # ── SAFETY: Check for deleted critical files ──────────────────
+    deleted = _check_critical_file_deletions()
+    if deleted:
+        log(f"CRITICAL FILES DELETED: {deleted}", "ERROR")
+        git_rollback_to(checkpoint)
+        duration = time.time() - start_time
+        return TaskResult(
+            task_id=task_id, task_type=task_type, description=description,
+            status="rollback",
+            error_reason=f"Deleted critical files: {', '.join(deleted)}",
             duration_seconds=duration
         )
 
@@ -700,20 +914,13 @@ def run_improvement_phase(state: OvernightState, baseline: TestResult, dry_run: 
         log("Analysis failed, skipping improvement phase", "WARN")
         return baseline
 
-    # Parse the improvement plan (JSON array)
-    improvements = []
-    try:
-        # Find JSON array in the output
-        json_match = re.search(r"\[[\s\S]*\]", output)
-        if json_match:
-            improvements = json.loads(json_match.group())
-            log(f"Found {len(improvements)} improvements to implement")
-        else:
-            log("No JSON array found in analysis output", "WARN")
-            return baseline
-    except json.JSONDecodeError as e:
-        log(f"Failed to parse improvement plan: {e}", "WARN")
+    # Parse the improvement plan using robust JSON extraction
+    improvements = _parse_json_from_output(output)
+    if not improvements:
+        log("No valid improvement plan found in analysis output", "WARN")
         return baseline
+
+    log(f"Found {len(improvements)} improvements to implement")
 
     current_baseline = baseline
 
@@ -730,7 +937,14 @@ def run_improvement_phase(state: OvernightState, baseline: TestResult, dry_run: 
             log(f"Already done, skipping")
             continue
 
-        prompt = build_improvement_prompt(imp, failed_before=[])
+        # Check if previously failed (failure memory across cycles)
+        imp_attempts = state.bug_attempts.get(imp_id, {})
+        if imp_attempts.get("status") == "skipped":
+            log(f"Previously failed and skipped, moving on")
+            continue
+        previous_errors = imp_attempts.get("errors", [])
+
+        prompt = build_improvement_prompt(imp, failed_before=previous_errors)
         result = execute_task_safely(
             task_id=imp_id,
             task_type="improvement",
@@ -752,7 +966,16 @@ def run_improvement_phase(state: OvernightState, baseline: TestResult, dry_run: 
             log(f"✓ {imp_id} done. Tests: {current_baseline.passed} passed")
         else:
             state.consecutive_failures += 1
-            log(f"✗ {imp_id} failed: {result.error_reason[:100] if result.error_reason else '?'}", "WARN")
+            error_msg = result.error_reason or "unknown"
+            # Track improvement failures (reuse bug_attempts dict for unified tracking)
+            if imp_id not in state.bug_attempts:
+                state.bug_attempts[imp_id] = {"attempts": 0, "status": "open", "commits": [], "errors": []}
+            state.bug_attempts[imp_id]["attempts"] += 1
+            state.bug_attempts[imp_id]["errors"].append(error_msg[:200])
+            if state.bug_attempts[imp_id]["attempts"] >= MAX_FAILURES_PER_BUG:
+                state.bug_attempts[imp_id]["status"] = "skipped"
+                log(f"  Skipping {imp_id} after {MAX_FAILURES_PER_BUG} failures", "WARN")
+            log(f"✗ {imp_id} failed: {error_msg[:100]}", "WARN")
 
             if state.consecutive_failures >= CIRCUIT_BREAKER_THRESHOLD:
                 state.halted = True
@@ -871,8 +1094,6 @@ def main():
     parser = argparse.ArgumentParser(description="ABD Overnight Autonomous Improvement System")
     parser.add_argument("--max-cycles", type=int, default=5,
                         help="Number of full ANALYZE→FIX→IMPROVE cycles (default: 5)")
-    parser.add_argument("--budget", type=float, default=20.0,
-                        help="Total budget cap in USD (approximate, default: 20.0)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Simulate everything without calling Claude Code")
     parser.add_argument("--resume", action="store_true",
@@ -880,6 +1101,11 @@ def main():
     parser.add_argument("--bugs-only", action="store_true",
                         help="Only fix known bugs, skip improvement phase")
     args = parser.parse_args()
+
+    # ── Register graceful shutdown handler ─────────────────────────
+    signal.signal(signal.SIGINT, _handle_shutdown)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, _handle_shutdown)
 
     # ── Setup logging ─────────────────────────────────────────────
     global LOG_FILE
@@ -890,9 +1116,11 @@ def main():
     log("=" * 64)
 
     # ── Preflight checks ──────────────────────────────────────────
+    # Claude Max uses `claude login` (no API key needed).
+    # API billing uses ANTHROPIC_API_KEY. We warn but don't block.
     if not os.environ.get("ANTHROPIC_API_KEY") and not args.dry_run:
-        log("ANTHROPIC_API_KEY not set. Export it or use --dry-run.", "ERROR")
-        sys.exit(1)
+        log("ANTHROPIC_API_KEY not set. OK if using Claude Max (claude login).", "WARN")
+        log("For API billing, set: export ANTHROPIC_API_KEY=sk-ant-...", "WARN")
 
     if not args.dry_run:
         try:
@@ -912,7 +1140,8 @@ def main():
 
     # Must have clean working tree (or we handle it)
     if git_has_uncommitted_changes():
-        log("Stashing uncommitted changes...")
+        log("WARNING: Uncommitted changes detected. Stashing them.", "WARN")
+        log("Run `git stash pop` after overnight to restore.", "WARN")
         git("stash", "push", "-m", "overnight-pre-stash")
 
     # ── Load or create state ──────────────────────────────────────
@@ -959,7 +1188,11 @@ def main():
     log(f"\nStarting {args.max_cycles} cycles...")
 
     for cycle in range(1, args.max_cycles + 1):
-        if state.halted:
+        if state.halted or _SHUTDOWN_REQUESTED:
+            if _SHUTDOWN_REQUESTED:
+                state.halted = True
+                state.halt_reason = "Graceful shutdown (Ctrl+C)"
+                log("Shutdown requested, finishing up...", "WARN")
             break
 
         state.total_cycles = cycle
