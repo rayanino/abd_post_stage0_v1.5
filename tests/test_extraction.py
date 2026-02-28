@@ -27,10 +27,13 @@ from extract_passages import (
     VALID_TRIGGER_IDS,
     ATOM_ID_RE,
     EXCERPT_ID_RE,
+    MODEL_PRICING,
     _extract_atom_id,
     _normalize_atom_entries,
+    _model_short,
     extract_taxonomy_leaves,
     generate_review_md,
+    get_model_cost,
     get_passage_footnotes,
     get_passage_text,
     load_gold_example,
@@ -877,3 +880,58 @@ class TestConstants:
     def test_valid_source_layers(self):
         assert "matn" in VALID_SOURCE_LAYERS
         assert "footnote" in VALID_SOURCE_LAYERS
+
+
+# ---------------------------------------------------------------------------
+# Tests: Multi-model support helpers
+# ---------------------------------------------------------------------------
+
+class TestGetModelCost:
+    def test_claude_sonnet_cost(self):
+        cost = get_model_cost("claude-sonnet-4-5-20250929", 1000, 500)
+        expected = 1000 * 3 / 1_000_000 + 500 * 15 / 1_000_000
+        assert abs(cost - expected) < 0.0001
+
+    def test_openrouter_gpt4o_cost(self):
+        cost = get_model_cost("openai/gpt-4o", 1000, 500)
+        expected = 1000 * 2.5 / 1_000_000 + 500 * 10 / 1_000_000
+        assert abs(cost - expected) < 0.0001
+
+    def test_unknown_model_uses_default(self):
+        cost = get_model_cost("unknown/model", 1000, 500)
+        # Default is (3.0, 15.0) — same as Claude Sonnet
+        expected = 1000 * 3 / 1_000_000 + 500 * 15 / 1_000_000
+        assert abs(cost - expected) < 0.0001
+
+    def test_zero_tokens(self):
+        assert get_model_cost("claude-sonnet-4-5-20250929", 0, 0) == 0.0
+
+
+class TestModelShort:
+    def test_basic_truncation(self):
+        short = _model_short("anthropic/claude-sonnet-4-5-20250929")
+        assert len(short) <= 25
+        assert "/" not in short
+        assert "-" not in short
+
+    def test_simple_model(self):
+        short = _model_short("gpt-4o")
+        assert short == "gpt4o"
+
+    def test_model_with_slashes(self):
+        short = _model_short("openai/gpt-4o")
+        assert short == "openai_gpt4o"
+
+
+class TestModelPricingRegistry:
+    def test_all_entries_have_two_floats(self):
+        for model, (inp, out) in MODEL_PRICING.items():
+            assert isinstance(inp, (int, float)), f"{model} input not numeric"
+            assert isinstance(out, (int, float)), f"{model} output not numeric"
+            assert inp >= 0, f"{model} input price negative"
+            assert out >= 0, f"{model} output price negative"
+
+    def test_known_models_present(self):
+        assert "claude-sonnet-4-5-20250929" in MODEL_PRICING
+        assert "openai/gpt-4o" in MODEL_PRICING
+        assert "anthropic/claude-sonnet-4-5-20250929" in MODEL_PRICING
