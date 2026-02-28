@@ -1,0 +1,119 @@
+# عقيدة taxonomy v0.2 — Evolved from v0.1 based on الواسطية extraction
+# Fixed: الصفات الذاتية, الصفات الفعلية, مراتب القدر were flat leaves but are
+# semantically CATEGORIES (plural/collection names). Now branches with proper
+# sub-leaves for individual topics.
+
+aqidah:
+  al_iman_billah:
+    _label: "الإيمان بالله"
+    asma_wa_sifat:
+      _label: "الأسماء والصفات"
+      manhaj_ahl_al_sunna_fi_al_sifat:
+        _label: "منهج أهل السنة في الصفات"
+        _leaf: true
+      sifat_dhatiyyah:
+        _label: "الصفات الذاتية"
+        # BRANCH — individual ذاتية attributes
+        al_ma3iyyah:
+          _label: "المعية والقرب"
+          _leaf: true
+        al_wajh:
+          _label: "الوجه"
+          _leaf: true
+        al_yadayn:
+          _label: "اليدان"
+          _leaf: true
+        al_ayn:
+          _label: "العين"
+          _leaf: true
+        __overview:
+          _label: "الصفات الذاتية — نظرة عامة"
+          _leaf: true
+      sifat_fi3liyyah:
+        _label: "الصفات الفعلية"
+        # BRANCH — individual فعلية attributes
+        al_nuzul:
+          _label: "النزول"
+          _leaf: true
+        al_dahik_wal_farah_wal_ajab:
+          _label: "الضحك والفرح والعجب"
+          _leaf: true
+        al_ghadab_wal_rida:
+          _label: "الغضب والرضا"
+          _leaf: true
+        al_istiwa:
+          _label: "الاستواء على العرش"
+          _leaf: true
+        __overview:
+          _label: "الصفات الفعلية — نظرة عامة"
+          _leaf: true
+      al_uluw:
+        _label: "العلو والفوقية"
+        _leaf: true
+      al_ru2ya:
+        _label: "رؤية الله"
+        _leaf: true
+      al_kalam_al_ilahi:
+        _label: "كلام الله"
+        _leaf: true
+    al_qadr:
+      _label: "القدر"
+      al_iman_bil_qadr:
+        _label: "الإيمان بالقدر"
+        _leaf: true
+      maratib_al_qadr:
+        _label: "مراتب القدر"
+        # BRANCH — individual مراتب
+        al_ilm_wal_kitabah:
+          _label: "مرتبة العلم والكتابة"
+          _leaf: true
+        al_mashia_wal_qudrah:
+          _label: "مرتبة المشيئة والقدرة"
+          _leaf: true
+        mawqif_al_firaq_min_al_qadr:
+          _label: "موقف الفرق من القدر"
+          _leaf: true
+  al_iman_bil_yawm_al_akhir:
+    _label: "الإيمان باليوم الآخر"
+    al_mawt_wa_al_barzakh:
+      _label: "الموت والبرزخ"
+      _leaf: true
+    al_ba3th_wa_al_hashr:
+      _label: "البعث والحشر"
+      _leaf: true
+    al_janna_wa_al_nar:
+      _label: "الجنة والنار"
+      _leaf: true
+  al_iman:
+    _label: "الإيمان"
+    ta3rif_al_iman:
+      _label: "تعريف الإيمان"
+      _leaf: true
+    ziyadat_al_iman_wa_nuqsanuhu:
+      _label: "زيادة الإيمان ونقصانه"
+      _leaf: true
+  al_sahaba_wa_ahl_al_bayt:
+    _label: "الصحابة وأهل البيت"
+    fadl_al_sahaba:
+      _label: "فضل الصحابة"
+      _leaf: true
+    ahl_al_bayt:
+      _label: "أهل البيت"
+      _leaf: true
+    al_tafadul_bayn_al_sahaba:
+      _label: "التفاضل بين الصحابة"
+      _leaf: true
+  al_karamat:
+    _label: "كرامات الأولياء"
+    _leaf: true
+  manhaj_ahl_al_sunna:
+    _label: "منهج أهل السنة والجماعة"
+    al_ittiba3:
+      _label: "الاتباع وترك الابتداع"
+      _leaf: true
+    al_amr_bil_ma3ruf:
+      _label: "الأمر بالمعروف والنهي عن المنكر"
+      _leaf: true
+    al_jama3a:
+      _label: "لزوم الجماعة"
+      _leaf: true

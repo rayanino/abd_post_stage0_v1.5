@@ -1040,3 +1040,117 @@ class TestScienceAgnostic:
         leaves = extract_taxonomy_leaves(str(tax_yaml), "hadith")
         assert "mustalah" in leaves
         assert "jarh_wa_tadil" in leaves
+
+
+# ---------------------------------------------------------------------------
+# BUG-043: Path normalization in assembly
+# ---------------------------------------------------------------------------
+
+class TestAssemblyPathNormalization:
+    """BUG-043: Assembly should normalize full taxonomy paths to leaf IDs."""
+
+    def test_distribute_normalizes_dot_path(self, tmp_path):
+        """Excerpt with dot-path taxonomy_node_id should be placed correctly."""
+        from tools.assemble_excerpts import distribute_excerpts, parse_taxonomy_yaml
+
+        tax_yaml = tmp_path / "aq_v0.yaml"
+        tax_yaml.write_text(
+            "aqidah:\n  al_iman:\n    ta3rif:\n      _leaf: true\n",
+            encoding="utf-8",
+        )
+        taxonomy_map = parse_taxonomy_yaml(str(tax_yaml), "aqidah")
+
+        excerpt = {
+            "excerpt_id": "test:exc:001",
+            "book_id": "test",
+            "taxonomy_node_id": "aqidah.al_iman.ta3rif",
+        }
+
+        result = distribute_excerpts(
+            [excerpt], taxonomy_map, "aqidah", tmp_path, dry_run=True
+        )
+        # Should NOT appear in warnings about _unmapped
+        unmapped_warnings = [w for w in result.get("warnings", []) if "_unmapped" in w]
+        assert len(unmapped_warnings) == 0
+        assert excerpt["taxonomy_node_id"] == "ta3rif"
+
+    def test_distribute_normalizes_colon_path(self, tmp_path):
+        """Excerpt with colon-path taxonomy_node_id should be normalized."""
+        from tools.assemble_excerpts import distribute_excerpts, parse_taxonomy_yaml
+
+        tax_yaml = tmp_path / "aq_v0.yaml"
+        tax_yaml.write_text(
+            "aqidah:\n  qadr:\n    maratib:\n      _leaf: true\n",
+            encoding="utf-8",
+        )
+        taxonomy_map = parse_taxonomy_yaml(str(tax_yaml), "aqidah")
+
+        excerpt = {
+            "excerpt_id": "test:exc:002",
+            "book_id": "test",
+            "taxonomy_node_id": "aqidah:qadr:maratib",
+        }
+
+        result = distribute_excerpts(
+            [excerpt], taxonomy_map, "aqidah", tmp_path, dry_run=True
+        )
+        unmapped_warnings = [w for w in result.get("warnings", []) if "_unmapped" in w]
+        assert len(unmapped_warnings) == 0
+        assert excerpt["taxonomy_node_id"] == "maratib"
+
+    def test_plain_leaf_not_modified(self, tmp_path):
+        """Excerpt with plain leaf ID should not be modified."""
+        from tools.assemble_excerpts import distribute_excerpts, parse_taxonomy_yaml
+
+        tax_yaml = tmp_path / "aq_v0.yaml"
+        tax_yaml.write_text(
+            "aqidah:\n  al_karamat:\n    _leaf: true\n",
+            encoding="utf-8",
+        )
+        taxonomy_map = parse_taxonomy_yaml(str(tax_yaml), "aqidah")
+
+        excerpt = {
+            "excerpt_id": "test:exc:003",
+            "book_id": "test",
+            "taxonomy_node_id": "al_karamat",
+        }
+
+        result = distribute_excerpts(
+            [excerpt], taxonomy_map, "aqidah", tmp_path, dry_run=True
+        )
+        unmapped_warnings = [w for w in result.get("warnings", []) if "_unmapped" in w]
+        assert len(unmapped_warnings) == 0
+        assert excerpt["taxonomy_node_id"] == "al_karamat"
+
+    def test_assemble_matn_normalizes_node_id(self, tmp_path):
+        """assemble_matn_excerpt should normalize full path node IDs."""
+        from tools.assemble_excerpts import assemble_matn_excerpt, parse_taxonomy_yaml
+
+        tax_yaml = tmp_path / "aq_v0.yaml"
+        tax_yaml.write_text(
+            "aqidah:\n  al_iman:\n    ta3rif:\n      _leaf: true\n",
+            encoding="utf-8",
+        )
+        taxonomy_map = parse_taxonomy_yaml(str(tax_yaml), "aqidah")
+
+        excerpt = {
+            "excerpt_id": "test:exc:001",
+            "taxonomy_node_id": "aqidah.al_iman.ta3rif",
+            "taxonomy_path": "",
+            "core_atoms": [{"atom_id": "t:matn:001", "role": "author_prose"}],
+            "context_atoms": [],
+            "boundary_reasoning": "test",
+            "excerpt_title": "test",
+            "excerpt_kind": "teaching",
+            "source_layer": "matn",
+            "case_types": ["A1_pure_definition"],
+        }
+        atoms_index = {"t:matn:001": {"text": "نص تجريبي"}}
+        book_meta = {"book_id": "test", "title": "كتاب", "author": "مؤلف",
+                     "publisher": "", "scholarly_context": {}}
+
+        assembled, errors = assemble_matn_excerpt(
+            excerpt, atoms_index, [], book_meta, taxonomy_map, "aqidah",
+            "P001", "P001_extraction.json"
+        )
+        assert assembled["taxonomy_node_id"] == "ta3rif"

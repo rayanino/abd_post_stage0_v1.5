@@ -360,9 +360,19 @@ def assemble_matn_excerpt(
                 "taxonomy_node_id": fn.get("taxonomy_node_id", ""),
             })
 
-    # Look up taxonomy node title
+    # Look up taxonomy node title — normalize full paths to leaf IDs (BUG-043)
     node_id = excerpt.get("taxonomy_node_id", "")
+    node_id_was_normalized = False
     node_info = taxonomy_map.get(node_id)
+    if node_info is None and node_id and node_id != "_unmapped":
+        for sep in (".", ":", "/"):
+            if sep in node_id:
+                last_segment = node_id.rsplit(sep, 1)[-1]
+                if last_segment in taxonomy_map:
+                    node_id = last_segment
+                    node_info = taxonomy_map[last_segment]
+                    node_id_was_normalized = True
+                    break
     node_title = node_info.title if node_info else ""
 
     # Extract source atom IDs for provenance
@@ -383,7 +393,11 @@ def assemble_matn_excerpt(
 
         # Taxonomy
         "taxonomy_node_id": node_id,
-        "taxonomy_path": excerpt.get("taxonomy_path", ""),
+        "taxonomy_path": (
+            " > ".join(node_info.path_titles)
+            if node_id_was_normalized and node_info and node_info.path_titles
+            else excerpt.get("taxonomy_path", "")
+        ),
         "taxonomy_node_title": node_title,
         "taxonomy_version": excerpt.get("taxonomy_version", ""),
 
@@ -439,7 +453,18 @@ def assemble_footnote_excerpt(
 ) -> dict:
     """Assemble a self-contained footnote excerpt (already has inline text)."""
     node_id = fn_excerpt.get("taxonomy_node_id", "")
+    node_id_was_normalized = False
     node_info = taxonomy_map.get(node_id)
+    # BUG-043: normalize full paths to leaf IDs
+    if node_info is None and node_id and node_id != "_unmapped":
+        for sep in (".", ":", "/"):
+            if sep in node_id:
+                last_segment = node_id.rsplit(sep, 1)[-1]
+                if last_segment in taxonomy_map:
+                    node_id = last_segment
+                    node_info = taxonomy_map[last_segment]
+                    node_id_was_normalized = True
+                    break
     node_title = node_info.title if node_info else ""
     fn_text = fn_excerpt.get("text", "")
 
@@ -457,7 +482,11 @@ def assemble_footnote_excerpt(
 
         # Taxonomy
         "taxonomy_node_id": node_id,
-        "taxonomy_path": fn_excerpt.get("taxonomy_path", ""),
+        "taxonomy_path": (
+            " > ".join(node_info.path_titles)
+            if node_id_was_normalized and node_info and node_info.path_titles
+            else fn_excerpt.get("taxonomy_path", "")
+        ),
         "taxonomy_node_title": node_title,
         "taxonomy_version": fn_excerpt.get("taxonomy_version", ""),
 
@@ -548,8 +577,21 @@ def distribute_excerpts(
         excerpt_id = exc.get("excerpt_id", "")
         book_id = exc.get("book_id", "")
 
-        # Determine folder path
+        # Determine folder path — try direct lookup first, then normalize
+        # BUG-043: LLMs sometimes return full paths like
+        # "aqidah.al_iman_billah.asma_wa_sifat.al_istiwa" instead of "al_istiwa"
         node_info = taxonomy_map.get(node_id)
+        if node_info is None and node_id and node_id != "_unmapped":
+            for sep in (".", ":", "/"):
+                if sep in node_id:
+                    last_segment = node_id.rsplit(sep, 1)[-1]
+                    if last_segment in taxonomy_map:
+                        node_info = taxonomy_map[last_segment]
+                        exc["taxonomy_node_id"] = last_segment
+                        # Also fix taxonomy_path if node_info has it
+                        if node_info.path_titles:
+                            exc["taxonomy_path"] = " > ".join(node_info.path_titles)
+                        break
         if node_info is not None:
             folder_path = node_info.folder_path
         elif node_id == "_unmapped" or not node_id:
