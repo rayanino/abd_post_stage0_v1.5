@@ -77,6 +77,14 @@ DISALLOWED_TOOLS = [
     "Bash(rm -rf:*)",
     "Bash(sudo:*)",
     "Bash(chmod 777:*)",
+    "Bash(rm -r automation:*)",
+    "Bash(rm -r scripts:*)",
+    "Bash(rm -r taxonomy:*)",
+    "Bash(rm -r gold_baselines:*)",
+    "Bash(rm -r schemas:*)",
+    "Bash(rm BUGS.md:*)",
+    "Bash(rm CLAUDE.md:*)",
+    "Bash(rm ROADMAP.md:*)",
 ]
 
 

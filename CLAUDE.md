@@ -232,6 +232,41 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required), `OPENAI_
 
 **Text handling:** All Arabic text is verbatim — never corrected, never normalized in the primary representation. A separate `normalized_text` field exists for search/matching. Diacritics preserved exactly as source.
 
+## ⛔ Protected Files — NEVER Delete
+
+The following files and directories are **infrastructure** that must NEVER be deleted, moved, or replaced, regardless of what task you are performing. Past automated sessions accidentally deleted these — causing days of lost work.
+
+**Root files (must always exist):**
+- `CLAUDE.md` — this file
+- `BUGS.md` — tracked bug list
+- `ROADMAP.md` — strategic task list
+- `PROGRESS.md` — overnight session state
+
+**Automation system (must always exist):**
+- `automation/overnight/abd_overnight.py`
+- `automation/overnight/README.md`
+- `scripts/OVERNIGHT_PROMPT.md`
+- `scripts/overnight.sh`
+- `scripts/logs/`
+
+**Taxonomy trees (must always exist):**
+- `taxonomy/balagha/balagha_v1_0.yaml`
+- `taxonomy/imlaa/imlaa_v1_0.yaml`
+- `taxonomy/nahw/nahw_v1_0.yaml`
+- `taxonomy/sarf/sarf_v1_0.yaml`
+- `taxonomy/taxonomy_registry.yaml`
+
+**Gold baselines (hand-crafted, irreplaceable):**
+- Everything under `gold_baselines/`
+
+**Source data (frozen originals):**
+- Everything under `books/*/source/`
+
+**Schemas (binding contracts):**
+- Everything under `schemas/`
+
+If your task seems to require deleting any of these: STOP. You are misunderstanding the task. Ask for clarification.
+
 ## Code Conventions
 
 - Python 3.11+, type hints used but not enforced
@@ -251,7 +286,7 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required), `OPENAI_
 - All 4 taxonomy trees complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves
 
 **What needs to be built (in priority order):**
-1. Multi-model consensus for extraction (Claude + GPT-4o)
+1. ~~Multi-model consensus for extraction (Claude + GPT-4o)~~ ✅ Built: `tools/consensus.py` (1509 lines, 142 tests)
 3. Taxonomy evolution engine (detect need, propose changes, redistribute, human gate)
 4. Self-contained excerpt assembly + folder distribution
 5. Human gate with feedback persistence and correction learning
