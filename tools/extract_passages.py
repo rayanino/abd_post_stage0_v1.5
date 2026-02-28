@@ -392,6 +392,9 @@ Your previous extraction for {passage_id} had validation issues. Fix ONLY the li
 ## Validation Issues Found
 {issues_text}
 
+## Original Passage Text (for reference)
+{passage_text}
+
 ## Your Previous Output
 {previous_output}
 
@@ -517,6 +520,10 @@ def repair_truncated_json(text: str) -> str:
 
     # Build repair suffix
     repair = text
+    # If we ended mid-escape (backslash was last char), drop the dangling backslash
+    # so the closing quote is not itself escaped (producing \")
+    if escaped and in_string:
+        repair = repair[:-1]
     # If we ended inside a string, close it
     if in_string:
         repair += '"'
@@ -529,31 +536,67 @@ def repair_truncated_json(text: str) -> str:
     return repair
 
 
+_ANTHROPIC_MAX_RETRIES = 3
+_ANTHROPIC_RETRY_BACKOFF = (2, 5, 10)  # seconds
+
+
 def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
-    """Call Claude API and return parsed JSON response."""
+    """Call Claude API and return parsed JSON response.
+
+    Retries transient errors (429, 502, 503, 504) with exponential backoff.
+    """
     import httpx
 
-    resp = httpx.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        json={
-            "model": model,
-            "max_tokens": 16384,
-            "temperature": 0,
-            "system": system,
-            "messages": [{"role": "user", "content": user}],
-        },
-        timeout=180.0,
-    )
+    last_err = None
+    for attempt in range(_ANTHROPIC_MAX_RETRIES + 1):
+        try:
+            resp = httpx.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": 16384,
+                    "temperature": 0,
+                    "system": system,
+                    "messages": [{"role": "user", "content": user}],
+                },
+                timeout=180.0,
+            )
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+            last_err = e
+            if attempt >= _ANTHROPIC_MAX_RETRIES:
+                raise RuntimeError(
+                    f"Anthropic API connection failed after "
+                    f"{_ANTHROPIC_MAX_RETRIES + 1} attempts: {e}"
+                )
+            wait = _ANTHROPIC_RETRY_BACKOFF[min(attempt, len(_ANTHROPIC_RETRY_BACKOFF) - 1)]
+            print(f"    [retry {attempt + 1}] Connection error: {e}. "
+                  f"Waiting {wait}s...")
+            time.sleep(wait)
+            continue
 
-    if resp.status_code != 200:
-        raise RuntimeError(
-            f"API error {resp.status_code}: {resp.text[:500]}"
-        )
+        if resp.status_code in _TRANSIENT_STATUS_CODES:
+            last_err = RuntimeError(f"API error {resp.status_code}")
+            if attempt >= _ANTHROPIC_MAX_RETRIES:
+                raise RuntimeError(
+                    f"Anthropic API error {resp.status_code} after "
+                    f"{_ANTHROPIC_MAX_RETRIES + 1} attempts: {resp.text[:500]}"
+                )
+            wait = _ANTHROPIC_RETRY_BACKOFF[min(attempt, len(_ANTHROPIC_RETRY_BACKOFF) - 1)]
+            print(f"    [retry {attempt + 1}] Status {resp.status_code}. "
+                  f"Waiting {wait}s...")
+            time.sleep(wait)
+            continue
+
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"API error {resp.status_code}: {resp.text[:500]}"
+            )
+        break  # success
 
     data = resp.json()
     text = ""
@@ -1120,19 +1163,39 @@ def validate_extraction(result: dict, passage_id: str,
 
 
 def extract_taxonomy_leaves(yaml_text: str) -> set[str]:
-    """Quick extraction of leaf node IDs from YAML taxonomy."""
+    """Quick extraction of leaf node IDs from YAML taxonomy.
+
+    Handles both v0 format (``node_id:\\n  _leaf: true``) and v1 format
+    (``- id: node_id\\n  leaf: true``).
+    """
     leaves = set()
     lines = yaml_text.split("\n")
     for i, line in enumerate(lines):
         # Strip comments and whitespace
         stripped = line.split("#")[0].strip()
-        if stripped == "_leaf: true" and i > 0:
-            # The leaf ID is the key on the previous non-blank, non-_leaf line
+
+        # Match both ``_leaf: true`` (v0) and ``leaf: true`` (v1)
+        if stripped in ("_leaf: true", "leaf: true") and i > 0:
+            # Scan backwards for the node ID
             for j in range(i - 1, -1, -1):
-                prev = lines[j].split("#")[0].strip().rstrip(":")
-                if prev and not prev.startswith("_") and not prev.startswith("#"):
-                    leaves.add(prev)
+                prev = lines[j].split("#")[0].strip()
+                if not prev:
+                    continue
+                # v1 format: ``- id: node_id`` or ``id: node_id``
+                if prev.startswith("- id:") or prev.startswith("id:"):
+                    node_id = prev.split(":", 1)[1].strip()
+                    if node_id:
+                        leaves.add(node_id)
                     break
+                # v0 format: ``node_id:`` as a dict key
+                bare = prev.rstrip(":")
+                if bare != prev and bare and not bare.startswith("_"):
+                    leaves.add(bare)
+                    break
+                # Skip metadata lines (title:, children:, etc.) in v1
+                if ":" in prev:
+                    continue
+                break
     return leaves
 
 
@@ -1142,7 +1205,8 @@ def extract_taxonomy_leaves(yaml_text: str) -> set[str]:
 
 def attempt_correction(result: dict, issues: dict, passage_id: str,
                        system: str, model: str, api_key: str,
-                       openrouter_key: str | None = None) -> dict | None:
+                       openrouter_key: str | None = None,
+                       passage_text: str = "") -> dict | None:
     """Send a correction prompt and return the corrected result, or None."""
     # Format issues
     all_issues = []
@@ -1157,10 +1221,16 @@ def attempt_correction(result: dict, issues: dict, passage_id: str,
     if len(previous_output) > 30000:
         previous_output = previous_output[:30000] + "\n... (truncated)"
 
+    # Truncate passage text to keep within token limits
+    ptext = passage_text
+    if len(ptext) > 10000:
+        ptext = ptext[:10000] + "\n... (truncated)"
+
     user_msg = CORRECTION_PROMPT.format(
         passage_id=passage_id,
         issues_text=issues_text,
         previous_output=previous_output,
+        passage_text=ptext if ptext else "(not available)",
     )
 
     try:
@@ -1308,6 +1378,7 @@ def extract_single_model(
     taxonomy_leaves: set,
     max_retries: int,
     openrouter_key: str | None = None,
+    passage_text: str = "",
 ) -> tuple[dict, dict, dict, int]:
     """Run extraction with one model, including correction retries.
 
@@ -1350,7 +1421,8 @@ def extract_single_model(
         for retry in range(max_retries):
             print(f"  [{model}] Correction attempt {retry + 1}/{max_retries}...")
             correction = attempt_correction(
-                result, issues, pid, system, model, api_key, openrouter_key
+                result, issues, pid, system, model, api_key, openrouter_key,
+                passage_text,
             )
             if correction is None:
                 break
@@ -1524,6 +1596,7 @@ def run_extraction(args):
                     system, user, args.model, args.api_key,
                     args.book_id, args.science, taxonomy_filename,
                     pid, taxonomy_leaves, max_retries, openrouter_key,
+                    passage_text,
                 )
             except Exception as e:
                 print(f"  ERROR: {e}")
@@ -1556,6 +1629,7 @@ def run_extraction(args):
                         system, user, model, args.api_key,
                         args.book_id, args.science, taxonomy_filename,
                         pid, taxonomy_leaves, max_retries, openrouter_key,
+                        passage_text,
                     )
                     per_model_results[model] = m_result
                     per_model_issues[model] = m_issues
