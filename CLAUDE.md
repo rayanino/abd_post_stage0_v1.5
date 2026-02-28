@@ -2,7 +2,7 @@
 
 ## What This Is
 
-ABD is a precision pipeline that transforms classical Arabic books (Shamela HTML exports) into self-contained, accurately-placed excerpts organized in taxonomy folder trees. It covers four sciences: إملاء (orthography), صرف (morphology), نحو (syntax), بلاغة (rhetoric).
+ABD is a precision pipeline that transforms classical Arabic books (Shamela HTML exports) into self-contained, accurately-placed excerpts organized in taxonomy folder trees. The engine is science-agnostic — it currently covers إملاء (orthography), صرف (morphology), نحو (syntax), بلاغة (rhetoric), and has been E2E-tested on عقيدة (creed). Future expansion to 20+ Islamic sciences is planned (see VISION.md).
 
 ## Core Design Principles
 
@@ -128,7 +128,7 @@ provenance tracking, taxonomy version control
 | 6 Taxonomy Evolution | — | ❌ Not built | — |
 | 7 Assembly + Distribution | `tools/assemble_excerpts.py` | ✅ Complete | `tests/test_assembly.py` |
 
-**Extraction verified on إملاء only.** The 5-passage verification (P004, P005, P006, P010, P020) used قواعد الإملاء with the إملاء taxonomy. Other sciences have taxonomy trees now but extraction is untested against them.
+**Extraction verified on إملاء and عقيدة.** إملاء: 5 passages (P004, P005, P006, P010, P020) with Claude + GPT-4o consensus. عقيدة: 10 passages from العقيدة الواسطية — full E2E pipeline (intake → normalize → discover → extract → assemble → evolve). Other sciences have taxonomy trees but extraction is untested against them.
 
 **Not yet built:**
 - Taxonomy evolution engine
@@ -242,6 +242,7 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 - `taxonomy/sarf/sarf_v1_0.yaml` — صرف taxonomy (226 leaves)
 - `taxonomy/nahw/nahw_v1_0.yaml` — نحو taxonomy (226 leaves)
 - `taxonomy/balagha/balagha_v1_0.yaml` — بلاغة taxonomy (335 leaves)
+- `taxonomy/aqidah/aqidah_v0_1.yaml` — عقيدة taxonomy (21 leaves, test)
 - Historical: `imlaa_v0.1.yaml` (44 leaves), `balagha_v0_2` through `v0_4` (143 leaves)
 
 ## Architecture Patterns
@@ -281,10 +282,11 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 - Extraction tool with multi-model consensus (2115 lines, `tools/extract_passages.py`)
 - Consensus engine (1722 lines, `tools/consensus.py`) — text-overlap matching, LLM arbiter for disagreements, per-excerpt confidence scoring
 - Assembly tool (`tools/assemble_excerpts.py`) — transforms extraction output into self-contained excerpt files placed in taxonomy folder tree
-- 726 tests pass across the full suite (~105 extraction, ~120 consensus, ~50 assembly)
+- 815+ tests pass across the full suite (~160 extraction, ~120 consensus, ~50 assembly, ~49 evolution, ~90 intake)
 - 3-way API dispatch: Anthropic direct, OpenAI direct, OpenRouter (model prefix routing)
 - Live-validated on 5 إملاء passages (P004, P005, P006, P010, P020) with Claude + GPT-4o consensus
-- All 4 taxonomy trees complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves
+- All 4 core taxonomy trees complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves
+- عقيدة test taxonomy (21 leaves) — verified E2E with live API extraction
 
 **What needs to be built (in priority order):**
 1. Taxonomy evolution engine (detect need, propose changes, redistribute, human gate)
@@ -306,6 +308,7 @@ The books in `books/` are test cases for developing and validating the pipeline 
 ```
 books/
 ├── imla/          # قواعد الإملاء (77p, إملاء) — primary test book, has Stage 1+2 outputs
+├── wasitiyyah/    # العقيدة الواسطية (32p, عقيدة) — E2E test for new science, has Stage 1+2 outputs
 ├── shadha/        # شذا العرف (187p, صرف) — next test target (different science)
 ├── jawahir/       # جواهر البلاغة (بلاغة) — gold baseline source
 ├── qatr/          # قطر الندى (نحو)
@@ -331,7 +334,7 @@ books/
 - **Taxonomy is alive**: Trees evolve as books reveal finer distinctions. The tree serves excerpts, not the other way around.
 - **Excerpting is content-driven**: Taxonomy has zero influence on excerpt boundaries. Excerpt first, place second, evolve third.
 - **Author context gap**: `intake_metadata.json` `scholarly_context` fields are mostly null/auto. Enrichment needs extension.
-- **Extraction verified on إملاء only**: All 4 taxonomy trees exist now, but extraction is only tested against إملاء.
+- **Extraction verified on إملاء and عقيدة**: إملاء (5 passages with consensus) and عقيدة (10 passages, full E2E). Other sciences have taxonomy trees but are untested.
 - **GPT-4o produces coarser excerpts**: On long passages (5+ pages), GPT-4o tends toward 1-2 mega-excerpts while Claude produces granular ones. The arbiter handles this correctly but cost increases with more unmatched excerpts.
 - **Windows console encoding**: Always set `PYTHONIOENCODING=utf-8` when running extraction on Windows. The default cp1252 codec can't encode Arabic characters.
 - **Module imports for consensus**: Set `PYTHONPATH=.` when running `tools/extract_passages.py` so that `from tools.consensus import ...` resolves correctly.
