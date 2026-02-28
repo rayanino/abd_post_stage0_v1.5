@@ -867,6 +867,23 @@ def _is_openai_model(model: str) -> bool:
     return any(model.startswith(p) for p in _OPENAI_MODEL_PREFIXES)
 
 
+def _resolve_key_for_model(model: str, anthropic_key: str | None,
+                           openrouter_key: str | None = None,
+                           openai_key: str | None = None) -> str:
+    """Return the correct API key for a given model's provider.
+
+    Same routing logic as call_llm_dispatch:
+    - model with '/' and openrouter_key → openrouter_key
+    - gpt-/o1-/o3-/o4- with openai_key → openai_key
+    - otherwise → anthropic_key
+    """
+    if openrouter_key and "/" in model:
+        return openrouter_key
+    if openai_key and _is_openai_model(model):
+        return openai_key
+    return anthropic_key or ""
+
+
 def call_llm_dispatch(system: str, user: str, model: str,
                        api_key: str, openrouter_key: str | None = None,
                        openai_key: str | None = None) -> dict:
@@ -1828,7 +1845,9 @@ def run_extraction(args):
                     threshold=getattr(args, "consensus_threshold", 0.5),
                     call_llm_fn=call_llm_fn,
                     arbiter_model=arbiter_model,
-                    arbiter_api_key=openrouter_key or openai_key or args.api_key,
+                    arbiter_api_key=_resolve_key_for_model(
+                        arbiter_model, args.api_key,
+                        openrouter_key, openai_key),
                     taxonomy_yaml=taxonomy_yaml,
                     passage_text=passage_text,
                     arbiter_pricing=arbiter_pricing,

@@ -30,6 +30,7 @@ from extract_passages import (
     MODEL_PRICING,
     _extract_atom_id,
     _is_openai_model,
+    _resolve_key_for_model,
     _normalize_atom_entries,
     _model_short,
     call_llm_dispatch,
@@ -1185,3 +1186,37 @@ class TestExtractSingleModelAcceptsOpenaiKey:
         from tools.extract_passages import extract_single_model
         sig = inspect.signature(extract_single_model)
         assert "openai_key" in sig.parameters
+
+
+class TestResolveKeyForModel:
+    """_resolve_key_for_model returns the correct key per provider."""
+
+    def test_anthropic_model_gets_anthropic_key(self):
+        key = _resolve_key_for_model(
+            "claude-sonnet-4-5-20250929", "ant-key",
+            openrouter_key=None, openai_key="oa-key")
+        assert key == "ant-key"
+
+    def test_openai_model_gets_openai_key(self):
+        key = _resolve_key_for_model(
+            "gpt-4o", "ant-key",
+            openrouter_key=None, openai_key="oa-key")
+        assert key == "oa-key"
+
+    def test_openrouter_model_gets_openrouter_key(self):
+        key = _resolve_key_for_model(
+            "anthropic/claude-sonnet-4-5-20250929", "ant-key",
+            openrouter_key="or-key", openai_key="oa-key")
+        assert key == "or-key"
+
+    def test_openai_model_without_key_falls_to_anthropic(self):
+        key = _resolve_key_for_model(
+            "gpt-4o", "ant-key",
+            openrouter_key=None, openai_key=None)
+        assert key == "ant-key"
+
+    def test_o1_model_gets_openai_key(self):
+        key = _resolve_key_for_model(
+            "o1-preview", "ant-key",
+            openrouter_key=None, openai_key="oa-key")
+        assert key == "oa-key"
