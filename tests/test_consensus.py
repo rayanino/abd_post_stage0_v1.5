@@ -4,6 +4,7 @@ Tests for Multi-Model Consensus Engine (tools/consensus.py)
 Run: python -m pytest tests/test_consensus.py -q
 """
 
+import json
 import sys
 import os
 import pytest
@@ -1720,10 +1721,16 @@ class TestMergeAtomsForConsensus:
         assert "shared:001" in ids  # A's version
         tagged = [aid for aid in ids if ":gpt4o" in aid]
         assert len(tagged) == 1  # B's version disambiguated
-        # Excerpt should be remapped too
-        exc_ref = exc_b["core_atoms"][0]
-        remapped_id = exc_ref["atom_id"] if isinstance(exc_ref, dict) else exc_ref
+        # The consensus_excerpts entry should have been deep-copied and remapped
+        # (original exc_b is not mutated thanks to F03 deep-copy fix)
+        ce_exc = consensus_excerpts[0]["excerpt"]
+        ce_ref = ce_exc["core_atoms"][0]
+        remapped_id = ce_ref["atom_id"] if isinstance(ce_ref, dict) else ce_ref
         assert "gpt4o" in remapped_id
+        # Original should be UNCHANGED (F03: deep-copy protects originals)
+        orig_ref = exc_b["core_atoms"][0]
+        orig_id = orig_ref["atom_id"] if isinstance(orig_ref, dict) else orig_ref
+        assert orig_id == "shared:001"
 
     def test_no_collision_same_text(self):
         """Same atom_id same text → no disambiguation needed."""
@@ -2295,3 +2302,192 @@ class TestReviewSectionContextAtoms:
         md = generate_consensus_review_section(meta)
         assert "Context Atom Disagreements" in md
         assert "ea:001" in md
+
+
+# ===========================================================================
+# AUDIT ROUND 2 TESTS — verify F01-F26 fixes
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# F01: Stack-based JSON repair
+# ---------------------------------------------------------------------------
+
+class TestRepairTruncatedJson:
+    """Test that the new stack-based repair handles brackets inside strings."""
+
+    def test_brackets_inside_strings_not_counted(self):
+        from tools.extract_passages import repair_truncated_json
+        # Arabic text with [1] inside a string, then truncated
+        text = '{"atoms": [{"text": "أقسام [1]", "id": "a1"'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert parsed["atoms"][0]["text"] == "أقسام [1]"
+        assert parsed["atoms"][0]["id"] == "a1"
+
+    def test_truncated_mid_string(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"key": "value", "trunc": "abc'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert parsed["key"] == "value"
+        assert "abc" in parsed["trunc"]
+
+    def test_nested_structures(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"a": [{"b": [1, 2'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert parsed["a"][0]["b"] == [1, 2]
+
+    def test_already_complete_json(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"key": "value"}'
+        assert repair_truncated_json(text) == text
+
+    def test_escaped_quotes(self):
+        from tools.extract_passages import repair_truncated_json
+        text = '{"key": "val\\"ue'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert 'val"ue' in parsed["key"]
+
+
+# ---------------------------------------------------------------------------
+# F03: Deep-copy protects original model results from remap mutation
+# ---------------------------------------------------------------------------
+
+class TestDeepCopyProtectsOriginals:
+    def test_original_result_not_mutated_by_consensus(self):
+        """After consensus, original per_model_results should be unchanged."""
+        atoms_a = [_make_atom("shared:001", "prose_sentence", "Text A version")]
+        atoms_b = [_make_atom("shared:001", "prose_sentence", "Text B different")]
+        exc_a = _make_excerpt("ea:001", ["shared:001"], taxonomy_node_id="leaf_a")
+        exc_b = _make_excerpt("eb:001", ["shared:001"], taxonomy_node_id="leaf_b")
+        ra = _make_result(atoms_a, [exc_a])
+        rb = _make_result(atoms_b, [exc_b])
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        # Save original state of model B's excerpt
+        orig_b_atom_id = rb["excerpts"][0]["core_atoms"][0]["atom_id"]
+
+        def pick_b_llm(system, user, model, api_key):
+            return {
+                "parsed": {
+                    "correct_placement": "leaf_b",
+                    "reasoning": "B is right",
+                    "confidence": "certain",
+                },
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "stop_reason": "end_turn",
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=pick_b_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+
+        # Original model B result should NOT have remapped atom IDs
+        assert rb["excerpts"][0]["core_atoms"][0]["atom_id"] == orig_b_atom_id
+
+
+# ---------------------------------------------------------------------------
+# F05: _unmapped variant mismatch doesn't trigger arbiter
+# ---------------------------------------------------------------------------
+
+class TestUnmappedVariantMismatch:
+    def test_different_unmapped_variants_no_arbiter(self):
+        """_unmapped vs __unmapped should be both_unmapped, not placement_disagreement."""
+        atoms_a = [_make_atom("a1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        atoms_b = [_make_atom("b1", "prose_sentence", TEXT_HAMZA_OVERVIEW)]
+        exc_a = _make_excerpt("ea:001", ["a1"], taxonomy_node_id="_unmapped")
+        exc_b = _make_excerpt("eb:001", ["b1"], taxonomy_node_id="__unmapped")
+        ra = _make_result(atoms_a, [exc_a])
+        rb = _make_result(atoms_b, [exc_b])
+
+        arbiter_called = [False]
+
+        def spy_llm(system, user, model, api_key):
+            arbiter_called[0] = True
+            return {
+                "parsed": {"correct_placement": "_unmapped",
+                           "reasoning": "test", "confidence": "certain"},
+                "input_tokens": 10, "output_tokens": 5, "stop_reason": "end_turn",
+            }
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=spy_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+        meta = consensus["consensus_meta"]
+        assert meta["both_unmapped_count"] == 1
+        assert meta["placement_disagreement_count"] == 0
+        # Arbiter should NOT have been called
+        assert not arbiter_called[0]
+
+
+# ---------------------------------------------------------------------------
+# F09: Consensus output atoms are filtered to referenced-only
+# ---------------------------------------------------------------------------
+
+class TestConsensusAtomFiltering:
+    def test_unreferenced_atoms_removed(self):
+        """Winning model atoms not in any consensus excerpt should be filtered out."""
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_different_taxonomy()
+        issues = {"errors": [], "warnings": [], "info": []}
+
+        def pick_b_llm(system, user, model, api_key):
+            return {
+                "parsed": {
+                    "correct_placement": "al_hala_2_tursam_wawan",
+                    "reasoning": "B is right",
+                    "confidence": "certain",
+                },
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "stop_reason": "end_turn",
+            }
+
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+            call_llm_fn=pick_b_llm,
+            arbiter_model="claude",
+            arbiter_api_key="test-key",
+        )
+
+        # Every atom in the output should be referenced by some excerpt,
+        # or be a heading/prose_tail/exclusion
+        atom_ids = {a["atom_id"] for a in consensus["atoms"]}
+        referenced = set()
+        for exc in consensus["excerpts"]:
+            for entry in (exc.get("core_atoms") or []):
+                aid = entry["atom_id"] if isinstance(entry, dict) else entry
+                referenced.add(aid)
+            for entry in (exc.get("context_atoms") or []):
+                aid = entry["atom_id"] if isinstance(entry, dict) else entry
+                referenced.add(aid)
+        excluded = {e.get("atom_id", "") for e in consensus["exclusions"]}
+        heading_or_tail = set()
+        for a in consensus["atoms"]:
+            if a.get("atom_type") == "heading" or a.get("is_prose_tail"):
+                heading_or_tail.add(a["atom_id"])
+        allowed = referenced | excluded | heading_or_tail
+        orphan_atoms = atom_ids - allowed
+        assert orphan_atoms == set(), f"Unreferenced atoms in output: {orphan_atoms}"
+
+    def test_full_agreement_atoms_filtered(self):
+        """Even in full agreement, only referenced atoms should remain."""
+        ra = _make_model_a_result()
+        rb = _make_model_b_result_same_taxonomy()
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+        # Should have atoms referenced by the 2 excerpts + heading in exclusions
+        assert len(consensus["atoms"]) >= 2  # at least the 2 core atoms

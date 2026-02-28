@@ -481,17 +481,51 @@ def get_context_head(passages: list, idx: int, page_by_seq: dict, chars: int = 3
 
 
 def repair_truncated_json(text: str) -> str:
-    """Attempt to repair truncated JSON by closing unclosed strings, brackets, and braces."""
+    """Attempt to repair truncated JSON by closing unclosed strings, brackets, and braces.
+
+    Uses a state machine that tracks whether we are inside a string value,
+    so brackets inside JSON strings (e.g., Arabic text containing [1])
+    are not counted as structural brackets. This prevents the naive
+    bracket-counting bug that could produce structurally corrupt output.
+    """
+    # Walk the text tracking JSON structural state
+    in_string = False
+    escaped = False
+    stack = []  # tracks open [ and { outside strings
+
+    for ch in text:
+        if escaped:
+            escaped = False
+            continue
+        if ch == '\\' and in_string:
+            escaped = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        # Outside string — track structural brackets
+        if ch in ('{', '['):
+            stack.append(ch)
+        elif ch == '}':
+            if stack and stack[-1] == '{':
+                stack.pop()
+        elif ch == ']':
+            if stack and stack[-1] == '[':
+                stack.pop()
+
+    # Build repair suffix
     repair = text
-    # Close any open strings
-    if repair.count('"') % 2 == 1:
+    # If we ended inside a string, close it
+    if in_string:
         repair += '"'
-    # Count open brackets/braces
-    open_brackets = repair.count("[") - repair.count("]")
-    opens = repair.count("{") - repair.count("}")
-    # Close brackets then braces
-    repair += "]" * max(0, open_brackets)
-    repair += "}" * max(0, opens)
+    # Close stack in reverse order
+    for opener in reversed(stack):
+        if opener == '{':
+            repair += '}'
+        else:
+            repair += ']'
     return repair
 
 
@@ -509,6 +543,7 @@ def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
         json={
             "model": model,
             "max_tokens": 16384,
+            "temperature": 0,
             "system": system,
             "messages": [{"role": "user", "content": user}],
         },
@@ -1056,6 +1091,31 @@ def validate_extraction(result: dict, passage_id: str,
                     f"Excerpt {eid} has unknown relation type '{rtype}'"
                 )
 
+    # --- Check 18: Footnote atom coverage (F21) ---
+    # Footnote-layer atoms are excluded from Check 7, but they should
+    # appear in at least one footnote_excerpt. Silently lost footnotes
+    # are a data integrity issue.
+    if footnote_atom_ids:
+        fn_covered = set()
+        for fn_exc in result.get("footnote_excerpts", []):
+            fn_text = fn_exc.get("text", "")
+            # Footnote excerpts carry inline text, not atom refs.
+            # Check if any footnote atom's text appears in a footnote excerpt.
+            for aid in footnote_atom_ids:
+                atom = atom_by_id.get(aid)
+                if atom:
+                    atom_text = atom.get("text", "").strip()
+                    if atom_text and atom_text in fn_text:
+                        fn_covered.add(aid)
+        # Also check if footnote atoms appear in exclusions
+        excl_ids = {e.get("atom_id", "") for e in result.get("exclusions", [])}
+        fn_uncovered = footnote_atom_ids - fn_covered - excl_ids
+        if fn_uncovered:
+            warnings.append(
+                f"Footnote atoms not in any footnote_excerpt or exclusion: "
+                f"{sorted(fn_uncovered)}"
+            )
+
     return {"errors": errors, "warnings": warnings, "info": info}
 
 
@@ -1359,9 +1419,18 @@ def run_extraction(args):
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # Sequence tracking
-    atom_seq = 1
-    excerpt_seq = 1
+    # Sequence tracking.
+    # When processing a subset of passages (--passage-ids), we derive the
+    # starting sequence from the passage index * a large stride (1000) to
+    # ensure IDs don't collide across passages on re-runs. Without this,
+    # re-processing P005 alone would restart at 1, colliding with P004's atoms.
+    if args.passage_ids and passage_indices:
+        first_passage_idx = passage_indices[0][0]
+        atom_seq = first_passage_idx * 1000 + 1
+        excerpt_seq = first_passage_idx * 1000 + 1
+    else:
+        atom_seq = 1
+        excerpt_seq = 1
 
     # Results accumulator
     all_results = []
@@ -1564,6 +1633,14 @@ def run_extraction(args):
                     "notes": consensus["notes"],
                     "consensus_meta": consensus["consensus_meta"],
                 }
+
+                # F11: Post-process consensus output to ensure footnote
+                # excerpts from the losing model have standard metadata
+                # (record_type, book_id, taxonomy_version).
+                result = post_process_extraction(
+                    result, args.book_id, args.science, taxonomy_filename,
+                )
+
                 issues = validate_extraction(result, pid, taxonomy_leaves)
                 retries_used = sum(per_model_retries.values())
 
@@ -1592,7 +1669,10 @@ def run_extraction(args):
             total_cost["output_tokens"] += out_tok
             total_cost["total_cost"] += cost
 
-        # Update sequence counters
+        # Update sequence counters.
+        # In consensus mode, result["atoms"] is a filtered merge of both models.
+        # We advance by the count of atoms/excerpts actually in the output,
+        # not the per-model counts, to keep IDs contiguous across passages.
         atom_seq += len(result.get("atoms", []))
         excerpt_seq += len(result.get("excerpts", []))
         excerpt_seq += len(result.get("footnote_excerpts", []))

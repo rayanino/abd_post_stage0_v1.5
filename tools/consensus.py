@@ -11,6 +11,7 @@ outputs (different atom counts, boundaries, IDs). Comparison works at the
 excerpt level using text overlap, not atom-ID matching.
 """
 
+import copy
 import json
 import re
 import unicodedata
@@ -190,10 +191,14 @@ def _merge_atoms_for_consensus(
         if aid:
             losing_atoms[aid] = a
 
-    # Identify which excerpts come from the losing model
+    # Identify which excerpts come from the losing model.
+    # Deep-copy them so _remap_atom_refs doesn't mutate the original
+    # model results (which may still be referenced for audit/raw saves).
     losing_excerpts = []
     for ce in consensus_excerpts:
         if ce["source_model"] != winning_model:
+            # Deep-copy so remap doesn't corrupt the original result dicts
+            ce["excerpt"] = copy.deepcopy(ce["excerpt"])
             losing_excerpts.append(ce["excerpt"])
 
     if not losing_excerpts:
@@ -1048,6 +1053,11 @@ def _extract_taxonomy_context(taxonomy_yaml: str, node_a: str, node_b: str) -> s
 _UNMAPPED_NODES = {"_unmapped", "__unmapped", "unmapped"}
 
 
+def _is_unmapped(node: str) -> bool:
+    """Check if a taxonomy node is an unmapped variant."""
+    return node in _UNMAPPED_NODES
+
+
 def build_consensus(
     passage_id: str,
     result_a: dict,
@@ -1106,21 +1116,13 @@ def build_consensus(
     for m in matched:
         tax_a = m["taxonomy_a"]
         tax_b = m["taxonomy_b"]
-        both_unmapped = tax_a in _UNMAPPED_NODES and tax_b in _UNMAPPED_NODES
+        both_unmapped = _is_unmapped(tax_a) and _is_unmapped(tax_b)
 
-        if m["same_taxonomy"] and not both_unmapped:
-            # FULL AGREEMENT -- high confidence
-            exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
-            consensus_excerpts.append({
-                "excerpt": exc,
-                "source_model": winning,
-                "confidence": "high",
-                "agreement": "full",
-                "flags": [],
-                "disagreement_detail": None,
-            })
-        elif both_unmapped:
-            # BOTH UNMAPPED -- classification failure, NOT real agreement
+        if both_unmapped:
+            # BOTH UNMAPPED -- classification failure, NOT real agreement.
+            # Checked first because _unmapped variants (e.g., "_unmapped" vs
+            # "__unmapped") may have same_taxonomy=False, but both indicate
+            # the same failure — don't waste arbiter calls on that.
             exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
             detail = {
                 "type": "both_unmapped",
@@ -1137,6 +1139,17 @@ def build_consensus(
                     "Both models placed at _unmapped (classification failure)"
                 ],
                 "disagreement_detail": detail,
+            })
+        elif m["same_taxonomy"]:
+            # FULL AGREEMENT -- high confidence
+            exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
+            consensus_excerpts.append({
+                "excerpt": exc,
+                "source_model": winning,
+                "confidence": "high",
+                "agreement": "full",
+                "flags": [],
+                "disagreement_detail": None,
             })
         else:
             # PLACEMENT DISAGREEMENT -- call arbiter
@@ -1305,6 +1318,7 @@ def build_consensus(
         "placement_disagreement_count": sum(
             1 for m in matched
             if not m["same_taxonomy"]
+            and not (_is_unmapped(m["taxonomy_a"]) and _is_unmapped(m["taxonomy_b"]))
         ),
         "unmatched_a_count": len(unmatched_a),
         "unmatched_b_count": len(unmatched_b),
@@ -1342,12 +1356,37 @@ def build_consensus(
         result_a, result_b, model_a, model_b, winning, footnote_comparison,
     )
 
+    # Build the final excerpt list and exclusions
+    final_excerpts = [ce["excerpt"] for ce in consensus_excerpts]
+    final_exclusions = winning_result.get("exclusions", [])
+
+    # F09: Filter merged atoms to only those referenced by consensus excerpts
+    # or exclusions. Without this, validation Check 7 (coverage) produces
+    # false positives because winning-model atoms from non-chosen excerpts
+    # appear in the atom list but aren't covered by any excerpt.
+    referenced_ids = set()
+    for exc in final_excerpts:
+        for entry in (exc.get("core_atoms") or []):
+            referenced_ids.add(_extract_atom_id(entry))
+        for entry in (exc.get("context_atoms") or []):
+            referenced_ids.add(_extract_atom_id(entry))
+    excluded_ids = set()
+    for excl in final_exclusions:
+        excluded_ids.add(excl.get("atom_id", ""))
+    keep_ids = referenced_ids | excluded_ids
+    # Also keep heading atoms (they're excluded from coverage by the validator)
+    for a in merged_atoms:
+        atype = a.get("atom_type", a.get("type", ""))
+        if atype == "heading" or a.get("is_prose_tail"):
+            keep_ids.add(a.get("atom_id", ""))
+    filtered_atoms = [a for a in merged_atoms if a.get("atom_id", "") in keep_ids]
+
     return {
         "passage_id": passage_id,
-        "atoms": merged_atoms,
-        "excerpts": [ce["excerpt"] for ce in consensus_excerpts],
+        "atoms": filtered_atoms,
+        "excerpts": final_excerpts,
         "footnote_excerpts": merged_footnotes,
-        "exclusions": winning_result.get("exclusions", []),
+        "exclusions": final_exclusions,
         "notes": winning_result.get("notes", ""),
         "consensus_meta": consensus_meta,
     }
