@@ -64,7 +64,8 @@ VALID_CHANGE_TYPES = {"node_added", "leaf_granulated", "node_renamed", "node_mov
 @dataclass
 class EvolutionSignal:
     """A detected signal that a taxonomy node may need to evolve."""
-    signal_type: str        # "unmapped" | "same_book_cluster" | "user_specified"
+    signal_type: str        # "unmapped" | "same_book_cluster" | "category_leaf"
+                            # | "multi_topic_excerpt" | "user_specified"
     node_id: str            # affected taxonomy node (or "_unmapped")
     science: str
     excerpt_ids: list[str]
@@ -205,6 +206,169 @@ def scan_cluster_signals(
             context=(
                 f"{len(exc_ids)} excerpts from book '{book_id}' at node "
                 f"'{node_title}' ({node_id})"
+            ),
+        ))
+
+    return signals
+
+
+# Arabic keywords that indicate a node name is a CATEGORY (plural/collection),
+# not a single topic.  When a leaf node's _label contains one of these, it
+# should almost certainly be a branch with sub-leaves.
+_CATEGORY_KEYWORDS_AR = [
+    "مراتب",    # levels/stages
+    "أقسام",    # divisions
+    "أنواع",    # types
+    "أحكام",    # rulings (collection)
+    "شروط",    # conditions (collection)
+    "أركان",    # pillars (collection)
+    "واجبات",   # obligations (collection)
+    "سنن",     # sunnah practices (collection)
+    "صفات",    # attributes (collection)
+    "مسائل",   # issues (collection)
+    "أدلة",    # evidences (collection)
+    "مراحل",   # phases (collection)
+    "درجات",   # degrees (collection)
+    "طبقات",   # classes/layers (collection)
+    "فروع",    # branches/sub-topics (collection)
+    "أصول",    # principles (collection)
+    "نواقض",   # nullifiers (collection)
+    "موانع",   # impediments (collection)
+    "آداب",    # manners (collection)
+]
+
+# Also check node IDs for Latin transliteration patterns
+_CATEGORY_KEYWORDS_ID = [
+    "maratib",   # مراتب
+    "aqsam",     # أقسام
+    "anwa3",     # أنواع
+    "ahkam",     # أحكام
+    "shuroot",   # شروط
+    "arkan",     # أركان
+    "wajibat",   # واجبات
+    "sifat",     # صفات
+    "masail",    # مسائل
+    "adillah",   # أدلة
+    "marahil",   # مراحل
+    "darajat",   # درجات
+    "tabaqat",   # طبقات
+    "furu3",     # فروع
+    "usul",      # أصول
+    "nawaqid",   # نواقض
+    "mawani3",   # موانع
+    "adab",      # آداب
+]
+
+
+def scan_category_leaf_signals(
+    taxonomy_map: dict[str, TaxonomyNodeInfo],
+    science: str,
+) -> list[EvolutionSignal]:
+    """Scan for leaf nodes whose names suggest they are CATEGORIES, not topics.
+
+    A leaf node named "الصفات الذاتية" (plural/collection) should be a branch
+    with sub-leaves for individual attributes, not a leaf endpoint.  This signal
+    fires regardless of how many excerpts are placed at the node — the name
+    itself is the signal.
+
+    Returns one signal per category-leaf detected.
+    """
+    signals = []
+
+    for node_id, info in taxonomy_map.items():
+        if not info.is_leaf:
+            continue
+
+        # Check Arabic label
+        label = info.title or ""
+        label_match = any(kw in label for kw in _CATEGORY_KEYWORDS_AR)
+
+        # Check node ID (Latin transliteration)
+        id_match = any(kw in node_id for kw in _CATEGORY_KEYWORDS_ID)
+
+        if label_match or id_match:
+            matched_kw = next(
+                (kw for kw in _CATEGORY_KEYWORDS_AR if kw in label),
+                next(
+                    (kw for kw in _CATEGORY_KEYWORDS_ID if kw in node_id),
+                    "?"
+                ),
+            )
+            signals.append(EvolutionSignal(
+                signal_type="category_leaf",
+                node_id=node_id,
+                science=science,
+                excerpt_ids=[],
+                excerpt_texts=[],
+                excerpt_metadata=[],
+                context=(
+                    f"Leaf node '{label}' ({node_id}) has a category/collection "
+                    f"name (matched keyword: '{matched_kw}'). "
+                    f"This should likely be a branch with sub-leaves, not a leaf."
+                ),
+            ))
+
+    return signals
+
+
+def scan_multi_topic_signals(
+    extraction_data: list[dict],
+    atoms_indexes: dict[str, dict[str, dict]],
+    taxonomy_map: dict[str, TaxonomyNodeInfo],
+    science: str,
+    min_atoms: int = 4,
+) -> list[EvolutionSignal]:
+    """Scan for single excerpts that cover multiple distinct sub-topics.
+
+    Heuristic: a single excerpt at a node with many atoms (≥ min_atoms) and
+    the node has only ONE excerpt total suggests the excerpt may be covering
+    multiple sub-topics that should each have their own leaf.
+
+    This catches cases like a 5-atom excerpt listing 15 hadiths about different
+    divine attributes, all dumped into one "الصفات الفعلية" leaf.
+
+    Returns one signal per qualifying excerpt.
+    """
+    # First, count matn excerpts per node
+    node_excerpts: dict[str, list[tuple[dict, str]]] = {}
+    for passage in extraction_data:
+        pid = passage["passage_id"]
+        for exc in passage.get("excerpts", []):
+            node_id = exc.get("taxonomy_node_id", "")
+            layer = exc.get("source_layer", "matn")
+            if node_id and node_id != "_unmapped" and layer != "footnote":
+                node_excerpts.setdefault(node_id, []).append((exc, pid))
+
+    signals = []
+    for node_id, excerpts_and_pids in node_excerpts.items():
+        # Only flag nodes with exactly 1 matn excerpt
+        if len(excerpts_and_pids) != 1:
+            continue
+
+        exc, pid = excerpts_and_pids[0]
+        core_atoms = exc.get("core_atoms", [])
+
+        if len(core_atoms) < min_atoms:
+            continue
+
+        # This is a single excerpt with many atoms at a solo node — suspicious
+        atoms_index = atoms_indexes.get(pid, {})
+        full_text = resolve_excerpt_full_text(exc, atoms_index)
+        exc_id = exc.get("excerpt_id", "unknown")
+        node_info = taxonomy_map.get(node_id)
+        node_title = node_info.title if node_info else node_id
+
+        signals.append(EvolutionSignal(
+            signal_type="multi_topic_excerpt",
+            node_id=node_id,
+            science=science,
+            excerpt_ids=[exc_id],
+            excerpt_texts=[full_text],
+            excerpt_metadata=[exc],
+            context=(
+                f"Single excerpt '{exc_id}' at leaf '{node_title}' ({node_id}) "
+                f"has {len(core_atoms)} atoms. May cover multiple sub-topics "
+                f"that warrant separate leaves."
             ),
         ))
 
@@ -997,6 +1161,8 @@ def run_evolution(
     node_ids: list[str] | None = None,
     skip_unmapped: bool = False,
     skip_clusters: bool = False,
+    skip_category_check: bool = False,
+    skip_multi_topic: bool = False,
     dry_run: bool = False,
     call_llm_fn=None,
 ) -> dict:
@@ -1032,6 +1198,16 @@ def run_evolution(
     if not skip_clusters:
         signals.extend(
             scan_cluster_signals(
+                extraction_data, atoms_indexes, taxonomy_map, science,
+            )
+        )
+    if not skip_category_check:
+        signals.extend(
+            scan_category_leaf_signals(taxonomy_map, science)
+        )
+    if not skip_multi_topic:
+        signals.extend(
+            scan_multi_topic_signals(
                 extraction_data, atoms_indexes, taxonomy_map, science,
             )
         )
@@ -1235,6 +1411,14 @@ def main():
         "--skip-clusters", action="store_true",
         help="Skip same-book cluster signals",
     )
+    parser.add_argument(
+        "--skip-category-check", action="store_true",
+        help="Skip category-name leaf signals (e.g. مراتب, صفات)",
+    )
+    parser.add_argument(
+        "--skip-multi-topic", action="store_true",
+        help="Skip multi-topic excerpt signals (single large excerpt at solo node)",
+    )
 
     # Phase 2: Apply (Phase B stub)
     parser.add_argument(
@@ -1278,6 +1462,8 @@ def main():
         node_ids=node_id_list,
         skip_unmapped=args.skip_unmapped,
         skip_clusters=args.skip_clusters,
+        skip_category_check=args.skip_category_check,
+        skip_multi_topic=args.skip_multi_topic,
         dry_run=args.dry_run,
     )
 

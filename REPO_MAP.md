@@ -1,10 +1,10 @@
 # Arabic Book Digester — Repository Map
 
-**Purpose:** A precision pipeline that transforms classical Arabic books (Shamela HTML exports) into self-contained excerpts placed in taxonomy folder trees — one tree per science (إملاء, صرف, نحو, بلاغة). Each excerpt file is independently understandable. The taxonomy tree is alive: it evolves as new books reveal finer topic distinctions. Multiple books converge at leaf folders. An external synthesis LLM (outside this repo) reads all excerpt files at each leaf folder and produces one encyclopedia article for Arabic-language students, attributing all scholarly positions.
+**Purpose:** A precision pipeline that transforms classical Arabic books (Shamela HTML exports) into self-contained excerpts placed in taxonomy folder trees — one tree per science. The engine is science-agnostic: currently covers إملاء, صرف, نحو, بلاغة (892 leaves), with عقيدة E2E-tested. Each excerpt file is independently understandable. The taxonomy tree is alive: it evolves as new books reveal finer topic distinctions. Multiple books converge at leaf folders. An external synthesis LLM (outside this repo) reads all excerpt files at each leaf folder and produces one encyclopedia article for Arabic-language students, attributing all scholarly positions.
 
 **Core properties:** Precision (multi-model consensus, human gates, feedback learning) and Intelligence (LLM-driven content decisions, self-improving system). See `CLAUDE.md` for full design principles.
 
-**Pipeline:** Intake → Enrichment → Normalization → Structure Discovery → Extraction *(single-model; multi-model planned)* → Taxonomy Trees → Taxonomy Evolution *(not yet built)* → Assembly + Folder Distribution *(not yet built)* → *external synthesis (out of scope)*
+**Pipeline:** Intake → Enrichment → Normalization → Structure Discovery → Extraction (multi-model consensus) → Taxonomy Trees → Taxonomy Evolution (Phase A) → Assembly + Folder Distribution → *external synthesis (out of scope)*
 
 ---
 
@@ -18,9 +18,9 @@
 | `1_normalization/` | HTML → structured JSONL | ✅ Complete (spec v0.5) | `NORMALIZATION_SPEC_v0.5.md`, `SHAMELA_HTML_REFERENCE.md`, `CORPUS_SURVEY_REPORT.md`, `gold_samples/` |
 | `2_structure_discovery/` | Detect divisions, build passage boundaries | ✅ Complete | `STRUCTURE_SPEC.md`, `structural_patterns.yaml`, 3 corpus surveys, `STAGE2_GUIDELINES.md` |
 | `3_atomization/` | Break passages into atoms (legacy spec) | Superseded by Stage 3+4 tool | `ATOMIZATION_SPEC.md` (reference only; automated tool implements these rules) |
-| `3_extraction/` | Automated extraction (atoms + excerpts) | 🟡 Single-model, إملاء verified | `RUNBOOK.md`, `gold/P004_gold_excerpt.json` |
+| `3_extraction/` | Automated extraction (atoms + excerpts) | ✅ Multi-model consensus, إملاء + عقيدة verified | `RUNBOOK.md`, `gold/P004_gold_excerpt.json` |
 | `4_excerpting/` | Excerpt definition + specs | **`EXCERPT_DEFINITION.md` = single source of truth** (needs update) | `EXCERPTING_SPEC.md`, `EXCERPT_DEFINITION.md` |
-| `5_taxonomy/` | Build taxonomy trees per science, evolve trees | 🟡 إملاء done, صرف/نحو/بلاغة needed | `TAXONOMY_SPEC.md` |
+| `5_taxonomy/` | Build taxonomy trees per science, evolve trees | ✅ All 4 core sciences + عقيدة (892+ leaves) | `TAXONOMY_SPEC.md` |
 
 ### Precision Documents (Binding Authority)
 
@@ -65,24 +65,27 @@ Each passage contains: atoms (matn + footnote), excerpts, decisions log, canonic
 
 ### Taxonomy
 
-Each taxonomy YAML defines a folder structure for one science. The YAML hierarchy maps directly to nested directories: the root key is the science name (= root folder), branches become subfolders, and `_leaf: true` nodes become the endpoint folders where excerpt files are placed. Multiple books' excerpts accumulate as files in the same leaf folder.
+Each taxonomy YAML defines a folder structure for one science. The YAML hierarchy maps directly to nested directories: the root key is the science name (= root folder), branches become subfolders, and leaf nodes become the endpoint folders where excerpt files are placed. Multiple books' excerpts accumulate as files in the same leaf folder.
 
 ```
 taxonomy/
-├── taxonomy_registry.yaml          — version registry
+├── taxonomy_registry.yaml              — version registry
 ├── README.md
-├── imlaa_v0.1.yaml                 — إملاء taxonomy (44 leaves), built from قواعد الإملاء
-└── balagha/
-    ├── balagha_v0_2.yaml           — used by passage 1 gold
-    ├── balagha_v0_3.yaml           — used by passages 2–3 gold
-    └── balagha_v0_4.yaml           — latest (202 nodes, 143 leaves)
+├── imlaa_v0.1.yaml                     — إملاء taxonomy v0 (44 leaves)
+├── imlaa/imlaa_v1_0.yaml              — إملاء taxonomy v1 (105 leaves)
+├── sarf/sarf_v1_0.yaml                — صرف taxonomy v1 (226 leaves)
+├── nahw/nahw_v1_0.yaml                — نحو taxonomy v1 (226 leaves)
+├── balagha/balagha_v1_0.yaml          — بلاغة taxonomy v1 (335 leaves)
+├── balagha/balagha_v0_{2,3,4}.yaml    — historical بلاغة versions (gold baselines)
+├── aqidah/aqidah_v0_1.yaml            — عقيدة taxonomy v0.1 (21 leaves)
+└── aqidah/aqidah_v0_2.yaml            — عقيدة taxonomy v0.2 (28 leaves, evolved)
 ```
+
+**892 leaves across 4 core sciences** (إملاء 105 + صرف 226 + نحو 226 + بلاغة 335). عقيدة is an E2E test science (28 leaves after evolution).
 
 **The taxonomy is alive:** Trees evolve as books reveal finer topic distinctions. Evolution is LLM-driven with human approval. See `CLAUDE.md` for the full evolution model.
 
-**Not yet built:** Taxonomy evolution engine, folder distribution, self-contained assembly. Currently extraction saves flat JSON per passage.
-
-**Missing:** صرف, نحو trees (not yet created). Base outlines will be provided.
+**Taxonomy evolution engine:** `tools/evolve_taxonomy.py` — Phase A complete (signal detection + LLM proposals). 5 signal types: unmapped, same_book_cluster, category_leaf, multi_topic_excerpt, user_specified.
 
 ### Tools
 
@@ -92,7 +95,10 @@ taxonomy/
 | `tools/enrich.py` | ~560 | 0.5 | Scholarly context enrichment (interactive/ترجمة/API) |
 | `tools/normalize_shamela.py` | ~1120 | 1 | HTML → pages.jsonl (deterministic) |
 | `tools/discover_structure.py` | ~2856 | 2 | Passage boundary detection, division hierarchy |
-| `tools/extract_passages.py` | ~1389 | 3+4 | **LLM-based extraction**: atomization + excerpting + taxonomy placement. Currently single-model with correction retries. Multi-model consensus planned. Verified on إملاء only. |
+| `tools/extract_passages.py` | ~2115 | 3+4 | **LLM-based extraction**: atomization + excerpting + taxonomy placement. Multi-model consensus. Verified on إملاء + عقيدة. |
+| `tools/consensus.py` | ~1722 | 3+4 | Multi-model consensus engine: text-overlap matching, LLM arbiter |
+| `tools/assemble_excerpts.py` | ~530 | 7 | Self-contained excerpt assembly + taxonomy folder distribution |
+| `tools/evolve_taxonomy.py` | ~1460 | 6 | Taxonomy evolution: signal detection + LLM proposals (Phase A) |
 | `tools/extract_clean_input.py` | 234 | 3 (CP1) | Extract clean text from HTML for manual atomization (legacy) |
 | `tools/validate_gold.py` | ~1930 | QA | Validate gold baselines against schema |
 | `tools/render_excerpts_md.py` | 271 | QA | Render excerpts as readable Markdown |
@@ -119,25 +125,35 @@ The books in `books/` are test cases for developing and validating the pipeline 
 ```
 books/
 ├── books_registry.yaml              — registry of all intaken books
-├── {book_id}/                       — per-book directory (7 books intaken)
+├── {book_id}/                       — per-book directory (8 books intaken)
 │   ├── intake_metadata.json         — frozen metadata (schema v0.2), includes scholarly_context
-│   └── source/                      — frozen source HTML (read-only)
-└── Other Books/                     — raw Shamela exports (additional test candidates)
+│   └── source/                      — frozen source HTML (read-only, gitignored)
+└── Other Books/                     — raw Shamela exports (gitignored, present locally)
+    ├── كتب العقيدة/                 — 804 books (عقيدة — creed/theology)
+    ├── كتب الفقه الحنبلي/           — 147 books (فقه حنبلي — Hanbali jurisprudence)
+    ├── كتب البلاغة/                 — بلاغة — rhetoric
+    ├── كتب النحو والصرف/            — نحو + صرف — grammar & morphology
+    └── كتب اللغة/                   — لغة — Arabic language/lexicography
 ```
+
+**Available Shamela exports:** `books/Other Books/` contains a large library of raw Shamela HTML exports organized by science category — ready to be intaken through the pipeline using `tools/intake.py`. These files are gitignored (large binary) but present locally for development.
 
 Each `intake_metadata.json` carries a `scholarly_context` block (author death/birth dates, fiqh madhab, grammatical school, geographic origin). These fields are critical for the downstream synthesis LLM to attribute opinions — but currently most are sparse/auto-extracted. The enrichment tool (`tools/enrich.py`) is intended to fill them via research.
 
 ### Tests
 
-5042 test lines across 5 files (443+ test functions, parametrized tests expand the count).
+832+ tests pass across 8 test files (parametrized tests expand the count).
 
-| Test file | Lines | Tests | Covers |
-|-----------|-------|-------|--------|
-| `tests/test_intake.py` | 665 | 68 | `tools/intake.py` |
-| `tests/test_enrich.py` | 118 | 16 | `tools/enrich.py` |
-| `tests/test_normalization.py` | 1940 | 193 | `tools/normalize_shamela.py` |
-| `tests/test_structure_discovery.py` | 1440 | 86 | `tools/discover_structure.py` |
-| `tests/test_extraction.py` | 879 | 80 | `tools/extract_passages.py` |
+| Test file | Tests | Covers |
+|-----------|-------|--------|
+| `tests/test_intake.py` | ~90 | `tools/intake.py` |
+| `tests/test_enrich.py` | ~16 | `tools/enrich.py` |
+| `tests/test_normalization.py` | ~193 | `tools/normalize_shamela.py` |
+| `tests/test_structure_discovery.py` | ~86 | `tools/discover_structure.py` |
+| `tests/test_extraction.py` | ~160 | `tools/extract_passages.py` |
+| `tests/test_consensus.py` | ~120 | `tools/consensus.py` |
+| `tests/test_assembly.py` | ~50 | `tools/assemble_excerpts.py` |
+| `tests/test_evolution.py` | ~62 | `tools/evolve_taxonomy.py` |
 
 ---
 

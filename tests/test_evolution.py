@@ -14,7 +14,9 @@ from tools.evolve_taxonomy import (
     propose_evolution_for_signal,
     resolve_excerpt_full_text,
     run_evolution,
+    scan_category_leaf_signals,
     scan_cluster_signals,
+    scan_multi_topic_signals,
     scan_unmapped_signals,
     scan_user_signals,
     validate_proposed_node_id,
@@ -336,6 +338,282 @@ class TestSignalDetection:
 
         result = deduplicate_signals([sig1, sig2])
         assert len(result) == 2
+
+
+# ---------------------------------------------------------------------------
+# Tests: Category Leaf Signals (RC3)
+# ---------------------------------------------------------------------------
+
+class TestCategoryLeafSignals:
+    """Tests for scan_category_leaf_signals — detecting leaf nodes with category names."""
+
+    def _make_taxonomy_with_category_leaf(self, node_id, label):
+        """Create a taxonomy map with one branch and one leaf (the test leaf)."""
+        return {
+            "root": TaxonomyNodeInfo(
+                node_id="root", title="جذر",
+                path_ids=["root"], path_titles=["جذر"],
+                is_leaf=False, folder_path="root",
+            ),
+            node_id: TaxonomyNodeInfo(
+                node_id=node_id, title=label,
+                path_ids=["root", node_id], path_titles=["جذر", label],
+                is_leaf=True, folder_path=f"root/{node_id}",
+            ),
+        }
+
+    def test_detects_arabic_category_keyword_sifat(self):
+        tax = self._make_taxonomy_with_category_leaf(
+            "sifat_dhatiyyah", "الصفات الذاتية"
+        )
+        signals = scan_category_leaf_signals(tax, "aqidah")
+        assert len(signals) == 1
+        assert signals[0].signal_type == "category_leaf"
+        assert signals[0].node_id == "sifat_dhatiyyah"
+        assert "صفات" in signals[0].context
+
+    def test_detects_arabic_category_keyword_maratib(self):
+        tax = self._make_taxonomy_with_category_leaf(
+            "maratib_al_qadr", "مراتب القدر"
+        )
+        signals = scan_category_leaf_signals(tax, "aqidah")
+        assert len(signals) == 1
+        assert signals[0].signal_type == "category_leaf"
+        assert "مراتب" in signals[0].context
+
+    def test_detects_latin_id_keyword(self):
+        # Node has a plain label but the ID contains 'maratib'
+        tax = self._make_taxonomy_with_category_leaf(
+            "maratib_al_qadr", "القدر"  # label doesn't have keywords
+        )
+        signals = scan_category_leaf_signals(tax, "aqidah")
+        assert len(signals) == 1
+        assert signals[0].node_id == "maratib_al_qadr"
+
+    def test_no_signal_for_normal_leaf(self):
+        tax = self._make_taxonomy_with_category_leaf(
+            "ta3rif_alhamza", "تعريف الهمزة"
+        )
+        signals = scan_category_leaf_signals(tax, "imlaa")
+        assert len(signals) == 0
+
+    def test_no_signal_for_branch_node(self):
+        """Branch nodes (non-leaf) should not trigger signals even with category names."""
+        tax = {
+            "sifat_dhatiyyah": TaxonomyNodeInfo(
+                node_id="sifat_dhatiyyah", title="الصفات الذاتية",
+                path_ids=["root", "sifat_dhatiyyah"],
+                path_titles=["جذر", "الصفات الذاتية"],
+                is_leaf=False, folder_path="root/sifat_dhatiyyah",
+            ),
+        }
+        signals = scan_category_leaf_signals(tax, "aqidah")
+        assert len(signals) == 0
+
+    def test_detects_multiple_category_leaves(self):
+        tax = {
+            "root": TaxonomyNodeInfo(
+                node_id="root", title="جذر",
+                path_ids=["root"], path_titles=["جذر"],
+                is_leaf=False, folder_path="root",
+            ),
+            "sifat_dhatiyyah": TaxonomyNodeInfo(
+                node_id="sifat_dhatiyyah", title="الصفات الذاتية",
+                path_ids=["root", "sifat_dhatiyyah"],
+                path_titles=["جذر", "الصفات الذاتية"],
+                is_leaf=True, folder_path="root/sifat_dhatiyyah",
+            ),
+            "maratib_al_qadr": TaxonomyNodeInfo(
+                node_id="maratib_al_qadr", title="مراتب القدر",
+                path_ids=["root", "maratib_al_qadr"],
+                path_titles=["جذر", "مراتب القدر"],
+                is_leaf=True, folder_path="root/maratib_al_qadr",
+            ),
+        }
+        signals = scan_category_leaf_signals(tax, "aqidah")
+        assert len(signals) == 2
+        node_ids = {s.node_id for s in signals}
+        assert node_ids == {"sifat_dhatiyyah", "maratib_al_qadr"}
+
+    def test_category_signals_have_no_excerpts(self):
+        """Category signals are name-based, not excerpt-based."""
+        tax = self._make_taxonomy_with_category_leaf(
+            "ahkam_al_salah", "أحكام الصلاة"
+        )
+        signals = scan_category_leaf_signals(tax, "fiqh")
+        assert len(signals) == 1
+        assert signals[0].excerpt_ids == []
+        assert signals[0].excerpt_texts == []
+
+
+# ---------------------------------------------------------------------------
+# Tests: Multi-Topic Excerpt Signals (RC4)
+# ---------------------------------------------------------------------------
+
+class TestMultiTopicSignals:
+    """Tests for scan_multi_topic_signals — detecting solo large excerpts."""
+
+    def test_detects_large_solo_excerpt(self):
+        atoms = [
+            _make_atom("a1", "نص ١"),
+            _make_atom("a2", "نص ٢"),
+            _make_atom("a3", "نص ٣"),
+            _make_atom("a4", "نص ٤"),
+            _make_atom("a5", "نص ٥"),
+        ]
+        excerpts = [
+            _make_excerpt("q:exc:001", "sifat_fi3liyyah",
+                          ["a1", "a2", "a3", "a4", "a5"]),
+        ]
+        passage = _make_passage("P001", atoms, excerpts)
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+        taxonomy_map = {
+            "sifat_fi3liyyah": TaxonomyNodeInfo(
+                node_id="sifat_fi3liyyah", title="الصفات الفعلية",
+                path_ids=["aqidah", "sifat_fi3liyyah"],
+                path_titles=["عقيدة", "الصفات الفعلية"],
+                is_leaf=True, folder_path="aqidah/sifat_fi3liyyah",
+            ),
+        }
+
+        signals = scan_multi_topic_signals(
+            [passage], atoms_indexes, taxonomy_map, "aqidah",
+        )
+
+        assert len(signals) == 1
+        assert signals[0].signal_type == "multi_topic_excerpt"
+        assert signals[0].node_id == "sifat_fi3liyyah"
+        assert signals[0].excerpt_ids == ["q:exc:001"]
+        assert "5 atoms" in signals[0].context
+
+    def test_no_signal_for_small_excerpt(self):
+        """Excerpts with fewer than min_atoms should not trigger."""
+        atoms = [
+            _make_atom("a1", "نص ١"),
+            _make_atom("a2", "نص ٢"),
+        ]
+        excerpts = [
+            _make_excerpt("q:exc:001", "some_leaf", ["a1", "a2"]),
+        ]
+        passage = _make_passage("P001", atoms, excerpts)
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+        taxonomy_map = {
+            "some_leaf": TaxonomyNodeInfo(
+                node_id="some_leaf", title="ورقة",
+                path_ids=["root", "some_leaf"],
+                path_titles=["جذر", "ورقة"],
+                is_leaf=True, folder_path="root/some_leaf",
+            ),
+        }
+
+        signals = scan_multi_topic_signals(
+            [passage], atoms_indexes, taxonomy_map, "aqidah",
+        )
+        assert len(signals) == 0
+
+    def test_no_signal_when_multiple_excerpts_at_node(self):
+        """If node has 2+ excerpts, don't flag — that's a cluster signal's job."""
+        atoms = [
+            _make_atom("a1", "نص ١"),
+            _make_atom("a2", "نص ٢"),
+            _make_atom("a3", "نص ٣"),
+            _make_atom("a4", "نص ٤"),
+            _make_atom("a5", "نص ٥"),
+        ]
+        excerpts = [
+            _make_excerpt("q:exc:001", "some_leaf", ["a1", "a2", "a3"]),
+            _make_excerpt("q:exc:002", "some_leaf", ["a4", "a5"]),
+        ]
+        passage = _make_passage("P001", atoms, excerpts)
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+        taxonomy_map = {
+            "some_leaf": TaxonomyNodeInfo(
+                node_id="some_leaf", title="ورقة",
+                path_ids=["root", "some_leaf"],
+                path_titles=["جذر", "ورقة"],
+                is_leaf=True, folder_path="root/some_leaf",
+            ),
+        }
+
+        signals = scan_multi_topic_signals(
+            [passage], atoms_indexes, taxonomy_map, "aqidah",
+        )
+        assert len(signals) == 0
+
+    def test_ignores_footnote_excerpts(self):
+        """Footnote excerpts at a node should not be counted as matn excerpts."""
+        atoms = [
+            _make_atom("a1", "نص ١"),
+            _make_atom("a2", "نص ٢"),
+            _make_atom("a3", "نص ٣"),
+            _make_atom("a4", "نص ٤"),
+        ]
+        # One matn excerpt with 4 atoms + a footnote at same node
+        matn_exc = _make_excerpt("q:exc:001", "some_leaf", ["a1", "a2", "a3", "a4"])
+        fn_exc = _make_excerpt("q:exc:fn:001", "some_leaf", ["a1"])
+        fn_exc["source_layer"] = "footnote"
+        passage = _make_passage("P001", atoms, [matn_exc, fn_exc])
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+        taxonomy_map = {
+            "some_leaf": TaxonomyNodeInfo(
+                node_id="some_leaf", title="ورقة",
+                path_ids=["root", "some_leaf"],
+                path_titles=["جذر", "ورقة"],
+                is_leaf=True, folder_path="root/some_leaf",
+            ),
+        }
+
+        signals = scan_multi_topic_signals(
+            [passage], atoms_indexes, taxonomy_map, "aqidah",
+        )
+        # Should still detect — only 1 matn excerpt (the footnote doesn't count)
+        assert len(signals) == 1
+
+    def test_custom_min_atoms_threshold(self):
+        """Custom min_atoms parameter adjusts sensitivity."""
+        atoms = [_make_atom(f"a{i}", f"نص {i}") for i in range(1, 8)]
+        excerpts = [
+            _make_excerpt("q:exc:001", "some_leaf",
+                          [f"a{i}" for i in range(1, 8)]),
+        ]
+        passage = _make_passage("P001", atoms, excerpts)
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+        taxonomy_map = {
+            "some_leaf": TaxonomyNodeInfo(
+                node_id="some_leaf", title="ورقة",
+                path_ids=["root", "some_leaf"],
+                path_titles=["جذر", "ورقة"],
+                is_leaf=True, folder_path="root/some_leaf",
+            ),
+        }
+
+        # With default min_atoms=4, should trigger
+        signals = scan_multi_topic_signals(
+            [passage], atoms_indexes, taxonomy_map, "aqidah",
+        )
+        assert len(signals) == 1
+
+        # With min_atoms=10, should NOT trigger
+        signals = scan_multi_topic_signals(
+            [passage], atoms_indexes, taxonomy_map, "aqidah",
+            min_atoms=10,
+        )
+        assert len(signals) == 0
+
+    def test_ignores_unmapped_excerpts(self):
+        """Excerpts at _unmapped should not trigger multi-topic signal."""
+        atoms = [_make_atom(f"a{i}", f"text {i}") for i in range(1, 6)]
+        excerpts = [
+            _make_excerpt("q:exc:001", "_unmapped",
+                          [f"a{i}" for i in range(1, 6)]),
+        ]
+        passage = _make_passage("P001", atoms, excerpts)
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+
+        signals = scan_multi_topic_signals(
+            [passage], atoms_indexes, {}, "aqidah",
+        )
+        assert len(signals) == 0
 
 
 # ---------------------------------------------------------------------------

@@ -496,20 +496,59 @@ Unchanged.
 
 ---
 
+### BUG-044 🟡 FIXED — Evolution Engine Blind Spot: Category-Name Leaves
+
+**Location:** `tools/evolve_taxonomy.py` → signal detection
+
+**Problem:** The evolution engine only detected granularity problems via `same_book_cluster` (2+ excerpts from same book at same node) and `unmapped` signals. It had no mechanism to detect leaf nodes whose names indicate they are **categories/collections** (e.g., الصفات الذاتية, مراتب القدر) rather than specific topics. These leaf nodes should be branches with sub-leaves for individual items. With عقيدة v0.1, `sifat_dhatiyyah`, `sifat_fi3liyyah`, and `maratib_al_qadr` were all flat leaves — a significant granularity failure. The engine would never flag these unless multiple excerpts happened to land there.
+
+**Fix:** Added `scan_category_leaf_signals()` — a keyword-based scanner that checks leaf node labels (Arabic) and IDs (Latin transliteration) against a curated list of 20 category/plural keywords (مراتب, أقسام, أنواع, صفات, أحكام, شروط, أركان, etc.). Fires regardless of excerpt count — the name itself is the signal. Integrated into `run_evolution()` with `--skip-category-check` CLI flag. Added 8 tests.
+
+**Verified:** Dry-run on عقيدة v0.1 correctly detects 4 category-leaf signals: `sifat_dhatiyyah`, `sifat_fi3liyyah`, `manhaj_ahl_al_sunna_fi_al_sifat`, `maratib_al_qadr`.
+
+---
+
+### BUG-045 🟡 FIXED — Evolution Engine Blind Spot: Solo Multi-Topic Excerpts
+
+**Location:** `tools/evolve_taxonomy.py` → signal detection
+
+**Problem:** When a single large excerpt (many atoms) is the only excerpt at a leaf node, the engine has no signal to fire — `same_book_cluster` requires 2+, and `unmapped` only catches unplaced excerpts. This means a 5-atom mega-excerpt covering 15 different divine attributes at `sifat_fi3liyyah` goes undetected. The excerpt is "placed correctly" from the engine's perspective, but the node desperately needs granulation.
+
+**Fix:** Added `scan_multi_topic_signals()` — detects nodes with exactly 1 matn excerpt that has ≥4 core atoms. This heuristic flags excerpts likely covering multiple sub-topics. Footnote excerpts are excluded from the count. Configurable threshold via `min_atoms` parameter. Integrated into `run_evolution()` with `--skip-multi-topic` CLI flag. Added 6 tests.
+
+**Verified:** Dry-run on عقيدة v0.1 correctly detects 2 multi-topic signals: the 9-atom excerpt at `manhaj_ahl_al_sunna_fi_al_sifat` and the 5-atom excerpt at `sifat_fi3liyyah`.
+
+---
+
+### BUG-046 🟡 FIXED — عقيدة Test Taxonomy v0.1 Has Flat Leaves for Categories
+
+**Location:** `taxonomy/aqidah/aqidah_v0_1.yaml`
+
+**Problem:** The عقيدة v0.1 test taxonomy was manually created (not LLM-generated like the 4 core science trees). It treated الصفات الذاتية, الصفات الفعلية, and مراتب القدر as leaf endpoints, but these are category/collection names that should be branches with sub-leaves for individual topics (individual attributes, individual مراتب, etc.).
+
+**Fix:** Created `taxonomy/aqidah/aqidah_v0_2.yaml` with proper branch/leaf structure:
+- `sifat_dhatiyyah` → branch with 5 leaves: `al_ma3iyyah`, `al_wajh`, `al_yadayn`, `al_ayn`, `__overview`
+- `sifat_fi3liyyah` → branch with 5 leaves: `al_nuzul`, `al_dahik_wal_farah_wal_ajab`, `al_ghadab_wal_rida`, `al_istiwa`, `__overview`
+- `maratib_al_qadr` → branch with 3 leaves: `al_ilm_wal_kitabah`, `al_mashia_wal_qudrah`, `mawqif_al_firaq_min_al_qadr`
+
+**Note:** Existing extraction data was created against v0.1 leaves. Re-assembly with v0.2 places excerpts at the now-branch folders (correct intermediate state). Full redistribution to sub-leaves would require re-extraction or a redistribution step.
+
+---
+
 ## Summary
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
 | 🔴 CRITICAL | 14 | 3 | 11 (BUG-001, 002, 003, 004, 035, 036, 038, 040, 041, 042, 043) |
-| 🟡 MODERATE | 20 | 14 | 6 (BUG-005, 027, 030, 037, 039 + audit 3) |
+| 🟡 MODERATE | 23 | 14 | 9 (BUG-005, 027, 030, 037, 039, 044, 045, 046 + audit 3) |
 | 🟢 LOW | 10 | 8 | 0 |
-| **Total** | **44** | **25** | **17** |
+| **Total** | **47** | **25** | **20** |
 
-**17 bugs fixed across Audit 2–4.** All pipeline-blocking bugs (Tier 1) are resolved. Remaining open bugs are doc inaccuracies, schema drift, and low-priority cleanup.
+**20 bugs fixed across Audit 2–5.** All pipeline-blocking bugs (Tier 1) are resolved. Remaining open bugs are doc inaccuracies, schema drift, and low-priority cleanup.
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 521 engine tests pass (extraction + evolution + assembly + consensus + intake). 815+ total across full suite.
+**Test suite:** 534 engine tests pass (extraction + evolution + assembly + consensus + intake). 832+ total across full suite.
 
 ### Remaining Fix Priority
 
