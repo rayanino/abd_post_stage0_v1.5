@@ -21,8 +21,7 @@ books:
   - a4bb8979d8428daf61f88021d6548ad38dc827916aef28589aae6ef9dd6d1ec7
   volume_count: 1
   language: ar
-  edition_notes: Shamela desktop HTML export. Modern textbook (بلاغة). Gold baselines
-    exist for pp. 19-40.
+  edition_notes: Shamela desktop HTML export. Modern textbook (بلاغة). Gold baselines exist for pp. 19-40.
   status: active
 - book_id: shadha
   shamela_book_id: 10127
@@ -81,8 +80,7 @@ books:
   shamela_book_id: 10258
   title: شرح ابن عقيل على ألفية ابن مالك
   title_formal: شرح ابن عقيل على ألفية ابن مالك
-  author: 'ابن عقيل، عبد الله بن عبد الرحمن العقيلي الهمداني المصري (المتوفى: 769
-    هـ)'
+  author: 'ابن عقيل، عبد الله بن عبد الرحمن العقيلي الهمداني المصري (المتوفى: 769 هـ)'
   muhaqiq: محمد محيي الدين عبد الحميد [ت 1392 هـ]
   primary_science: nahw
   book_category: single_science
@@ -107,15 +105,13 @@ books:
   - e9216bd2cfc5639f2ce37beab4ff9b0bf40c1c967996b196068bcc6c9ee3372c
   volume_count: 4
   language: ar
-  edition_notes: 4-volume commentary on ألفية ابن مالك. Vols 1-2 have footnotes, vols
-    3-4 do not.
+  edition_notes: 4-volume commentary on ألفية ابن مالك. Vols 1-2 have footnotes, vols 3-4 do not.
   status: active
 - book_id: dalail
   shamela_book_id: 21643
   title: دلائل الإعجاز ت شاكر
   title_formal: دلائل الإعجاز في علم المعاني
-  author: أبو بكر عبد القاهر بن عبد الرحمن بن محمد الفارسي الأصل، الجرجاني الدار (ت
-    471 هـ)
+  author: أبو بكر عبد القاهر بن عبد الرحمن بن محمد الفارسي الأصل، الجرجاني الدار (ت 471 هـ)
   muhaqiq: محمود محمد شاكر أبو فهر
   primary_science: balagha
   book_category: single_science
@@ -147,8 +143,7 @@ books:
   - 40b41f796e28900f9ef75fd34367f9530e72de83c20f6a0762b99c5d3782b1be
   volume_count: 1
   language: ar
-  edition_notes: 'Foundational cross-science text: Part 1 = صرف, Part 2 = نحو, Part
-    3 = بلاغة. Classical (626 هـ).'
+  edition_notes: 'Foundational cross-science text: Part 1 = صرف, Part 2 = نحو, Part 3 = بلاغة. Classical (626 هـ).'
   status: active
   science_parts:
   - section: القسم الأول
@@ -160,3 +155,20 @@ books:
   - section: القسم الثالث
     science_id: balagha
     description: علم المعاني والبيان والبديع
+- book_id: wasitiyyah
+  title: العقيدة الواسطية - ت ابن مانع
+  title_formal: العقيدة الواسطية
+  author: تقي الدين أبو العباس أحمد بن عبد الحليم بن عبد السلام بن عبد الله بن أبي القاسم بن محمد ابن تيمية الحراني الحنبلي
+    الدمشقي (ت 728 هـ)
+  primary_science: aqidah
+  book_category: single_science
+  source_format: shamela_html
+  source_files:
+  - relpath: books/wasitiyyah/source/wasitiyyah.htm
+    role: primary_export
+  source_hashes:
+  - 6cef9c1e05eaa7e5f69327289e6d6d316cb7749a140324978c1da092f2a03fe9
+  volume_count: 1
+  language: ar
+  edition_notes: العقيدة الواسطية لابن تيمية - ت ابن مانع. E2E test for new science (aqidah).
+  status: active

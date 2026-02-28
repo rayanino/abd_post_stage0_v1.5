@@ -1,0 +1,82 @@
+# عقيدة taxonomy v0.1 — Minimal test taxonomy for stress testing
+# Based on العقيدة الواسطية structure (topics of Islamic creed)
+# This is a TEST taxonomy, not production-quality
+
+aqidah:
+  al_iman_billah:
+    _label: "الإيمان بالله"
+    asma_wa_sifat:
+      _label: "الأسماء والصفات"
+      sifat_dhatiyyah:
+        _label: "الصفات الذاتية"
+        _leaf: true
+      sifat_fi3liyyah:
+        _label: "الصفات الفعلية"
+        _leaf: true
+      al_istiwa:
+        _label: "الاستواء على العرش"
+        _leaf: true
+      al_uluw:
+        _label: "العلو والفوقية"
+        _leaf: true
+      al_ru2ya:
+        _label: "رؤية الله"
+        _leaf: true
+      al_kalam_al_ilahi:
+        _label: "كلام الله"
+        _leaf: true
+      manhaj_ahl_al_sunna_fi_al_sifat:
+        _label: "منهج أهل السنة في الصفات"
+        _leaf: true
+    al_qadr:
+      _label: "القدر"
+      al_iman_bil_qadr:
+        _label: "الإيمان بالقدر"
+        _leaf: true
+      maratib_al_qadr:
+        _label: "مراتب القدر"
+        _leaf: true
+  al_iman_bil_yawm_al_akhir:
+    _label: "الإيمان باليوم الآخر"
+    al_mawt_wa_al_barzakh:
+      _label: "الموت والبرزخ"
+      _leaf: true
+    al_ba3th_wa_al_hashr:
+      _label: "البعث والحشر"
+      _leaf: true
+    al_janna_wa_al_nar:
+      _label: "الجنة والنار"
+      _leaf: true
+  al_iman:
+    _label: "الإيمان"
+    ta3rif_al_iman:
+      _label: "تعريف الإيمان"
+      _leaf: true
+    ziyadat_al_iman_wa_nuqsanuhu:
+      _label: "زيادة الإيمان ونقصانه"
+      _leaf: true
+  al_sahaba_wa_ahl_al_bayt:
+    _label: "الصحابة وأهل البيت"
+    fadl_al_sahaba:
+      _label: "فضل الصحابة"
+      _leaf: true
+    ahl_al_bayt:
+      _label: "أهل البيت"
+      _leaf: true
+    al_tafadul_bayn_al_sahaba:
+      _label: "التفاضل بين الصحابة"
+      _leaf: true
+  al_karamat:
+    _label: "كرامات الأولياء"
+    _leaf: true
+  manhaj_ahl_al_sunna:
+    _label: "منهج أهل السنة والجماعة"
+    al_ittiba3:
+      _label: "الاتباع وترك الابتداع"
+      _leaf: true
+    al_amr_bil_ma3ruf:
+      _label: "الأمر بالمعروف والنهي عن المنكر"
+      _leaf: true
+    al_jama3a:
+      _label: "لزوم الجماعة"
+      _leaf: true

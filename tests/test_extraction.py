@@ -36,10 +36,14 @@ from extract_passages import (
     call_llm_dispatch,
     extract_taxonomy_leaves,
     generate_review_md,
+    get_context_head,
+    get_context_tail,
     get_model_cost,
     get_passage_footnotes,
     get_passage_text,
     load_gold_example,
+    load_jsonl,
+    load_taxonomy_yaml,
     post_process_extraction,
     repair_truncated_json,
     validate_extraction,
@@ -261,6 +265,145 @@ class TestGetPassageFootnotes:
         result = get_passage_footnotes(passage, page_by_seq)
         assert result == "(none)"
 
+    def test_footnote_preamble_included(self):
+        """BUG-005: footnote_preamble text should be included before numbered footnotes."""
+        passage = {"start_seq_index": 0, "end_seq_index": 0}
+        page_by_seq = {0: {
+            "footnote_preamble": "ملاحظة المحقق:",
+            "footnotes": [{"number": 1, "text": "انظر الكتاب ص ٥٠."}],
+        }}
+        result = get_passage_footnotes(passage, page_by_seq)
+        assert "ملاحظة المحقق:" in result
+        assert "[1]" in result
+        # Preamble should come before the numbered footnotes
+        assert result.index("ملاحظة المحقق:") < result.index("[1]")
+
+    def test_empty_footnote_preamble_ignored(self):
+        """BUG-005: Empty preamble should not inject blank lines."""
+        passage = {"start_seq_index": 0, "end_seq_index": 0}
+        page_by_seq = {0: {"footnote_preamble": "", "footnotes": [{"number": 1, "text": "fn"}]}}
+        result = get_passage_footnotes(passage, page_by_seq)
+        assert result == "[1] fn"
+
+    def test_preamble_only_no_numbered_footnotes(self):
+        """BUG-005: Page with only preamble (unnumbered footnotes) should still return content."""
+        passage = {"start_seq_index": 0, "end_seq_index": 0}
+        page_by_seq = {0: {"footnote_preamble": "هذا تعليق المحقق على النص.", "footnotes": []}}
+        result = get_passage_footnotes(passage, page_by_seq)
+        assert result == "هذا تعليق المحقق على النص."
+
+
+# ---------------------------------------------------------------------------
+# Tests: get_context_tail / get_context_head
+# ---------------------------------------------------------------------------
+
+class TestContextTailHead:
+    """Tests for passage context boundary functions."""
+
+    def _pages(self):
+        return {
+            1: {"matn_text": "الصفحة الأولى من الكتاب"},
+            2: {"matn_text": "الصفحة الثانية"},
+            3: {"matn_text": "الصفحة الثالثة والأخيرة"},
+        }
+
+    def _passages(self):
+        return [
+            {"passage_id": "P001", "start_seq_index": 1, "end_seq_index": 1},
+            {"passage_id": "P002", "start_seq_index": 2, "end_seq_index": 2},
+            {"passage_id": "P003", "start_seq_index": 3, "end_seq_index": 3},
+        ]
+
+    def test_tail_first_passage_is_start_marker(self):
+        result = get_context_tail(self._passages(), 0, self._pages())
+        assert result == "(start of book)"
+
+    def test_tail_returns_previous_passage_text(self):
+        result = get_context_tail(self._passages(), 1, self._pages())
+        assert "الصفحة الأولى" in result
+
+    def test_tail_truncates_long_text(self):
+        pages = {1: {"matn_text": "أ" * 500}, 2: {"matn_text": "ب"}}
+        passages = [
+            {"passage_id": "P001", "start_seq_index": 1, "end_seq_index": 1},
+            {"passage_id": "P002", "start_seq_index": 2, "end_seq_index": 2},
+        ]
+        result = get_context_tail(passages, 1, pages, chars=100)
+        assert len(result) == 100
+
+    def test_head_last_passage_is_end_marker(self):
+        result = get_context_head(self._passages(), 2, self._pages())
+        assert result == "(end of book)"
+
+    def test_head_returns_next_passage_text(self):
+        result = get_context_head(self._passages(), 0, self._pages())
+        assert "الصفحة الثانية" in result
+
+    def test_head_truncates_long_text(self):
+        pages = {1: {"matn_text": "أ"}, 2: {"matn_text": "ب" * 500}}
+        passages = [
+            {"passage_id": "P001", "start_seq_index": 1, "end_seq_index": 1},
+            {"passage_id": "P002", "start_seq_index": 2, "end_seq_index": 2},
+        ]
+        result = get_context_head(passages, 0, pages, chars=100)
+        assert len(result) == 100
+
+
+# ---------------------------------------------------------------------------
+# Tests: load_jsonl / load_taxonomy_yaml / load_gold_example
+# ---------------------------------------------------------------------------
+
+class TestLoadFunctions:
+    """Tests for file loading utilities."""
+
+    def test_load_jsonl(self, tmp_path):
+        f = tmp_path / "test.jsonl"
+        f.write_text(
+            '{"passage_id": "P001", "text": "نص"}\n'
+            '{"passage_id": "P002", "text": "أخرى"}\n',
+            encoding="utf-8",
+        )
+        result = load_jsonl(str(f))
+        assert len(result) == 2
+        assert result[0]["passage_id"] == "P001"
+        assert result[1]["text"] == "أخرى"
+
+    def test_load_jsonl_skips_blank_lines(self, tmp_path):
+        f = tmp_path / "test.jsonl"
+        f.write_text(
+            '{"a": 1}\n\n{"b": 2}\n   \n',
+            encoding="utf-8",
+        )
+        result = load_jsonl(str(f))
+        assert len(result) == 2
+
+    def test_load_taxonomy_yaml(self, tmp_path):
+        f = tmp_path / "tax.yaml"
+        f.write_text("taxonomy:\n  science: imlaa\n", encoding="utf-8")
+        result = load_taxonomy_yaml(str(f))
+        assert "taxonomy:" in result
+        assert "imlaa" in result
+
+    def test_load_gold_example_missing_file(self):
+        result = load_gold_example("/nonexistent/path.json")
+        assert result == ""
+
+    def test_load_gold_example_none(self):
+        result = load_gold_example(None)
+        assert result == ""
+
+    def test_load_gold_example_valid(self, tmp_path):
+        f = tmp_path / "gold.json"
+        gold = {
+            "atoms": [{"atom_id": "a1", "text": "نص"}],
+            "excerpts": [{"excerpt_id": "e1"}],
+            "footnote_excerpts": [],
+        }
+        f.write_text(json.dumps(gold, ensure_ascii=False), encoding="utf-8")
+        result = load_gold_example(str(f))
+        assert "a1" in result
+        assert "نص" in result
+
 
 # ---------------------------------------------------------------------------
 # Tests: _extract_atom_id / _normalize_atom_entries
@@ -456,6 +599,41 @@ class TestPostProcessExtraction:
         assert exc["content_type"] == "prose"
         assert exc["relations"] == []
 
+    def test_normalizes_prose_tail_atom_type(self):
+        """BUG-002: atom_type='prose_tail' should normalize to prose_sentence + is_prose_tail=True."""
+        result = {
+            "atoms": [{"type": "prose_tail", "atom_id": "x:m:000001", "text": "تابع."}],
+            "excerpts": [],
+            "footnote_excerpts": [],
+        }
+        processed = post_process_extraction(result, "qtest", "imlaa")
+        atom = processed["atoms"][0]
+        assert atom["atom_type"] == "prose_sentence"
+        assert atom["is_prose_tail"] is True
+
+    def test_prose_tail_normalized_not_flagged_invalid(self):
+        """BUG-002: A prose_tail atom should not trigger invalid-type or uncovered errors."""
+        result = {
+            "atoms": [
+                {"type": "prose_tail", "atom_id": "x:m:000001", "text": "تابع."},
+                {"atom_type": "prose_sentence", "atom_id": "x:m:000002", "text": "نص عادي."},
+            ],
+            "excerpts": [{"excerpt_id": "x:exc:000001",
+                          "core_atoms": [{"atom_id": "x:m:000002", "role": "author_prose"}],
+                          "context_atoms": [],
+                          "taxonomy_node_id": "al_madd",
+                          "excerpt_title": "نص"}],
+            "footnote_excerpts": [],
+        }
+        processed = post_process_extraction(result, "qtest", "imlaa")
+        issues = validate_extraction(processed, "P001", {"al_madd"})
+        # prose_tail atom should not be flagged as invalid type
+        type_warnings = [w for w in issues["warnings"] if "invalid atom_type" in w]
+        assert len(type_warnings) == 0, f"Unexpected type warnings: {type_warnings}"
+        # prose_tail atom should not be flagged as uncovered
+        coverage_errors = [e for e in issues["errors"] if "x:m:000001" in e and "not covered" in e]
+        assert len(coverage_errors) == 0, f"Unexpected coverage errors: {coverage_errors}"
+
 
 # ---------------------------------------------------------------------------
 # Tests: validate_extraction — all pass
@@ -501,6 +679,25 @@ class TestValidateAtomTextNonEmpty:
         result["atoms"][1]["text"] = "   "
         issues = validate_extraction(result, "P001", {"al_madd", "al_hala_1_tursam_alifan"})
         assert any("empty text" in e for e in issues["errors"])
+
+
+class TestValidateDuplicateAtomIds:
+    def test_duplicate_atom_id_detected(self):
+        """Duplicate atom IDs must be caught as errors."""
+        result = _well_formed_result()
+        # Add a duplicate of atom 2
+        result["atoms"].append(
+            _make_atom("qtest:matn:000002", "prose_sentence", "نص مكرر.")
+        )
+        issues = validate_extraction(result, "P001", {"al_madd", "al_hala_1_tursam_alifan"})
+        assert any("Duplicate atom_id" in e for e in issues["errors"])
+        assert any("qtest:matn:000002" in e for e in issues["errors"])
+
+    def test_no_duplicate_no_error(self):
+        """Well-formed result with unique IDs should not trigger duplicate error."""
+        result = _well_formed_result()
+        issues = validate_extraction(result, "P001", {"al_madd", "al_hala_1_tursam_alifan"})
+        assert not any("Duplicate atom_id" in e for e in issues["errors"])
 
 
 class TestValidateAtomTypeValid:
@@ -560,6 +757,13 @@ class TestValidateExcerptRequiredFields:
         issues = validate_extraction(result, "P001", {"al_madd", "al_hala_1_tursam_alifan"})
         assert any("missing or empty case_types" in w for w in issues["warnings"])
 
+    def test_empty_core_atoms_list(self):
+        """Excerpt with empty core_atoms list must be an error."""
+        result = _well_formed_result()
+        result["excerpts"][0]["core_atoms"] = []
+        issues = validate_extraction(result, "P001", {"al_madd", "al_hala_1_tursam_alifan"})
+        assert any("empty core_atoms" in e for e in issues["errors"])
+
 
 class TestValidateReferenceIntegrity:
     def test_unknown_core_atom(self):
@@ -577,6 +781,19 @@ class TestValidateReferenceIntegrity:
         ]
         issues = validate_extraction(result, "P001", {"al_madd", "al_hala_1_tursam_alifan"})
         assert any("context references unknown atom" in e for e in issues["errors"])
+
+    def test_ghost_reference_does_not_count_as_coverage(self):
+        """An excerpt referencing a non-existent atom should NOT mask uncovered real atoms."""
+        result = _well_formed_result()
+        # Replace excerpt's core_atoms with a ghost ref — the REAL atom is now uncovered
+        result["excerpts"][0]["core_atoms"] = [
+            {"atom_id": "qtest:matn:999999", "role": "author_prose"}
+        ]
+        issues = validate_extraction(result, "P001", {"al_madd", "al_hala_1_tursam_alifan"})
+        # Should have BOTH errors: unknown atom AND uncovered atom
+        assert any("unknown atom" in e for e in issues["errors"])
+        assert any("Uncovered atoms" in e for e in issues["errors"])
+        assert any("qtest:matn:000002" in e for e in issues["errors"])
 
 
 class TestValidateCoverage:
@@ -762,13 +979,11 @@ class TestGoldP004Validates:
         with open(gold_path, encoding="utf-8") as f:
             gold = json.load(f)
 
-        # Get taxonomy leaves
+        # Get taxonomy leaves (BUG-001: use path-based call)
         tax_path = Path(__file__).resolve().parent.parent / "taxonomy" / "imlaa_v0.1.yaml"
         if not tax_path.exists():
             pytest.skip("Taxonomy file not found")
-        with open(tax_path, encoding="utf-8") as f:
-            tax_yaml = f.read()
-        leaves = extract_taxonomy_leaves(tax_yaml)
+        leaves = extract_taxonomy_leaves(str(tax_path), "imlaa")
 
         issues = validate_extraction(gold, "P004", leaves)
         # Gold should have zero errors
@@ -948,32 +1163,45 @@ class TestModelPricingRegistry:
 class TestExtractTaxonomyLeavesV1:
     """G02: Leaf extraction must work with both v0 and v1 taxonomy YAML."""
 
-    def test_v1_format(self):
-        yaml_text = (
-            "taxonomy:\n"
-            "  id: imlaa_v1_0\n"
-            "  nodes:\n"
-            "  - id: muqaddimat\n"
-            "    title: مقدمات\n"
-            "    children:\n"
-            "    - id: ta3rif_alimlaa_lugha\n"
-            "      title: تعريف الإملاء لغة\n"
-            "      leaf: true\n"
-            "    - id: ta3rif_alimlaa_istilah\n"
-            "      title: تعريف الإملاء اصطلاحا\n"
-            "      leaf: true\n"
-            "    - id: branch_node\n"
-            "      title: فرع\n"
-            "      children:\n"
-            "      - id: deep_leaf\n"
-            "        title: ورقة عميقة\n"
-            "        leaf: true\n"
-        )
-        leaves = extract_taxonomy_leaves(yaml_text)
+    SAMPLE_V1_YAML = (
+        "taxonomy:\n"
+        "  id: imlaa_v1_0\n"
+        "  title: علم الإملاء\n"
+        "  nodes:\n"
+        "  - id: muqaddimat\n"
+        "    title: مقدمات\n"
+        "    children:\n"
+        "    - id: ta3rif_alimlaa_lugha\n"
+        "      title: تعريف الإملاء لغة\n"
+        "      leaf: true\n"
+        "    - id: ta3rif_alimlaa_istilah\n"
+        "      title: تعريف الإملاء اصطلاحا\n"
+        "      leaf: true\n"
+        "    - id: branch_node\n"
+        "      title: فرع\n"
+        "      children:\n"
+        "      - id: deep_leaf\n"
+        "        title: ورقة عميقة\n"
+        "        leaf: true\n"
+    )
+
+    def test_v1_format_text_fallback(self):
+        """Text-based fallback for v1 YAML (legacy path)."""
+        leaves = extract_taxonomy_leaves(self.SAMPLE_V1_YAML)
         assert "ta3rif_alimlaa_lugha" in leaves
         assert "ta3rif_alimlaa_istilah" in leaves
         assert "deep_leaf" in leaves
-        # Branch nodes should NOT be leaves
+        assert "muqaddimat" not in leaves
+        assert "branch_node" not in leaves
+
+    def test_v1_format_path_based(self, tmp_path):
+        """BUG-001: Path-based call delegates to parse_taxonomy_yaml for v1 YAML."""
+        yaml_file = tmp_path / "test_v1.yaml"
+        yaml_file.write_text(self.SAMPLE_V1_YAML, encoding="utf-8")
+        leaves = extract_taxonomy_leaves(str(yaml_file), "imlaa")
+        assert "ta3rif_alimlaa_lugha" in leaves
+        assert "ta3rif_alimlaa_istilah" in leaves
+        assert "deep_leaf" in leaves
         assert "muqaddimat" not in leaves
         assert "branch_node" not in leaves
 
@@ -992,19 +1220,38 @@ class TestExtractTaxonomyLeavesV1:
         assert "branch" not in leaves
 
     def test_real_v1_taxonomy_file(self):
-        """Test against the actual imlaa v1 taxonomy file."""
+        """BUG-001: Test against the actual imlaa v1 taxonomy file via path-based parsing."""
         import os
         path = os.path.join("taxonomy", "imlaa", "imlaa_v1_0.yaml")
         if not os.path.exists(path):
             import pytest
             pytest.skip("v1 taxonomy file not found")
-        with open(path, encoding="utf-8") as f:
-            yaml_text = f.read()
-        leaves = extract_taxonomy_leaves(yaml_text)
+        # Use path-based call (delegates to parse_taxonomy_yaml)
+        leaves = extract_taxonomy_leaves(path, "imlaa")
         # v1 imlaa has 105 leaves per CLAUDE.md
         assert len(leaves) >= 100, f"Expected ~105 leaves, got {len(leaves)}"
         # Spot check known leaves
         assert "ta3rif_alimlaa_lugha" in leaves
+
+    def test_real_v1_balagha_taxonomy(self):
+        """BUG-001: balagha v1 taxonomy must return 335 leaves (the main bug scenario)."""
+        import os
+        path = os.path.join("taxonomy", "balagha", "balagha_v1_0.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("balagha v1 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "balagha")
+        assert len(leaves) >= 300, f"Expected ~335 leaves, got {len(leaves)}"
+
+    def test_real_v0_taxonomy_file(self):
+        """BUG-001: v0 format taxonomy via path-based parsing should also work."""
+        import os
+        path = os.path.join("taxonomy", "imlaa_v0.1.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("v0 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "imlaa")
+        assert len(leaves) >= 40, f"Expected ~44 leaves, got {len(leaves)}"
 
     def test_empty_yaml(self):
         assert extract_taxonomy_leaves("") == set()
@@ -1042,6 +1289,42 @@ class TestRepairTruncatedJsonBackslash:
         import json
         parsed = json.loads(repaired)
         assert "atom_id" in parsed
+
+
+class TestRepairTruncatedJsonArabicEdgeCases:
+    """Edge cases for Arabic text truncation in LLM output."""
+
+    def test_truncated_in_arabic_text_mid_object(self):
+        text = '{"atoms": [{"atom_id": "q:m:001", "text": "بسم الله الرحمن'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert "atoms" in parsed
+
+    def test_truncated_after_trailing_comma(self):
+        text = '{"atoms": [{"atom_id": "q:m:001", "text": "نص"},'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert len(parsed["atoms"]) == 1
+
+    def test_truncated_nested_arrays_and_objects(self):
+        text = '{"excerpts": [{"core_atoms": ["a1", "a2"], "context_atoms": ["a3"'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert "excerpts" in parsed
+
+    def test_truncated_with_brackets_inside_arabic_text(self):
+        """Arabic text containing [1] footnote refs should not confuse repair."""
+        text = '{"text": "وقال ابن عقيل [1] إن الهمزة'
+        repaired = repair_truncated_json(text)
+        parsed = json.loads(repaired)
+        assert "[1]" in parsed["text"]
+
+    def test_complete_json_passes_through_unchanged(self):
+        text = '{"atoms": [{"id": "a1"}], "excerpts": []}'
+        repaired = repair_truncated_json(text)
+        assert repaired == text
+        parsed = json.loads(repaired)
+        assert parsed["excerpts"] == []
 
 
 # ========================================================================
@@ -1220,3 +1503,73 @@ class TestResolveKeyForModel:
             "o1-preview", "ant-key",
             openrouter_key=None, openai_key="oa-key")
         assert key == "oa-key"
+
+    def test_none_model_returns_anthropic_key(self):
+        """BUG-041: arbiter_model=None should not crash."""
+        key = _resolve_key_for_model(
+            None, "ant-key",
+            openrouter_key="or-key", openai_key="oa-key")
+        assert key == "ant-key"
+
+    def test_none_model_with_no_anthropic_key(self):
+        key = _resolve_key_for_model(
+            None, None,
+            openrouter_key="or-key", openai_key="oa-key")
+        assert key == ""
+
+
+class TestTaxonomyNodeNormalization:
+    """BUG-043: LLMs return full paths instead of leaf IDs."""
+
+    LEAVES = {"al_istiwa", "ta3rif_al_iman", "al_karamat", "al_ittiba3"}
+
+    def _make_result(self, node_id):
+        return {
+            "atoms": [{"atom_id": "x:matn:001001", "atom_type": "prose_sentence",
+                        "text": "test", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "x:exc:001001", "taxonomy_node_id": node_id,
+                          "core_atoms": [{"atom_id": "x:matn:001001", "role": "author_prose"}],
+                          "boundary_reasoning": "test", "source_layer": "matn",
+                          "excerpt_title": "test", "case_types": ["A1_pure_definition"],
+                          "excerpt_kind": "teaching"}],
+        }
+
+    def test_dot_path_normalized(self):
+        result = self._make_result("aqidah.al_iman_billah.asma_wa_sifat.al_istiwa")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "al_istiwa"
+        assert len(v["warnings"]) == 0
+
+    def test_colon_path_normalized(self):
+        result = self._make_result("manhaj_ahl_al_sunna:al_ittiba3")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "al_ittiba3"
+        assert len(v["warnings"]) == 0
+
+    def test_slash_path_normalized(self):
+        result = self._make_result("aqidah/al_iman/ta3rif_al_iman")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "ta3rif_al_iman"
+        assert len(v["warnings"]) == 0
+
+    def test_plain_leaf_unchanged(self):
+        result = self._make_result("al_karamat")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "al_karamat"
+        assert len(v["warnings"]) == 0
+
+    def test_unknown_path_still_warns(self):
+        result = self._make_result("aqidah.unknown_branch.unknown_leaf")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        assert any("non-leaf" in w for w in v["warnings"])
+
+    def test_unmapped_not_normalized(self):
+        result = self._make_result("_unmapped")
+        v = validate_extraction(result, "P001", self.LEAVES)
+        exc = result["excerpts"][0]
+        assert exc["taxonomy_node_id"] == "_unmapped"
+        assert len(v["warnings"]) == 0
