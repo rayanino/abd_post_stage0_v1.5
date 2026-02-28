@@ -126,13 +126,12 @@ provenance tracking, taxonomy version control
 | 3+4 Consensus | `tools/consensus.py` | ✅ Complete | `tests/test_consensus.py` |
 | 5 Taxonomy Trees | `taxonomy/*.yaml` | ✅ All 4 sciences (892 leaves) | — |
 | 6 Taxonomy Evolution | — | ❌ Not built | — |
-| 7 Assembly + Distribution | — | ❌ Not built | — |
+| 7 Assembly + Distribution | `tools/assemble_excerpts.py` | ✅ Complete | `tests/test_assembly.py` |
 
 **Extraction verified on إملاء only.** The 5-passage verification (P004, P005, P006, P010, P020) used قواعد الإملاء with the إملاء taxonomy. Other sciences have taxonomy trees now but extraction is untested against them.
 
 **Not yet built:**
 - Taxonomy evolution engine
-- Self-contained excerpt assembly + folder distribution
 - Human gate with feedback persistence and correction learning
 - Cross-validation layers (placement, self-containment, cross-book consistency)
 - Enrichment extension (intelligent author scholarly context research)
@@ -141,7 +140,7 @@ provenance tracking, taxonomy version control
 ## Running Things
 
 ```bash
-# Unit tests (676 pass, ~17s)
+# Unit tests (726 pass, ~17s)
 python -m pytest tests/ -q
 
 # Single test file
@@ -179,6 +178,15 @@ PYTHONIOENCODING=utf-8 PYTHONPATH=. python tools/extract_passages.py \
   --output-dir output/imlaa_consensus \
   --models claude-sonnet-4-5-20250929,gpt-4o \
   --passage-ids P004
+
+# Assembly + folder distribution (no API needed)
+PYTHONIOENCODING=utf-8 PYTHONPATH=. python tools/assemble_excerpts.py \
+  --extraction-dir output/imlaa_extraction \
+  --intake-metadata books/imla/intake_metadata.json \
+  --taxonomy taxonomy/imlaa_v0.1.yaml \
+  --science imlaa \
+  --output-dir output/imlaa_assembled \
+  --dry-run
 ```
 
 **Windows notes:** Set `PYTHONIOENCODING=utf-8` (Windows console defaults to cp1252, which can't encode Arabic). Set `PYTHONPATH=.` so `from tools.consensus import ...` resolves correctly.
@@ -209,6 +217,9 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 **Extraction & consensus (read when working on extraction):**
 - `tools/extract_passages.py` — main extraction pipeline (2115 lines), multi-model support
 - `tools/consensus.py` — consensus comparison engine (1722 lines)
+
+**Assembly & distribution (read when working on assembly):**
+- `tools/assemble_excerpts.py` — self-contained excerpt assembly + folder distribution (~530 lines)
 
 **Specs (read when working on a specific stage):**
 - `0_intake/INTAKE_SPEC.md`
@@ -269,18 +280,18 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 - Stages 0–2 complete and tested (intake, enrichment, normalization, structure discovery)
 - Extraction tool with multi-model consensus (2115 lines, `tools/extract_passages.py`)
 - Consensus engine (1722 lines, `tools/consensus.py`) — text-overlap matching, LLM arbiter for disagreements, per-excerpt confidence scoring
-- 676 tests pass across the full suite (~105 extraction tests, ~120 consensus tests)
+- Assembly tool (`tools/assemble_excerpts.py`) — transforms extraction output into self-contained excerpt files placed in taxonomy folder tree
+- 726 tests pass across the full suite (~105 extraction, ~120 consensus, ~50 assembly)
 - 3-way API dispatch: Anthropic direct, OpenAI direct, OpenRouter (model prefix routing)
 - Live-validated on 5 إملاء passages (P004, P005, P006, P010, P020) with Claude + GPT-4o consensus
 - All 4 taxonomy trees complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves
 
 **What needs to be built (in priority order):**
 1. Taxonomy evolution engine (detect need, propose changes, redistribute, human gate)
-2. Self-contained excerpt assembly + folder distribution
-3. Human gate with feedback persistence and correction learning
-4. Cross-validation layers (placement, self-containment, cross-book consistency)
-5. Enrichment extension (intelligent author scholarly context research)
-6. Quality scoring and provenance tracking
+2. Human gate with feedback persistence and correction learning
+3. Cross-validation layers (placement, self-containment, cross-book consistency)
+4. Enrichment extension (intelligent author scholarly context research)
+5. Quality scoring and provenance tracking
 
 **Do NOT spend time on:**
 - Building synthesis tooling — synthesis is external to this repo
@@ -316,7 +327,7 @@ books/
 - **Gold baselines are for بلاغة only**: Hand-crafted for بلاغة. إملاء has simpler discourse structure.
 - **`__overview` leaves**: Parent taxonomy nodes that receive overview content need `__overview` companion leaves.
 - **Passage boundaries are guidance**: Stage 2 passages are structural suggestions. Extraction may find content spanning passage boundaries.
-- **Taxonomy YAML = folder structure**: Root = science name, branches = nested folders, leaves = excerpt file endpoints. Not yet implemented as actual folders.
+- **Taxonomy YAML = folder structure**: Root = science name, branches = nested folders, leaves = excerpt file endpoints. `tools/assemble_excerpts.py` creates the actual folder tree.
 - **Taxonomy is alive**: Trees evolve as books reveal finer distinctions. The tree serves excerpts, not the other way around.
 - **Excerpting is content-driven**: Taxonomy has zero influence on excerpt boundaries. Excerpt first, place second, evolve third.
 - **Author context gap**: `intake_metadata.json` `scholarly_context` fields are mostly null/auto. Enrichment needs extension.
