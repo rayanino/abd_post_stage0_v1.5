@@ -700,9 +700,12 @@ def main():
             openai_key=args.openai_key,
             excerpt_ids=excerpt_ids,
         )
-        print(f"Placement validation: {report['agreements']} agreements, "
-              f"{report['disagreements']} disagreements out of "
-              f"{report['total_excerpts']} excerpts")
+        if report.get("status") == "no_data":
+            print("Placement validation: no extraction data found")
+        else:
+            print(f"Placement validation: {report['agreements']} agreements, "
+                  f"{report['disagreements']} disagreements out of "
+                  f"{report['total_excerpts']} excerpts")
 
     elif args.command == "self-containment":
         report = validate_self_containment(
@@ -713,9 +716,12 @@ def main():
             openrouter_key=args.openrouter_key,
             openai_key=args.openai_key,
         )
-        print(f"Self-containment: {report['pass_count']} pass, "
-              f"{report['fail_count']} fail out of "
-              f"{report['total_excerpts']} excerpts")
+        if report.get("status") == "no_data":
+            print("Self-containment: no assembled excerpts found")
+        else:
+            print(f"Self-containment: {report['pass_count']} pass, "
+                  f"{report['fail_count']} fail out of "
+                  f"{report['total_excerpts']} excerpts")
 
     elif args.command == "cross-book":
         report = validate_cross_book_consistency(
@@ -726,9 +732,12 @@ def main():
             openrouter_key=args.openrouter_key,
             openai_key=args.openai_key,
         )
-        print(f"Cross-book consistency: {report['coherent_count']} coherent, "
-              f"{report['incoherent_count']} incoherent out of "
-              f"{report['total_nodes_checked']} nodes")
+        if report.get("status") == "no_data":
+            print("Cross-book consistency: no assembled excerpts found")
+        else:
+            print(f"Cross-book consistency: {report['coherent_count']} coherent, "
+                  f"{report['incoherent_count']} incoherent out of "
+                  f"{report['total_nodes_checked']} nodes")
 
     else:
         parser.print_help()
