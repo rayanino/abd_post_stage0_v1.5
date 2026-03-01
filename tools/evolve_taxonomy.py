@@ -1628,10 +1628,14 @@ def redistribute_excerpts(
             flagged.append(str(excerpt_file))
             continue
 
-        # Extract the Arabic text from the assembled excerpt
-        arabic_text = excerpt_data.get("arabic_text", "")
-        if not arabic_text:
-            arabic_text = excerpt_data.get("text", "")
+        # Extract the Arabic text from the assembled excerpt.
+        # Assembled excerpts use full_text/core_text; raw extraction uses text.
+        arabic_text = (
+            excerpt_data.get("full_text", "")
+            or excerpt_data.get("core_text", "")
+            or excerpt_data.get("arabic_text", "")
+            or excerpt_data.get("text", "")
+        )
         excerpt_title = excerpt_data.get("excerpt_title", "")
 
         if call_llm_fn is not None or api_key or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY"):

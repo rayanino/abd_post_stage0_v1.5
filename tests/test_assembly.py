@@ -977,14 +977,20 @@ class TestIntegration:
         # Write v0 taxonomy (matching the node IDs used in P004 extraction)
         taxonomy_yaml = """\
 imlaa:
+  _label: إملاء
   al_hamza:
+    _label: الهمزة
     al_hamza_wasat_al_kalima:
+      _label: الهمزة وسط الكلمة
       al_hamza_wasat_al_kalima__overview:
         _leaf: true
+        _label: نظرة عامة
       al_hala_1_tursam_alifan:
         _leaf: true
+        _label: الحالة الأولى
       al_hala_2_tursam_wawan:
         _leaf: true
+        _label: الحالة الثانية
 """
         yaml_file = tmp_path / "taxonomy.yaml"
         yaml_file.write_text(taxonomy_yaml, encoding="utf-8")
@@ -1244,3 +1250,213 @@ class TestAssemblyPathNormalization:
             "P001", "P001_extraction.json"
         )
         assert assembled["taxonomy_node_id"] == "ta3rif"
+
+
+# ---------------------------------------------------------------------------
+# BUG-FIX: v0 parser _label handling
+# ---------------------------------------------------------------------------
+
+class TestV0LabelParsing:
+    """BUG-FIX: v0 taxonomy parser should read _label for node titles."""
+
+    def test_root_label_used_as_title(self, tmp_path):
+        """Root node _label should be used as root title in path_titles."""
+        yaml_file = tmp_path / "tax.yaml"
+        yaml_file.write_text(
+            "imlaa:\n"
+            "  _label: إملاء\n"
+            "  node_a:\n"
+            "    _leaf: true\n"
+            "    _label: العقدة أ\n",
+            encoding="utf-8",
+        )
+        result = parse_taxonomy_yaml(str(yaml_file), "imlaa")
+        assert result["node_a"].path_titles == ["إملاء", "العقدة أ"]
+
+    def test_node_label_used_as_title(self, tmp_path):
+        """Node _label should be used instead of node_id for titles."""
+        yaml_file = tmp_path / "tax.yaml"
+        yaml_file.write_text(
+            "imlaa:\n"
+            "  branch:\n"
+            "    _label: الفرع\n"
+            "    leaf1:\n"
+            "      _leaf: true\n"
+            "      _label: ورقة\n",
+            encoding="utf-8",
+        )
+        result = parse_taxonomy_yaml(str(yaml_file), "imlaa")
+        assert result["leaf1"].path_titles == ["imlaa", "الفرع", "ورقة"]
+
+    def test_fallback_to_node_id_when_no_label(self, tmp_path):
+        """When _label is missing, node_id should be used as title."""
+        yaml_file = tmp_path / "tax.yaml"
+        yaml_file.write_text(
+            "imlaa:\n"
+            "  branch:\n"
+            "    leaf1:\n"
+            "      _leaf: true\n",
+            encoding="utf-8",
+        )
+        result = parse_taxonomy_yaml(str(yaml_file), "imlaa")
+        assert result["leaf1"].path_titles == ["imlaa", "branch", "leaf1"]
+
+    def test_root_label_fallback_to_science(self, tmp_path):
+        """Root without _label should use science name as title."""
+        yaml_file = tmp_path / "tax.yaml"
+        yaml_file.write_text(
+            "imlaa:\n"
+            "  leaf1:\n"
+            "    _leaf: true\n",
+            encoding="utf-8",
+        )
+        result = parse_taxonomy_yaml(str(yaml_file), "imlaa")
+        assert result["leaf1"].path_titles[0] == "imlaa"
+
+
+# ---------------------------------------------------------------------------
+# BUG-FIX: Authoritative taxonomy_path
+# ---------------------------------------------------------------------------
+
+class TestAuthoritativeTaxonomyPath:
+    """BUG-FIX: assembled excerpts should always use authoritative taxonomy_path."""
+
+    def test_taxonomy_path_from_parsed_tree(self, tmp_path):
+        """taxonomy_path in assembled excerpt should come from parsed tree, not LLM."""
+        yaml_file = tmp_path / "tax.yaml"
+        yaml_file.write_text(
+            "imlaa:\n"
+            "  _label: إملاء\n"
+            "  al_hamza:\n"
+            "    _label: الهمزة\n"
+            "    leaf1:\n"
+            "      _leaf: true\n"
+            "      _label: ورقة\n",
+            encoding="utf-8",
+        )
+        tax_map = parse_taxonomy_yaml(str(yaml_file), "imlaa")
+        meta = _make_book_meta()
+
+        excerpt = _make_excerpt(
+            "test:exc:001",
+            [{"atom_id": "t:matn:001", "role": "author_prose"}],
+            taxonomy_node_id="leaf1",
+            taxonomy_path="WRONG > PATH > FROM_LLM",
+        )
+        atoms_index = {"t:matn:001": {"text": "نص تجريبي"}}
+
+        assembled, errors = assemble_matn_excerpt(
+            excerpt, atoms_index, [], meta, tax_map, "imlaa", "P001", "P001.json"
+        )
+        assert assembled is not None
+        assert assembled["taxonomy_path"] == "إملاء > الهمزة > ورقة"
+
+
+# ---------------------------------------------------------------------------
+# BUG-FIX: KNOWN_SCIENCES includes aqidah
+# ---------------------------------------------------------------------------
+
+class TestKnownSciences:
+    """BUG-FIX: KNOWN_SCIENCES should include aqidah."""
+
+    def test_aqidah_in_known_sciences(self):
+        from tools.assemble_excerpts import KNOWN_SCIENCES
+        assert "aqidah" in KNOWN_SCIENCES
+
+    def test_all_five_sciences_present(self):
+        from tools.assemble_excerpts import KNOWN_SCIENCES
+        expected = {"imlaa", "sarf", "nahw", "balagha", "aqidah"}
+        assert expected.issubset(KNOWN_SCIENCES)
+
+
+# ---------------------------------------------------------------------------
+# BUG-FIX: Duplicate node ID detection
+# ---------------------------------------------------------------------------
+
+class TestDuplicateNodeIdDetection:
+    """BUG-FIX: duplicate node IDs in taxonomy should trigger warnings."""
+
+    def test_v0_duplicate_detected(self, tmp_path, capsys):
+        """v0 parser should warn about duplicate node IDs."""
+        yaml_file = tmp_path / "tax.yaml"
+        # Two sibling branches each have a leaf with the same ID
+        yaml_file.write_text(
+            "imlaa:\n"
+            "  branch_a:\n"
+            "    dup_leaf:\n"
+            "      _leaf: true\n"
+            "  branch_b:\n"
+            "    dup_leaf:\n"
+            "      _leaf: true\n",
+            encoding="utf-8",
+        )
+        result = parse_taxonomy_yaml(str(yaml_file), "imlaa")
+        captured = capsys.readouterr()
+        assert "duplicate taxonomy node_id" in captured.err.lower() or \
+               "duplicate" in captured.err.lower()
+        # The duplicate should still be in the map (last one wins)
+        assert "dup_leaf" in result
+
+    def test_v1_duplicate_detected(self, tmp_path, capsys):
+        """v1 parser should warn about duplicate node IDs."""
+        yaml_file = tmp_path / "tax.yaml"
+        yaml_file.write_text(
+            "taxonomy:\n"
+            "  id: test_v1\n"
+            "  title: Test\n"
+            "  nodes:\n"
+            "  - id: dup_node\n"
+            "    title: First\n"
+            "    leaf: true\n"
+            "  - id: dup_node\n"
+            "    title: Second\n"
+            "    leaf: true\n",
+            encoding="utf-8",
+        )
+        result = parse_taxonomy_yaml(str(yaml_file), "test")
+        captured = capsys.readouterr()
+        assert "duplicate" in captured.err.lower()
+        assert "dup_node" in result
+
+
+# ---------------------------------------------------------------------------
+# BUG-FIX: Corrupted JSON error handling
+# ---------------------------------------------------------------------------
+
+class TestCorruptedJsonHandling:
+    """BUG-FIX: load_extraction_files should skip corrupted JSON files."""
+
+    def test_skips_corrupted_file(self, tmp_path, capsys):
+        """Corrupted extraction files should be skipped with a warning."""
+        ext_dir = tmp_path / "extraction"
+        ext_dir.mkdir()
+
+        # Write one valid file
+        valid = {"atoms": [{"atom_id": "a1", "text": "ok"}],
+                 "excerpts": [], "footnote_excerpts": []}
+        with open(ext_dir / "P001_extraction.json", "w", encoding="utf-8") as f:
+            json.dump(valid, f)
+
+        # Write one corrupted file
+        (ext_dir / "P002_extraction.json").write_text(
+            "{broken json!!!", encoding="utf-8"
+        )
+
+        passages = load_extraction_files(str(ext_dir))
+        captured = capsys.readouterr()
+        assert len(passages) == 1  # only valid file loaded
+        assert "corrupted" in captured.err.lower() or "skipping" in captured.err.lower()
+
+    def test_all_valid_loaded(self, tmp_path):
+        """When all files are valid, all should be loaded."""
+        ext_dir = tmp_path / "extraction"
+        ext_dir.mkdir()
+
+        for pid in ("P001", "P002"):
+            data = {"atoms": [{"atom_id": f"a_{pid}", "text": "ok"}],
+                    "excerpts": [], "footnote_excerpts": []}
+            with open(ext_dir / f"{pid}_extraction.json", "w", encoding="utf-8") as f:
+                json.dump(data, f)
+
+        passages = load_extraction_files(str(ext_dir))
+        assert len(passages) == 2

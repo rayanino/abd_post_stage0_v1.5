@@ -44,7 +44,7 @@ SCHEMA_VERSION = "assembled_excerpt_v0.1"
 TOOL_VERSION = "0.1"
 # Known sciences (informational, not enforced — the engine is science-agnostic).
 # New sciences can be added without code changes; pass any science name via --science.
-KNOWN_SCIENCES = {"imlaa", "sarf", "nahw", "balagha"}
+KNOWN_SCIENCES = {"imlaa", "sarf", "nahw", "balagha", "aqidah"}
 
 
 # ---------------------------------------------------------------------------
@@ -138,6 +138,11 @@ def _parse_v1(taxonomy_block: dict, science: str) -> dict[str, TaxonomyNodeInfo]
             path_titles = parent_titles + [title]
             folder_path = "/".join(path_ids)
 
+            if nid in result:
+                print(f"  WARNING: duplicate taxonomy node_id '{nid}' — "
+                      f"previous at {result[nid].folder_path}, "
+                      f"overwriting with {folder_path}",
+                      file=sys.stderr)
             result[nid] = TaxonomyNodeInfo(
                 node_id=nid,
                 title=title,
@@ -169,7 +174,7 @@ def _parse_v0(data: dict, science: str) -> dict[str, TaxonomyNodeInfo]:
         return result
 
     root_data = data[root_key]
-    root_title = science  # v0 doesn't carry titles; use science name
+    root_title = root_data.get("_label", science) if isinstance(root_data, dict) else science
 
     def _walk(node_dict: dict, parent_ids: list[str], parent_titles: list[str]):
         if not isinstance(node_dict, dict):
@@ -187,12 +192,18 @@ def _parse_v0(data: dict, science: str) -> dict[str, TaxonomyNodeInfo]:
                 is_leaf = value.get("_leaf", False) is True
                 has_children = any(k for k in value if not k.startswith("_"))
 
-            title = key  # v0 has no title field; use node_id
+            # v0 stores Arabic titles in _label; fall back to node_id
+            title = value.get("_label", key) if isinstance(value, dict) else key
 
             path_ids = parent_ids + [key]
             path_titles = parent_titles + [title]
             folder_path = "/".join(path_ids)
 
+            if key in result:
+                print(f"  WARNING: duplicate taxonomy node_id '{key}' — "
+                      f"previous at {result[key].folder_path}, "
+                      f"overwriting with {folder_path}",
+                      file=sys.stderr)
             result[key] = TaxonomyNodeInfo(
                 node_id=key,
                 title=title,
@@ -250,8 +261,13 @@ def load_extraction_files(
         if passage_ids and pid not in passage_ids:
             continue
 
-        with open(fpath, encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(fpath, encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"  WARNING: skipping corrupted extraction file {fpath.name}: {e}",
+                  file=sys.stderr)
+            continue
 
         results.append({
             "passage_id": pid,
@@ -266,8 +282,13 @@ def load_extraction_files(
 
 def load_intake_metadata(path: str) -> dict:
     """Load intake_metadata.json for a book."""
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        raise RuntimeError(
+            f"Failed to load intake metadata from {path}: {e}"
+        ) from e
 
 
 # ---------------------------------------------------------------------------
@@ -414,7 +435,7 @@ def assemble_matn_excerpt(
         "taxonomy_node_id": node_id,
         "taxonomy_path": (
             " > ".join(node_info.path_titles)
-            if node_id_was_normalized and node_info and node_info.path_titles
+            if node_info and node_info.path_titles
             else excerpt.get("taxonomy_path", "")
         ),
         "taxonomy_node_title": node_title,
@@ -492,7 +513,7 @@ def assemble_footnote_excerpt(
         "taxonomy_node_id": node_id,
         "taxonomy_path": (
             " > ".join(node_info.path_titles)
-            if node_id_was_normalized and node_info and node_info.path_titles
+            if node_info and node_info.path_titles
             else fn_excerpt.get("taxonomy_path", "")
         ),
         "taxonomy_node_title": node_title,

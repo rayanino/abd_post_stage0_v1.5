@@ -2798,3 +2798,109 @@ class TestModifyYamlReturnFound:
         result, found = _add_node_v1(data, "branch", new_nodes)
         assert found is True
         assert len(result["taxonomy"]["nodes"][0]["children"]) == 1
+
+
+class TestRedistributeFieldNames:
+    """BUG-FIX: redistribute should read full_text/core_text from assembled excerpts."""
+
+    def test_reads_full_text_field(self, tmp_path):
+        """redistribute should read full_text (assembled format) not just arabic_text."""
+        from tools.evolve_taxonomy import redistribute_excerpts
+
+        tax_path = tmp_path / "tax.yaml"
+        tax_path.write_text(
+            "taxonomy:\n"
+            "  id: test_v1\n"
+            "  title: Test\n"
+            "  nodes:\n"
+            "  - id: parent_node\n"
+            "    title: Parent\n"
+            "    children:\n"
+            "    - id: sub_a\n"
+            "      title: Sub A\n"
+            "      leaf: true\n",
+            encoding="utf-8",
+        )
+
+        assembly_dir = tmp_path / "assembled"
+        old_folder = assembly_dir / "test" / "parent_node"
+        old_folder.mkdir(parents=True)
+
+        # Assembled excerpt uses full_text, not arabic_text
+        exc = {
+            "excerpt_id": "e1",
+            "excerpt_title": "Test",
+            "full_text": "هذا نص كامل مجمع",
+        }
+        (old_folder / "e1.json").write_text(
+            json.dumps(exc, ensure_ascii=False), encoding="utf-8",
+        )
+
+        received_texts = []
+
+        def mock_llm(system, user, model, key, openrouter_key=None, openai_key=None):
+            received_texts.append(user)
+            return {"parsed": {"node_id": "sub_a", "confidence": "certain"}}
+
+        redistribute_excerpts(
+            assembly_dir=str(assembly_dir),
+            old_node_id="parent_node",
+            new_nodes=[{"node_id": "sub_a", "title_ar": "A"}],
+            science="test",
+            taxonomy_path=str(tax_path),
+            call_llm_fn=mock_llm,
+        )
+
+        # The LLM prompt should contain the full_text content
+        assert len(received_texts) == 1
+        assert "هذا نص كامل مجمع" in received_texts[0]
+
+    def test_reads_core_text_fallback(self, tmp_path):
+        """redistribute should fall back to core_text if full_text is missing."""
+        from tools.evolve_taxonomy import redistribute_excerpts
+
+        tax_path = tmp_path / "tax.yaml"
+        tax_path.write_text(
+            "taxonomy:\n"
+            "  id: test_v1\n"
+            "  title: Test\n"
+            "  nodes:\n"
+            "  - id: parent_node\n"
+            "    title: Parent\n"
+            "    children:\n"
+            "    - id: sub_a\n"
+            "      title: Sub A\n"
+            "      leaf: true\n",
+            encoding="utf-8",
+        )
+
+        assembly_dir = tmp_path / "assembled"
+        old_folder = assembly_dir / "test" / "parent_node"
+        old_folder.mkdir(parents=True)
+
+        exc = {
+            "excerpt_id": "e1",
+            "excerpt_title": "Test",
+            "core_text": "هذا النص الأساسي",
+        }
+        (old_folder / "e1.json").write_text(
+            json.dumps(exc, ensure_ascii=False), encoding="utf-8",
+        )
+
+        received_texts = []
+
+        def mock_llm(system, user, model, key, openrouter_key=None, openai_key=None):
+            received_texts.append(user)
+            return {"parsed": {"node_id": "sub_a", "confidence": "certain"}}
+
+        redistribute_excerpts(
+            assembly_dir=str(assembly_dir),
+            old_node_id="parent_node",
+            new_nodes=[{"node_id": "sub_a", "title_ar": "A"}],
+            science="test",
+            taxonomy_path=str(tax_path),
+            call_llm_fn=mock_llm,
+        )
+
+        assert len(received_texts) == 1
+        assert "هذا النص الأساسي" in received_texts[0]
