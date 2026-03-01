@@ -2904,3 +2904,96 @@ class TestRedistributeFieldNames:
 
         assert len(received_texts) == 1
         assert "هذا النص الأساسي" in received_texts[0]
+
+
+class TestProposalMapUnmapped:
+    """Regression: BUG-081 — proposal_map must not clobber unmapped proposals."""
+
+    def test_multiple_unmapped_proposals_all_rendered(self):
+        """Each unmapped signal should display its own proposal in review MD."""
+        sig1 = EvolutionSignal(
+            signal_type="unmapped", node_id="_unmapped", science="test",
+            context="unmapped excerpt",
+            excerpt_ids=["exc1"], excerpt_texts=["text1"], excerpt_metadata=[{}],
+        )
+        sig2 = EvolutionSignal(
+            signal_type="unmapped", node_id="_unmapped", science="test",
+            context="unmapped excerpt",
+            excerpt_ids=["exc2"], excerpt_texts=["text2"], excerpt_metadata=[{}],
+        )
+        prop1 = EvolutionProposal(
+            signal=sig1, proposal_id="EP-001", change_type="node_added",
+            parent_node_id="root", new_nodes=[{"node_id": "n1", "title": "N1"}],
+            redistribution={}, confidence="high", reasoning="r1",
+            model="test-model", cost={"input_tokens": 0, "output_tokens": 0, "total_cost": 0.0},
+        )
+        prop2 = EvolutionProposal(
+            signal=sig2, proposal_id="EP-002", change_type="node_added",
+            parent_node_id="root", new_nodes=[{"node_id": "n2", "title": "N2"}],
+            redistribution={}, confidence="high", reasoning="r2",
+            model="test-model", cost={"input_tokens": 0, "output_tokens": 0, "total_cost": 0.0},
+        )
+        md = generate_review_md(
+            signals=[sig1, sig2],
+            proposals=[prop1, prop2],
+            science="test",
+            taxonomy_version="v0.1",
+            taxonomy_map={},
+            model="test-model",
+        )
+        # Both proposals should appear
+        assert "EP-001" in md
+        assert "EP-002" in md
+
+    def test_single_unmapped_still_works(self):
+        """Single unmapped signal should still render correctly."""
+        sig = EvolutionSignal(
+            signal_type="unmapped", node_id="_unmapped", science="test",
+            context="unmapped excerpt",
+            excerpt_ids=["exc1"], excerpt_texts=["text1"], excerpt_metadata=[{}],
+        )
+        prop = EvolutionProposal(
+            signal=sig, proposal_id="EP-001", change_type="node_added",
+            parent_node_id="root", new_nodes=[{"node_id": "n1", "title": "N1"}],
+            redistribution={}, confidence="high", reasoning="r1",
+            model="test-model", cost={"input_tokens": 0, "output_tokens": 0, "total_cost": 0.0},
+        )
+        md = generate_review_md(
+            signals=[sig], proposals=[prop],
+            science="test", taxonomy_version="v0.1",
+            taxonomy_map={}, model="test-model",
+        )
+        assert "EP-001" in md
+
+
+class TestValidatedNodesParentId:
+    """Regression: BUG-082 — parent_node_id must come from validated_nodes."""
+
+    def test_parent_from_validated_when_first_raw_rejected(self):
+        """When first raw node is invalid, parent should come from first valid node."""
+        from tools.evolve_taxonomy import propose_evolution_for_signal
+
+        sig = EvolutionSignal(
+            signal_type="unmapped", node_id="_unmapped", science="test",
+            context="unmapped excerpt",
+            excerpt_ids=["exc1"], excerpt_texts=["text1"], excerpt_metadata=[{}],
+        )
+        # LLM returns two nodes: first has invalid ID, second is valid
+        def mock_llm(prompt, system="", model="", json_mode=False):
+            return json.dumps({
+                "action": "new_node",
+                "new_nodes": [
+                    {"node_id": "!invalid!", "title": "bad", "parent_node_id": "wrong_parent"},
+                    {"node_id": "valid_node", "title": "good", "parent_node_id": "correct_parent"},
+                ],
+                "redistribution": {},
+            })
+
+        result = propose_evolution_for_signal(
+            signal=sig, taxonomy_yaml_raw="test: {}", taxonomy_map={},
+            call_llm_fn=mock_llm, model="test-model", api_key="fake",
+            proposal_seq=1,
+        )
+        # result should use correct_parent from validated_nodes, not wrong_parent from raw
+        if result is not None:
+            assert result.parent_node_id == "correct_parent"

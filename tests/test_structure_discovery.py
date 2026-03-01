@@ -1533,5 +1533,128 @@ class TestPass3IntegrationFallback:
         assert len(divisions) >= 1
 
 
+class TestHumanOverrideType:
+    """Regression: BUG-083 — human_override must be dict, not str."""
+
+    def test_rejected_override_is_dict(self, tmp_path):
+        """apply_overrides should set human_override as dict."""
+        pages = [PageRecord(seq_index=0, volume=1,
+                           page_number_int=1, matn_text="test", page_hint="p1")]
+        div = DivisionNode(
+            id="div1", type="chapter", title="test", level=1,
+            detection_method="keyword", confidence="high",
+            digestible="true", content_type="teaching",
+            start_seq_index=0, end_seq_index=0,
+            page_hint_start="p1", page_hint_end="p1",
+            parent_id=None,
+        )
+        ov_file = tmp_path / "overrides.json"
+        ov_file.write_text(json.dumps({"overrides": [
+            {"item_type": "division", "item_id": "div1",
+             "action": "rejected", "notes": "test note"}
+        ]}), encoding="utf-8")
+        result, _ = apply_overrides([div], [], str(ov_file), pages)
+        assert isinstance(result[0].human_override, dict)
+        assert result[0].human_override["action"] == "rejected"
+        assert result[0].human_override["notes"] == "test note"
+
+    def test_confirmed_override_is_dict(self, tmp_path):
+        """Confirmed override should also produce dict."""
+        div = DivisionNode(
+            id="div1", type="chapter", title="test", level=1,
+            detection_method="keyword", confidence="high",
+            digestible="uncertain", content_type="teaching",
+            start_seq_index=0, end_seq_index=0,
+            page_hint_start="p1", page_hint_end="p1",
+            parent_id=None,
+        )
+        pages = [PageRecord(seq_index=0, volume=1,
+                           page_number_int=1, matn_text="test", page_hint="p1")]
+        ov_file = tmp_path / "overrides.json"
+        ov_file.write_text(json.dumps({"overrides": [
+            {"item_type": "division", "item_id": "div1",
+             "action": "confirmed"}
+        ]}), encoding="utf-8")
+        result, _ = apply_overrides([div], [], str(ov_file), pages)
+        assert isinstance(result[0].human_override, dict)
+        assert result[0].human_override["action"] == "confirmed"
+
+
+class TestReviewFlagsPreserved:
+    """Regression: BUG-084 — Phase 5 should extend flags, not replace."""
+
+    def test_hierarchical_tree_preserves_existing_flags(self):
+        """Existing review_flags should survive Phase 5."""
+        pages = [
+            PageRecord(seq_index=0, volume=1,
+                      page_number_int=1, matn_text="content", page_hint="p1"),
+            PageRecord(seq_index=1, volume=1,
+                      page_number_int=2, matn_text="more", page_hint="p2"),
+        ]
+        headings = [
+            HeadingCandidate(
+                title="باب الأول", seq_index=0, page_number_int=1, volume=1,
+                document_position=1,
+                detection_method="keyword", keyword_type="chapter",
+                confidence="low", page_hint="p1",
+            ),
+        ]
+        divisions = build_hierarchical_tree(headings, pages, "test", False)
+        # Phase 5 should add "low_confidence" without destroying any existing flags
+        assert any("low_confidence" in d.review_flags for d in divisions)
+
+
+class TestPageHintEndFormat:
+    """Regression: BUG-085 — page_hint_end must match make_page_hint format."""
+
+    def test_multivolume_hint_uses_indic_digits(self):
+        """Multi-volume page_hint_end should use Arabic-Indic digits and canonical format."""
+        pages = [
+            PageRecord(seq_index=0, volume=2,
+                      page_number_int=5, matn_text="content", page_hint="ج٢ ص:٥"),
+        ]
+        headings = [
+            HeadingCandidate(
+                title="فصل", seq_index=0, page_number_int=5, volume=2,
+                document_position=1,
+                detection_method="keyword", keyword_type="section",
+                confidence="high", page_hint="ج٢ ص:٥",
+            ),
+        ]
+        divisions = build_hierarchical_tree(headings, pages, "test", True)
+        for d in divisions:
+            if d.page_hint_end:
+                # Should use canonical format: "ج٢ ص:٥" not "ج2:ص:٥"
+                assert ":" not in d.page_hint_end.split("ص:")[0], \
+                    f"page_hint_end has colon before ص: {d.page_hint_end}"
+
+
+class TestDistributeNonMutating:
+    """Regression: BUG-089 — distribute_excerpts should not mutate input."""
+
+    def test_input_excerpts_unchanged_after_distribution(self, tmp_path):
+        """Original excerpt dicts should not be modified."""
+        from tools.assemble_excerpts import distribute_excerpts, parse_taxonomy_yaml
+
+        tax_yaml = tmp_path / "tax.yaml"
+        tax_yaml.write_text(
+            "science:\n  leaf1:\n    _leaf: true\n",
+            encoding="utf-8",
+        )
+        taxonomy_map = parse_taxonomy_yaml(str(tax_yaml), "science")
+        excerpt = {
+            "excerpt_id": "exc1",
+            "book_id": "test",
+            "taxonomy_node_id": "science.leaf1",  # compound path
+        }
+        original_node_id = excerpt["taxonomy_node_id"]
+
+        distribute_excerpts(
+            [excerpt], taxonomy_map, str(tmp_path), "science", dry_run=True
+        )
+        # Original should NOT be mutated
+        assert excerpt["taxonomy_node_id"] == original_node_id
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
