@@ -873,7 +873,140 @@ Unchanged.
 
 ---
 
+### BUG-081 — 🔴 CRITICAL — evolve_taxonomy.py: proposal_map clobbers unmapped proposals — **FIXED**
+
+**Problem:** `generate_review_md` built `proposal_map` keyed by `signal.node_id`. All unmapped signals share `node_id="_unmapped"`, so only the last proposal survived. Other unmapped signals showed "No change needed" even though proposals were generated.
+
+**Fix:** Key by `id(signal)` instead of `signal.node_id`, and lookup with `proposal_map.get(id(signal))`.
+
+---
+
+### BUG-082 — 🔴 CRITICAL — evolve_taxonomy.py: parent_node_id from unvalidated nodes — **FIXED**
+
+**Problem:** `propose_evolution_for_signal` extracted `parent_node_id` from `new_nodes_raw[0]` (the unvalidated list). If the first proposed node was rejected during validation, the proposal would use the wrong parent.
+
+**Fix:** Changed to `validated_nodes[0].get("parent_node_id", "")`.
+
+---
+
+### BUG-083 — 🔴 CRITICAL — discover_structure.py: human_override assigns str to Optional[dict] — **FIXED**
+
+**Problem:** `apply_overrides` assigned strings like `"rejected by human"` to `DivisionNode.human_override` typed as `Optional[dict]`. Downstream code using `.get()` or `["key"]` on the field would crash.
+
+**Fix:** Wrapped all assignments in dict: `{"action": "rejected", "notes": ov.get("notes", "rejected by human")}`.
+
+---
+
+### BUG-084 — 🔴 CRITICAL — discover_structure.py: Phase 5 overwrites review_flags — **FIXED**
+
+**Problem:** `build_hierarchical_tree` Phase 5 replaced `div.review_flags` with a new list, destroying any flags set during earlier phases (e.g., `"same_page_cluster"`).
+
+**Fix:** Changed to extend existing flags with deduplication (check `not in div.review_flags` before appending).
+
+---
+
+### BUG-085 — 🟡 MODERATE — discover_structure.py: page_hint_end format inconsistency — **FIXED**
+
+**Problem:** `page_hint_end` in `build_hierarchical_tree` used format `"ج{volume}:ص:{page}"` with raw int volume, while `make_page_hint` used `"ج{indic_volume} ص:{indic_page}"`. Different formats between `page_hint_start` and `page_hint_end`.
+
+**Fix:** Use `make_page_hint(end_page.volume, end_page.page_number_int, multi_volume=True)` consistently.
+
+---
+
+### BUG-086 — 🟡 MODERATE — discover_structure.py: max() on empty pages crashes — **FIXED**
+
+**Problem:** Four call sites used `max(p.seq_index for p in pages)` without `default=0`, which would raise `ValueError` on empty page lists.
+
+**Fix:** Added `default=0` to all four `max()` calls.
+
+---
+
+### BUG-087 — 🟡 MODERATE — discover_structure.py: cross_reference_toc None page_number — **FIXED**
+
+**Problem:** `cross_reference_toc` performed `toc.page_number + offset` without checking for None, but `TOCEntry.page_number` is typed `Optional[int]`.
+
+**Fix:** Added `if toc.page_number is None: continue` guard with appropriate miss recording.
+
+---
+
+### BUG-088 — 🟡 MODERATE — discover_structure.py: heading_text_boundary=0 falsy — **FIXED**
+
+**Problem:** Check `if h.heading_text_boundary and ...` treated boundary position 0 as falsy, falling through to the wrong branch.
+
+**Fix:** Changed to `if h.heading_text_boundary is not None and ...`.
+
+---
+
+### BUG-089 — 🔴 CRITICAL — assemble_excerpts.py: distribute_excerpts mutates input — **FIXED**
+
+**Problem:** `distribute_excerpts` modified caller's excerpt dicts in-place when normalizing compound taxonomy_node_id paths.
+
+**Fix:** Create a shallow copy (`exc = dict(exc)`) before mutation when normalization is needed.
+
+---
+
+### BUG-090 — 🟡 MODERATE — assemble_excerpts.py: same-book dupe detection too broad — **FIXED**
+
+**Problem:** Same-book duplicate detection flagged all multi-excerpt nodes including `_unmapped` and empty-string nodes, producing noisy false positives.
+
+**Fix:** Skip `_unmapped` and empty-string nodes in the duplicate check.
+
+---
+
+### BUG-091 — 🔴 CRITICAL — test_assembly.py: swapped args in BUG-043 tests — **FIXED**
+
+**Problem:** Three test calls to `distribute_excerpts` had `output_dir` and `science` arguments swapped (string "aqidah" as output_dir, tmp_path as science).
+
+**Fix:** Corrected to `str(tmp_path), "aqidah"` order matching the function signature.
+
+---
+
+### BUG-092 — 🔴 CRITICAL — human_gate.py: replay false "completed" status — **FIXED**
+
+**Problem:** `run_extraction` returns None (no return statement). `replay_correction` used `isinstance(result, dict)` guard that always falls through to `"completed"`, hiding any actual failures.
+
+**Fix:** Added try/except around `run_extraction`, detect None return explicitly, report `"extraction_returned_none"` status.
+
+---
+
+### BUG-093 — 🟡 MODERATE — human_gate.py: per-excerpt timestamps in checkpoint init — **FIXED**
+
+**Problem:** `initialize_checkpoint_from_extraction` generated a separate `datetime.now()` for each excerpt, producing microsecond-different timestamps that falsely suggest different initialization times.
+
+**Fix:** Capture single `now = datetime.now(timezone.utc).isoformat()` before the loop.
+
+---
+
+### BUG-094 — 🔴 CRITICAL — intake.py: verify_intake registry check conflated — **FIXED**
+
+**Problem:** Registry consistency check (check 6) used `all("WARN" in i or "SKIP" in i for i in issues)` which included issues from ALL previous checks. A failure in check 4 would cause check 6 to not increment `checks_passed` even if the registry was perfectly consistent.
+
+**Fix:** Track registry-specific issues in separate `reg_issues` list and evaluate independently.
+
+---
+
+### BUG-095 — 🟡 MODERATE — normalize_shamela.py: duplicate FN_BOUNDARY regex — **FIXED**
+
+**Problem:** Identical `FN_BOUNDARY` regex was compiled inside both `detect_fn_section_format` and `parse_footnotes` functions. If one was updated but not the other, detection and parsing could disagree.
+
+**Fix:** Hoisted to module-level `FN_BOUNDARY_RE` constant, referenced by both functions.
+
+---
+
 ## Summary
+
+| Severity | Count | Open | Fixed |
+|----------|-------|------|-------|
+| 🔴 CRITICAL | 34 | 0 | 34 (BUG-001–004, 021–023, 035, 036, 038, 040–043, 047–049, 051, 053, 056–058, 065, 066, 071, 072, 081–084, 089, 091, 092, 094) |
+| 🟡 MODERATE | 49 | 1 | 48 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080, 085–088, 090, 093, 095) |
+| 🟢 LOW | 13 | 1 | 12 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070 + audit fixes) |
+| **Total** | **96** | **2** | **94** |
+
+**94 bugs fixed across Audits 2–12.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
+
+**Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
+
+**Test suite:** 1024 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
