@@ -533,20 +533,110 @@ Unchanged.
 
 ---
 
+### BUG-047 🔴 FIXED — Rollback Manifest Doubled Parent Node Path
+
+**Location:** `tools/evolve_taxonomy.py` → rollback manifest generation (line ~1864)
+
+**Problem:** When recording file moves for rollback, the manifest computed `old_folder / parent_node / target_node`, but `old_folder` already included the parent node in its path. This doubled the parent node directory in the recorded destination, making rollback produce incorrect file paths. Any rollback attempt would move files to non-existent doubled directories.
+
+**Fix:** Changed to use `src_folder.parent / parent_node / target_node` so the parent node appears exactly once in the path.
+
+---
+
+### BUG-048 🔴 FIXED — LLM Redistribution Node IDs Not Validated Against Proposal
+
+**Location:** `tools/evolve_taxonomy.py` → `_redistribute_with_llm()` (line ~1589)
+
+**Problem:** When the LLM assigns excerpts to new sub-nodes during redistribution, the returned `node_id` was accepted without checking whether it exists in the proposal's `new_nodes` list. If the LLM hallucinated a node ID not in the proposal, the excerpt would be assigned to a non-existent node, creating an orphan during the apply step.
+
+**Fix:** Built a `valid_node_ids` set from the proposal's `new_nodes`. Any LLM response with a `node_id` not in this set is flagged for human review instead of silently accepted.
+
+---
+
+### BUG-049 🔴 FIXED — Multi-Volume Positional Map Used Full Pages List
+
+**Location:** `tools/discover_structure.py` → `run_structure_discovery()` (line ~2525)
+
+**Problem:** In multi-volume books, HTML div position-to-page mapping was built from the full `pages` list regardless of volume. Since each volume's HTML has its own div ordering (starting from 0), mapping against the full list caused div positions from Volume 2 to map to Volume 1 pages. This produced incorrect `seq_index` assignments for all headings in non-first volumes.
+
+**Fix:** Filter pages to current volume before passing to `pass1_extract_html_headings()`: `vol_pages = [p for p in pages if p.volume == vol_num]`.
+
+---
+
+### BUG-050 🟡 FIXED — Pass 3 Integration Crashes Kill Entire Pipeline
+
+**Location:** `tools/discover_structure.py` → `run_structure_discovery()` (line ~2764)
+
+**Problem:** If `integrate_pass3_results()` or `build_hierarchical_tree()` raised any exception (invalid LLM response, schema mismatch, etc.), the entire structure discovery run crashed with no output. All progress from Pass 1 and Pass 2 was lost. There was no fallback to the deterministic tree builder.
+
+**Fix:** Wrapped Pass 3 integration + hierarchical tree build in try-except. On failure, falls back to `build_division_tree()` (deterministic, no LLM dependency) and logs a warning. The pipeline produces output (possibly lower quality) instead of crashing.
+
+---
+
+### BUG-051 🔴 FIXED — Empty API Choices Array Not Validated
+
+**Location:** `tools/extract_passages.py` → OpenRouter and OpenAI response handling
+
+**Problem:** After calling OpenRouter or OpenAI APIs, the code accessed `data["choices"][0]` without checking if the `choices` array was non-empty. Some API errors return `{"choices": []}` or omit the key entirely. This caused `IndexError` crashes mid-extraction, losing progress on the current passage.
+
+**Fix:** Added explicit validation: `choices = data.get("choices", []); if not choices: raise RuntimeError(...)`. Applied to both OpenRouter and OpenAI code paths.
+
+---
+
+### BUG-052 🟡 FIXED — Empty Atom IDs Pollute Duplicate Tracking
+
+**Location:** `tools/extract_passages.py` → `validate_extraction()` Check 8
+
+**Problem:** When checking for duplicate atom references across excerpts, the code called `_extract_atom_id(entry)` but didn't handle the case where it returns an empty string. Empty IDs were tracked in `core_seen` and `ctx_seen` dicts, causing false duplicate warnings when multiple entries had missing IDs. This injected noise into validation reports.
+
+**Fix:** Added `if not aid: continue` guard before tracking atom IDs in duplicate detection.
+
+---
+
+### BUG-053 🔴 FIXED — Consensus Engine Produced Invalid Confidence Value "discard"
+
+**Location:** `tools/consensus.py` → arbiter resolution (line ~1341)
+
+**Problem:** When the arbiter decided not to keep an unmatched excerpt, the confidence was set to `"discard"` — a value not in the valid set `{"high", "medium", "low"}`. Any downstream code checking `confidence == "low"` to flag uncertain results would miss these entries entirely. The invalid value also violated the implicit schema contract documented in EXCERPT_DEFINITION.md.
+
+**Fix:** Changed `"discard"` to `"low"` — rejected unmatched excerpts get low confidence, which correctly flags them for human review.
+
+---
+
+### BUG-054 🟢 FIXED — Dead Variable `skip_val` in Optimal Assignment
+
+**Location:** `tools/consensus.py` → `_optimal_assignment()` DP reconstruction (line ~331)
+
+**Problem:** During DP reconstruction in the bitmask assignment algorithm, the variable `skip_val = dp(row + 1, used)` was computed but never read. The reconstruction logic immediately computed `optimal_from_here = dp(row, used)` and compared against column assignments. The dead variable added unnecessary DP calls, wasting computation on every assignment reconstruction.
+
+**Fix:** Removed the dead `skip_val` computation.
+
+---
+
+### BUG-055 🟡 FIXED — Cross-Validate KeyError on Empty Reports
+
+**Location:** `tools/cross_validate.py` → `run_placement_validation()`, `run_self_containment()`, `run_cross_book()` (lines ~703-731)
+
+**Problem:** When cross-validation found no extraction data, it returned `{"status": "no_data"}`. The CLI printing code then tried to access `report['agreements']`, `report['disagreements']`, etc., causing `KeyError`. This crashed the cross-validation tool with an unhelpful traceback instead of a clean "no data found" message.
+
+**Fix:** Added status checks before accessing report-specific keys. When `status == "no_data"`, prints an informational message instead of crashing.
+
+---
+
 ## Summary
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
-| 🔴 CRITICAL | 14 | 0 | 14 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043) |
-| 🟡 MODERATE | 23 | 1 | 22 (BUG-005, 006, 008, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 032, 037, 039, 044, 045, 046) |
-| 🟢 LOW | 10 | 1 | 9 (BUG-010, 011, 015, 017, 019, 020, 033, 034 + audit fixes) |
-| **Total** | **47** | **2** | **45** |
+| 🔴 CRITICAL | 19 | 0 | 19 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043, 047, 048, 049, 051, 053) |
+| 🟡 MODERATE | 26 | 1 | 25 (BUG-005, 006, 008, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 032, 037, 039, 044, 045, 046, 050, 052, 055) |
+| 🟢 LOW | 11 | 1 | 10 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054 + audit fixes) |
+| **Total** | **56** | **2** | **54** |
 
-**45 bugs fixed across Audits 2–7.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
+**54 bugs fixed across Audits 2–8.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 969 tests pass across 10 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment). 0 failures, 7 skipped.
+**Test suite:** 977 tests pass across 10 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment). 0 failures, 7 skipped.
 
 ### Remaining Open Bugs (Low Priority)
 
