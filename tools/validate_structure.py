@@ -45,8 +45,13 @@ def load_page_indices(path: str) -> set[int]:
     indices = set()
     with open(path, encoding="utf-8") as f:
         for line in f:
-            rec = json.loads(line.strip())
-            indices.add(rec.get("seq_index", len(indices)))
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            si = rec.get("seq_index")
+            if si is not None:
+                indices.add(si)
     return indices
 
 
@@ -137,8 +142,11 @@ def validate_page_ranges(divisions: list[dict], result: ValidationResult):
     """Check page range validity and consistency."""
     for d in divisions:
         did = d["id"]
-        start = d.get("start_seq_index", 0)
-        end = d.get("end_seq_index", 0)
+        start = d.get("start_seq_index")
+        end = d.get("end_seq_index")
+
+        if start is None or end is None:
+            continue  # Missing fields already reported by validate_required_fields
 
         if end < start:
             result.error(f"Division {did}: end_seq_index ({end}) < start_seq_index ({start})")

@@ -653,7 +653,10 @@ def write_registry(registry_data, registry_path, new_entry):
                       sort_keys=False, width=120)
         os.replace(tmp_path, str(registry_path))
     except Exception:
-        os.unlink(tmp_path)
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass  # cleanup failure should not mask the original exception
         raise
 
 
@@ -867,8 +870,9 @@ def verify_intake(book_id, repo_root):
     # 6. Registry consistency
     checks_total += 1
     registry_data, _ = load_registry(repo_root)
+    reg_issues = []
     if registry_data is None:
-        issues.append("FAIL: books_registry.yaml not found.")
+        reg_issues.append("FAIL: books_registry.yaml not found.")
     else:
         books = registry_data.get("books", [])
         reg_entry = None
@@ -877,22 +881,23 @@ def verify_intake(book_id, repo_root):
                 reg_entry = b
                 break
         if reg_entry is None:
-            issues.append(f"FAIL: Book '{book_id}' not found in registry.")
+            reg_issues.append(f"FAIL: Book '{book_id}' not found in registry.")
         else:
             # Cross-check key fields
             if reg_entry.get("title") != metadata.get("title"):
-                issues.append(f"FAIL: Title mismatch between registry and metadata.")
+                reg_issues.append(f"FAIL: Title mismatch between registry and metadata.")
             if reg_entry.get("volume_count") != metadata.get("volume_count"):
-                issues.append(f"FAIL: Volume count mismatch between registry and metadata.")
+                reg_issues.append(f"FAIL: Volume count mismatch between registry and metadata.")
 
             reg_hashes = reg_entry.get("source_hashes", [])
             meta_hashes = [sf["sha256"] for sf in metadata.get("source_files", [])]
             if reg_hashes != meta_hashes:
-                issues.append(f"FAIL: Source hashes mismatch between registry "
+                reg_issues.append(f"FAIL: Source hashes mismatch between registry "
                               f"({len(reg_hashes)} hashes) and metadata ({len(meta_hashes)} hashes).")
 
-            if not issues or all("WARN" in i or "SKIP" in i for i in issues):
-                checks_passed += 1
+    issues.extend(reg_issues)
+    if not reg_issues or all("WARN" in i or "SKIP" in i for i in reg_issues):
+        checks_passed += 1
 
     passed = checks_passed == checks_total
     summary = f"{checks_passed}/{checks_total} checks passed"

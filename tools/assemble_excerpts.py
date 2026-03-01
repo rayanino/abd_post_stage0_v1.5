@@ -44,7 +44,36 @@ SCHEMA_VERSION = "assembled_excerpt_v0.1"
 TOOL_VERSION = "0.1"
 # Known sciences (informational, not enforced — the engine is science-agnostic).
 # New sciences can be added without code changes; pass any science name via --science.
-KNOWN_SCIENCES = {"imlaa", "sarf", "nahw", "balagha"}
+KNOWN_SCIENCES = {"imlaa", "sarf", "nahw", "balagha", "aqidah"}
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def normalize_node_id(node_id: str, taxonomy_map: dict) -> tuple[str, "TaxonomyNodeInfo | None", bool]:
+    """Normalize a taxonomy node_id, handling full-path formats (BUG-043).
+
+    LLMs sometimes return full paths like "aqidah.al_iman.al_istiwa" instead
+    of just the leaf "al_istiwa".  This helper tries direct lookup first, then
+    strips known separators (".", ":", "/") to extract the last segment.
+
+    Returns (resolved_node_id, node_info_or_None, was_normalized).
+    """
+    node_info = taxonomy_map.get(node_id)
+    if node_info is not None:
+        return node_id, node_info, False
+
+    if not node_id or node_id == "_unmapped":
+        return node_id, None, False
+
+    for sep in (".", ":", "/"):
+        if sep in node_id:
+            last_segment = node_id.rsplit(sep, 1)[-1]
+            if last_segment in taxonomy_map:
+                return last_segment, taxonomy_map[last_segment], True
+    return node_id, None, False
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +138,11 @@ def _parse_v1(taxonomy_block: dict, science: str) -> dict[str, TaxonomyNodeInfo]
             path_titles = parent_titles + [title]
             folder_path = "/".join(path_ids)
 
+            if nid in result:
+                print(f"  WARNING: duplicate taxonomy node_id '{nid}' — "
+                      f"previous at {result[nid].folder_path}, "
+                      f"overwriting with {folder_path}",
+                      file=sys.stderr)
             result[nid] = TaxonomyNodeInfo(
                 node_id=nid,
                 title=title,
@@ -140,7 +174,7 @@ def _parse_v0(data: dict, science: str) -> dict[str, TaxonomyNodeInfo]:
         return result
 
     root_data = data[root_key]
-    root_title = science  # v0 doesn't carry titles; use science name
+    root_title = root_data.get("_label", science) if isinstance(root_data, dict) else science
 
     def _walk(node_dict: dict, parent_ids: list[str], parent_titles: list[str]):
         if not isinstance(node_dict, dict):
@@ -158,12 +192,18 @@ def _parse_v0(data: dict, science: str) -> dict[str, TaxonomyNodeInfo]:
                 is_leaf = value.get("_leaf", False) is True
                 has_children = any(k for k in value if not k.startswith("_"))
 
-            title = key  # v0 has no title field; use node_id
+            # v0 stores Arabic titles in _label; fall back to node_id
+            title = value.get("_label", key) if isinstance(value, dict) else key
 
             path_ids = parent_ids + [key]
             path_titles = parent_titles + [title]
             folder_path = "/".join(path_ids)
 
+            if key in result:
+                print(f"  WARNING: duplicate taxonomy node_id '{key}' — "
+                      f"previous at {result[key].folder_path}, "
+                      f"overwriting with {folder_path}",
+                      file=sys.stderr)
             result[key] = TaxonomyNodeInfo(
                 node_id=key,
                 title=title,
@@ -221,8 +261,13 @@ def load_extraction_files(
         if passage_ids and pid not in passage_ids:
             continue
 
-        with open(fpath, encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(fpath, encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"  WARNING: skipping corrupted extraction file {fpath.name}: {e}",
+                  file=sys.stderr)
+            continue
 
         results.append({
             "passage_id": pid,
@@ -237,8 +282,13 @@ def load_extraction_files(
 
 def load_intake_metadata(path: str) -> dict:
     """Load intake_metadata.json for a book."""
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        raise RuntimeError(
+            f"Failed to load intake metadata from {path}: {e}"
+        ) from e
 
 
 # ---------------------------------------------------------------------------
@@ -361,18 +411,8 @@ def assemble_matn_excerpt(
             })
 
     # Look up taxonomy node title — normalize full paths to leaf IDs (BUG-043)
-    node_id = excerpt.get("taxonomy_node_id", "")
-    node_id_was_normalized = False
-    node_info = taxonomy_map.get(node_id)
-    if node_info is None and node_id and node_id != "_unmapped":
-        for sep in (".", ":", "/"):
-            if sep in node_id:
-                last_segment = node_id.rsplit(sep, 1)[-1]
-                if last_segment in taxonomy_map:
-                    node_id = last_segment
-                    node_info = taxonomy_map[last_segment]
-                    node_id_was_normalized = True
-                    break
+    raw_node_id = excerpt.get("taxonomy_node_id", "")
+    node_id, node_info, node_id_was_normalized = normalize_node_id(raw_node_id, taxonomy_map)
     node_title = node_info.title if node_info else ""
 
     # Extract source atom IDs for provenance
@@ -395,7 +435,7 @@ def assemble_matn_excerpt(
         "taxonomy_node_id": node_id,
         "taxonomy_path": (
             " > ".join(node_info.path_titles)
-            if node_id_was_normalized and node_info and node_info.path_titles
+            if node_info and node_info.path_titles
             else excerpt.get("taxonomy_path", "")
         ),
         "taxonomy_node_title": node_title,
@@ -452,19 +492,8 @@ def assemble_footnote_excerpt(
     extraction_filename: str,
 ) -> dict:
     """Assemble a self-contained footnote excerpt (already has inline text)."""
-    node_id = fn_excerpt.get("taxonomy_node_id", "")
-    node_id_was_normalized = False
-    node_info = taxonomy_map.get(node_id)
-    # BUG-043: normalize full paths to leaf IDs
-    if node_info is None and node_id and node_id != "_unmapped":
-        for sep in (".", ":", "/"):
-            if sep in node_id:
-                last_segment = node_id.rsplit(sep, 1)[-1]
-                if last_segment in taxonomy_map:
-                    node_id = last_segment
-                    node_info = taxonomy_map[last_segment]
-                    node_id_was_normalized = True
-                    break
+    raw_node_id = fn_excerpt.get("taxonomy_node_id", "")
+    node_id, node_info, node_id_was_normalized = normalize_node_id(raw_node_id, taxonomy_map)
     node_title = node_info.title if node_info else ""
     fn_text = fn_excerpt.get("text", "")
 
@@ -484,7 +513,7 @@ def assemble_footnote_excerpt(
         "taxonomy_node_id": node_id,
         "taxonomy_path": (
             " > ".join(node_info.path_titles)
-            if node_id_was_normalized and node_info and node_info.path_titles
+            if node_info and node_info.path_titles
             else fn_excerpt.get("taxonomy_path", "")
         ),
         "taxonomy_node_title": node_title,
@@ -577,21 +606,15 @@ def distribute_excerpts(
         excerpt_id = exc.get("excerpt_id", "")
         book_id = exc.get("book_id", "")
 
-        # Determine folder path — try direct lookup first, then normalize
-        # BUG-043: LLMs sometimes return full paths like
-        # "aqidah.al_iman_billah.asma_wa_sifat.al_istiwa" instead of "al_istiwa"
-        node_info = taxonomy_map.get(node_id)
-        if node_info is None and node_id and node_id != "_unmapped":
-            for sep in (".", ":", "/"):
-                if sep in node_id:
-                    last_segment = node_id.rsplit(sep, 1)[-1]
-                    if last_segment in taxonomy_map:
-                        node_info = taxonomy_map[last_segment]
-                        exc["taxonomy_node_id"] = last_segment
-                        # Also fix taxonomy_path if node_info has it
-                        if node_info.path_titles:
-                            exc["taxonomy_path"] = " > ".join(node_info.path_titles)
-                        break
+        # Determine folder path — normalize full paths to leaf IDs (BUG-043)
+        resolved_id, node_info, was_norm = normalize_node_id(node_id, taxonomy_map)
+        if was_norm:
+            # Copy before mutation to avoid modifying caller's data
+            exc = dict(exc)
+            exc["taxonomy_node_id"] = resolved_id
+            node_id = resolved_id
+            if node_info and node_info.path_titles:
+                exc["taxonomy_path"] = " > ".join(node_info.path_titles)
         if node_info is not None:
             folder_path = node_info.folder_path
         elif node_id == "_unmapped" or not node_id:
@@ -625,11 +648,10 @@ def distribute_excerpts(
 
     # Check for same-book duplicates at same node
     same_book_dupes = []
-    for node_id, exc_ids in nodes_populated.items():
-        if len(exc_ids) > 1:
-            # Check if they're from the same book (they will be in single-book runs)
+    for nid, exc_ids in nodes_populated.items():
+        if len(exc_ids) > 1 and nid not in ("_unmapped", ""):
             same_book_dupes.append({
-                "node_id": node_id,
+                "node_id": nid,
                 "count": len(exc_ids),
                 "excerpt_ids": exc_ids,
             })
@@ -649,17 +671,27 @@ def distribute_excerpts(
 def validate_assembled_excerpt(exc: dict) -> list[str]:
     """Validate a single assembled excerpt. Returns list of issues."""
     issues = []
+    eid = exc.get("excerpt_id", "?")
 
     if not exc.get("excerpt_id"):
         issues.append("missing excerpt_id")
     if not exc.get("core_text", "").strip():
-        issues.append(f"{exc.get('excerpt_id', '?')}: empty core_text")
+        issues.append(f"{eid}: empty core_text")
     if not exc.get("book_title"):
-        issues.append(f"{exc.get('excerpt_id', '?')}: missing book_title")
+        issues.append(f"{eid}: missing book_title")
     if not exc.get("taxonomy_node_id"):
-        issues.append(f"{exc.get('excerpt_id', '?')}: missing taxonomy_node_id")
+        issues.append(f"{eid}: missing taxonomy_node_id")
     if not exc.get("taxonomy_path"):
-        issues.append(f"{exc.get('excerpt_id', '?')}: missing taxonomy_path")
+        issues.append(f"{eid}: missing taxonomy_path")
+
+    # Self-containment: scholarly_context should have at least some data
+    sc = exc.get("scholarly_context")
+    if sc is None or not isinstance(sc, dict):
+        issues.append(f"{eid}: missing scholarly_context (synthesis LLM needs author attribution)")
+    elif not any(sc.get(k) for k in ("author_death_hijri", "fiqh_madhab",
+                                       "grammatical_school", "geographic_origin")):
+        issues.append(f"{eid}: scholarly_context has no populated fields "
+                      "(synthesis LLM cannot attribute author perspective)")
 
     return issues
 

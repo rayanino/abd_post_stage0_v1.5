@@ -125,22 +125,21 @@ provenance tracking, taxonomy version control
 | 3+4 Extraction | `tools/extract_passages.py` | ✅ Multi-model consensus | `tests/test_extraction.py` |
 | 3+4 Consensus | `tools/consensus.py` | ✅ Complete | `tests/test_consensus.py` |
 | 5 Taxonomy Trees | `taxonomy/*.yaml` | ✅ All 4 sciences (892 leaves) | — |
-| 6 Taxonomy Evolution | `tools/evolve_taxonomy.py` | 🟡 Phase A (signal detect + LLM propose) | `tests/test_evolution.py` |
+| 6 Taxonomy Evolution | `tools/evolve_taxonomy.py` | ✅ Phase A + B (signal detect, LLM propose, apply, rollback, multi-model consensus) | `tests/test_evolution.py` |
 | 7 Assembly + Distribution | `tools/assemble_excerpts.py` | ✅ Complete | `tests/test_assembly.py` |
+| — Human Gate | `tools/human_gate.py` | ✅ Complete (corrections, replay, patterns, checkpoints) | `tests/test_human_gate.py` |
+| — Cross-Validation | `tools/cross_validate.py` | ✅ Complete (placement, self-containment, cross-book) | `tests/test_cross_validate.py` |
 
 **Extraction verified on إملاء and عقيدة.** إملاء: 5 passages (P004, P005, P006, P010, P020) with Claude + GPT-4o consensus. عقيدة: 10 passages from العقيدة الواسطية — full E2E pipeline (intake → normalize → discover → extract → assemble → evolve). Other sciences have taxonomy trees but extraction is untested against them.
 
 **Not yet built:**
-- Taxonomy evolution Phase B (apply step, version control, multi-model consensus for proposals)
-- Human gate with feedback persistence and correction learning
-- Cross-validation layers (placement, self-containment, cross-book consistency)
 - Enrichment extension (intelligent author scholarly context research)
 - Quality scoring and provenance tracking
 
 ## Running Things
 
 ```bash
-# Unit tests (832 pass, ~14s)
+# Unit tests (1024 pass, ~35s)
 python -m pytest tests/ -q
 
 # Single test file
@@ -222,7 +221,13 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 - `tools/assemble_excerpts.py` — self-contained excerpt assembly + folder distribution (~530 lines)
 
 **Taxonomy evolution (read when working on evolution):**
-- `tools/evolve_taxonomy.py` — signal detection, LLM proposal generation, review artifacts (~1460 lines)
+- `tools/evolve_taxonomy.py` — signal detection, LLM proposal generation, apply proposals, excerpt redistribution, rollback, multi-model consensus (~2280 lines)
+
+**Human gate (read when working on review/corrections):**
+- `tools/human_gate.py` — correction persistence, correction replay, pattern detection, gate checkpoints (~570 lines)
+
+**Cross-validation (read when working on validation):**
+- `tools/cross_validate.py` — placement cross-validation, self-containment validation, cross-book consistency (~530 lines)
 
 **Specs (read when working on a specific stage):**
 - `0_intake/INTAKE_SPEC.md`
@@ -286,19 +291,18 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 - Extraction tool with multi-model consensus (2115 lines, `tools/extract_passages.py`)
 - Consensus engine (1722 lines, `tools/consensus.py`) — text-overlap matching, LLM arbiter for disagreements, per-excerpt confidence scoring
 - Assembly tool (`tools/assemble_excerpts.py`) — transforms extraction output into self-contained excerpt files placed in taxonomy folder tree
-- Taxonomy evolution engine Phase A (`tools/evolve_taxonomy.py`) — signal detection (5 types: unmapped, same_book_cluster, category_leaf, multi_topic_excerpt, user_specified), LLM proposal generation, human review artifacts
-- 832+ tests pass across the full suite (~160 extraction, ~120 consensus, ~57 assembly, ~62 evolution, ~90 intake)
+- Taxonomy evolution engine Phase A + B (`tools/evolve_taxonomy.py`) — signal detection (5 types), LLM proposal generation, apply approved proposals to YAML (v0 + v1 formats), excerpt redistribution, rollback capability, multi-model consensus for proposals, taxonomy registry version control
+- Human gate infrastructure (`tools/human_gate.py`) — correction persistence (JSONL), correction replay (re-extract with correction context), pattern detection (recurring errors, model/node/passage analysis), gate checkpoints (reviewed/pending tracking per excerpt)
+- Cross-validation layers (`tools/cross_validate.py`) — placement cross-validation (independent LLM re-checks placement), self-containment validation (algorithmic + LLM), cross-book consistency (topic coherence at multi-book leaves)
+- 1024 tests pass across the full suite (~168 extraction, ~122 consensus, ~70 assembly, ~108 evolution, ~90 intake, ~46 human gate, ~34 cross-validation, ~96 structure discovery, ~80 normalization, ~13 utility tools)
 - 3-way API dispatch: Anthropic direct, OpenAI direct, OpenRouter (model prefix routing)
 - Live-validated on 5 إملاء passages (P004, P005, P006, P010, P020) with Claude + GPT-4o consensus
 - All 4 core taxonomy trees complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves
 - عقيدة taxonomy v0.2 (28 leaves) — evolved from v0.1 (21 leaves) after E2E testing revealed granularity gaps
 
 **What needs to be built (in priority order):**
-1. Taxonomy evolution Phase B (apply step, multi-model consensus for proposals, version control)
-2. Human gate with feedback persistence and correction learning
-3. Cross-validation layers (placement, self-containment, cross-book consistency)
-4. Enrichment extension (intelligent author scholarly context research)
-5. Quality scoring and provenance tracking
+1. Enrichment extension (intelligent author scholarly context research)
+2. Quality scoring and provenance tracking
 
 **Do NOT spend time on:**
 - Building synthesis tooling — synthesis is external to this repo

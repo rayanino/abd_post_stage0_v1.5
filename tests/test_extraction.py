@@ -39,6 +39,7 @@ from extract_passages import (
     get_context_head,
     get_context_tail,
     get_model_cost,
+    get_heading_hints,
     get_passage_footnotes,
     get_passage_text,
     load_gold_example,
@@ -237,6 +238,28 @@ class TestGetPassageText:
         result = get_passage_text(passage, page_by_seq)
         assert result == ""
 
+    def test_missing_page_warns(self, capsys):
+        """Missing pages should print a warning to stderr."""
+        passage = {"start_seq_index": 1, "end_seq_index": 3, "passage_id": "P099"}
+        page_by_seq = {1: {"matn_text": "أ."}, 3: {"matn_text": "ج."}}
+        get_passage_text(passage, page_by_seq)
+        err = capsys.readouterr().err
+        assert "WARNING" in err
+        assert "missing" in err
+        assert "P099" in err
+
+    def test_empty_matn_warns(self, capsys):
+        """Pages with empty matn_text should produce a warning."""
+        passage = {"start_seq_index": 1, "end_seq_index": 2, "passage_id": "P100"}
+        page_by_seq = {
+            1: {"matn_text": "نص"},
+            2: {"matn_text": ""},
+        }
+        get_passage_text(passage, page_by_seq)
+        err = capsys.readouterr().err
+        assert "WARNING" in err
+        assert "empty" in err
+
 
 # ---------------------------------------------------------------------------
 # Tests: get_passage_footnotes
@@ -291,6 +314,108 @@ class TestGetPassageFootnotes:
         page_by_seq = {0: {"footnote_preamble": "هذا تعليق المحقق على النص.", "footnotes": []}}
         result = get_passage_footnotes(passage, page_by_seq)
         assert result == "هذا تعليق المحقق على النص."
+
+
+# ---------------------------------------------------------------------------
+# Tests: get_heading_hints (BUG-006)
+# ---------------------------------------------------------------------------
+
+class TestGetHeadingHints:
+    """Tests for ZWNJ heading hint extraction (BUG-006)."""
+
+    def test_basic_heading_hint(self):
+        """Pages with starts_with_zwnj_heading=True produce hints."""
+        passage = {"start_seq_index": 5, "end_seq_index": 7}
+        page_by_seq = {
+            5: {"starts_with_zwnj_heading": True, "page_number": 10,
+                "matn_text": "\u200c\u200cباب الهمزة المتوسطة\nنص عادي"},
+            6: {"starts_with_zwnj_heading": False, "page_number": 11,
+                "matn_text": "نص عادي فقط"},
+            7: {"starts_with_zwnj_heading": True, "page_number": 12,
+                "matn_text": "\u200c\u200cفصل في كتابة الألف اللينة\nتفاصيل"},
+        }
+        result = get_heading_hints(passage, page_by_seq)
+        assert 'Page 10' in result
+        assert 'باب الهمزة المتوسطة' in result
+        assert 'Page 12' in result
+        assert 'فصل في كتابة الألف اللينة' in result
+        # Page 11 should NOT appear (no heading)
+        assert 'Page 11' not in result
+
+    def test_no_heading_pages(self):
+        """Passage with no ZWNJ headings returns empty string."""
+        passage = {"start_seq_index": 1, "end_seq_index": 2}
+        page_by_seq = {
+            1: {"starts_with_zwnj_heading": False, "matn_text": "نص"},
+            2: {"starts_with_zwnj_heading": False, "matn_text": "نص آخر"},
+        }
+        result = get_heading_hints(passage, page_by_seq)
+        assert result == ""
+
+    def test_missing_flag_treated_as_false(self):
+        """Pages without starts_with_zwnj_heading key produce no hints."""
+        passage = {"start_seq_index": 1, "end_seq_index": 1}
+        page_by_seq = {1: {"matn_text": "نص بدون علامة"}}
+        result = get_heading_hints(passage, page_by_seq)
+        assert result == ""
+
+    def test_zwnj_stripped_from_output(self):
+        """ZWNJ characters are stripped from the hint text."""
+        passage = {"start_seq_index": 3, "end_seq_index": 3}
+        page_by_seq = {3: {
+            "starts_with_zwnj_heading": True, "page_number": 5,
+            "matn_text": "\u200c\u200cباب\u200c الإمالة",
+        }}
+        result = get_heading_hints(passage, page_by_seq)
+        assert "\u200c" not in result
+        assert "باب الإمالة" in result
+
+    def test_first_line_truncated_at_80_chars(self):
+        """Long heading text is truncated to 80 characters."""
+        long_heading = "أ" * 100
+        passage = {"start_seq_index": 1, "end_seq_index": 1}
+        page_by_seq = {1: {
+            "starts_with_zwnj_heading": True, "page_number": 1,
+            "matn_text": long_heading,
+        }}
+        result = get_heading_hints(passage, page_by_seq)
+        # The quoted text inside should be max 80 chars
+        assert "أ" * 80 in result
+        assert "أ" * 81 not in result
+
+    def test_missing_page_in_seq_range(self):
+        """Missing seq_index in page_by_seq is gracefully skipped."""
+        passage = {"start_seq_index": 1, "end_seq_index": 3}
+        page_by_seq = {
+            1: {"starts_with_zwnj_heading": True, "page_number": 1,
+                "matn_text": "\u200c\u200cعنوان أول"},
+            # seq 2 is missing
+            3: {"starts_with_zwnj_heading": True, "page_number": 3,
+                "matn_text": "\u200c\u200cعنوان ثالث"},
+        }
+        result = get_heading_hints(passage, page_by_seq)
+        assert "Page 1" in result
+        assert "Page 3" in result
+
+    def test_empty_first_line_skipped(self):
+        """Pages where ZWNJ stripping yields empty text produce no hint."""
+        passage = {"start_seq_index": 1, "end_seq_index": 1}
+        page_by_seq = {1: {
+            "starts_with_zwnj_heading": True, "page_number": 1,
+            "matn_text": "\u200c\u200c\u200c",  # only ZWNJs
+        }}
+        result = get_heading_hints(passage, page_by_seq)
+        assert result == ""
+
+    def test_fallback_page_number_is_seq_index(self):
+        """When page_number is missing, seq_index is used."""
+        passage = {"start_seq_index": 42, "end_seq_index": 42}
+        page_by_seq = {42: {
+            "starts_with_zwnj_heading": True,
+            "matn_text": "\u200c\u200cمقدمة المؤلف",
+        }}
+        result = get_heading_hints(passage, page_by_seq)
+        assert "Page 42" in result
 
 
 # ---------------------------------------------------------------------------
@@ -646,6 +771,25 @@ class TestValidateAllPass:
         issues = validate_extraction(result, "P001", leaves)
         assert issues["errors"] == [], f"Unexpected errors: {issues['errors']}"
         assert issues["warnings"] == [], f"Unexpected warnings: {issues['warnings']}"
+
+
+class TestValidateEmptyArrays:
+    """Check 0: empty atoms or excerpts should produce errors."""
+
+    def test_empty_atoms_produces_error(self):
+        result = {"atoms": [], "excerpts": [{"excerpt_id": "x:exc:000001",
+            "core_atoms": [{"atom_id": "x:matn:000001", "role": "teaches"}],
+            "context_atoms": [], "taxonomy_node": "leaf", "excerpt_title": "t",
+            "excerpt_kind": "teaching", "case_types": ["A1_pure_definition"],
+            "source_layer": "matn", "boundary_reasoning": "x"}]}
+        issues = validate_extraction(result, "P001", {"leaf"})
+        assert any("Empty atoms" in e for e in issues["errors"])
+
+    def test_empty_excerpts_produces_error(self):
+        result = {"atoms": [{"atom_id": "x:matn:000001", "atom_type": "prose_sentence",
+            "text": "نص", "source_layer": "matn"}], "excerpts": []}
+        issues = validate_extraction(result, "P001", {"leaf"})
+        assert any("Empty excerpts" in e for e in issues["errors"])
 
 
 # ---------------------------------------------------------------------------
@@ -1253,6 +1397,72 @@ class TestExtractTaxonomyLeavesV1:
         leaves = extract_taxonomy_leaves(path, "imlaa")
         assert len(leaves) >= 40, f"Expected ~44 leaves, got {len(leaves)}"
 
+    def test_real_v1_sarf_taxonomy(self):
+        """BUG-001: sarf v1 taxonomy must return 226 leaves."""
+        import os
+        path = os.path.join("taxonomy", "sarf", "sarf_v1_0.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("sarf v1 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "sarf")
+        assert len(leaves) == 226, f"Expected 226 leaves, got {len(leaves)}"
+
+    def test_real_v1_nahw_taxonomy(self):
+        """BUG-001: nahw v1 taxonomy must return 226 leaves."""
+        import os
+        path = os.path.join("taxonomy", "nahw", "nahw_v1_0.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("nahw v1 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "nahw")
+        assert len(leaves) == 226, f"Expected 226 leaves, got {len(leaves)}"
+
+    def test_real_v0_aqidah_v01_taxonomy(self):
+        """BUG-001: aqidah v0.1 taxonomy must return 21 leaves."""
+        import os
+        path = os.path.join("taxonomy", "aqidah", "aqidah_v0_1.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("aqidah v0.1 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "aqidah")
+        assert len(leaves) == 21, f"Expected 21 leaves, got {len(leaves)}"
+
+    def test_real_v0_aqidah_v02_taxonomy(self):
+        """BUG-001: aqidah v0.2 taxonomy must return 28 leaves."""
+        import os
+        path = os.path.join("taxonomy", "aqidah", "aqidah_v0_2.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("aqidah v0.2 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "aqidah")
+        assert len(leaves) == 28, f"Expected 28 leaves, got {len(leaves)}"
+
+    def test_all_taxonomy_files_exact_counts(self):
+        """BUG-001 acceptance: every taxonomy file returns the documented leaf count."""
+        import os
+        import pytest
+        expected = {
+            ("taxonomy/imlaa/imlaa_v1_0.yaml", "imlaa"): 105,
+            ("taxonomy/sarf/sarf_v1_0.yaml", "sarf"): 226,
+            ("taxonomy/nahw/nahw_v1_0.yaml", "nahw"): 226,
+            ("taxonomy/balagha/balagha_v1_0.yaml", "balagha"): 335,
+            ("taxonomy/aqidah/aqidah_v0_1.yaml", "aqidah"): 21,
+            ("taxonomy/aqidah/aqidah_v0_2.yaml", "aqidah"): 28,
+            ("taxonomy/imlaa_v0.1.yaml", "imlaa"): 44,
+        }
+        missing = []
+        wrong = []
+        for (path, science), count in expected.items():
+            if not os.path.exists(path):
+                missing.append(path)
+                continue
+            leaves = extract_taxonomy_leaves(path, science)
+            if len(leaves) != count:
+                wrong.append(f"{path}: expected {count}, got {len(leaves)}")
+        if missing:
+            pytest.skip(f"Taxonomy files not found: {missing}")
+        assert not wrong, "Leaf count mismatches:\n" + "\n".join(wrong)
+
     def test_empty_yaml(self):
         assert extract_taxonomy_leaves("") == set()
         assert extract_taxonomy_leaves("# just a comment\n") == set()
@@ -1519,7 +1729,10 @@ class TestResolveKeyForModel:
 
 
 class TestTaxonomyNodeNormalization:
-    """BUG-043: LLMs return full paths instead of leaf IDs."""
+    """BUG-043: LLMs return full paths instead of leaf IDs.
+
+    Normalization now happens in post_process_extraction (not validate_extraction).
+    """
 
     LEAVES = {"al_istiwa", "ta3rif_al_iman", "al_karamat", "al_ittiba3"}
 
@@ -1536,6 +1749,7 @@ class TestTaxonomyNodeNormalization:
 
     def test_dot_path_normalized(self):
         result = self._make_result("aqidah.al_iman_billah.asma_wa_sifat.al_istiwa")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "al_istiwa"
@@ -1543,6 +1757,7 @@ class TestTaxonomyNodeNormalization:
 
     def test_colon_path_normalized(self):
         result = self._make_result("manhaj_ahl_al_sunna:al_ittiba3")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "al_ittiba3"
@@ -1550,6 +1765,7 @@ class TestTaxonomyNodeNormalization:
 
     def test_slash_path_normalized(self):
         result = self._make_result("aqidah/al_iman/ta3rif_al_iman")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "ta3rif_al_iman"
@@ -1557,6 +1773,7 @@ class TestTaxonomyNodeNormalization:
 
     def test_plain_leaf_unchanged(self):
         result = self._make_result("al_karamat")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "al_karamat"
@@ -1564,12 +1781,64 @@ class TestTaxonomyNodeNormalization:
 
     def test_unknown_path_still_warns(self):
         result = self._make_result("aqidah.unknown_branch.unknown_leaf")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         assert any("non-leaf" in w for w in v["warnings"])
 
     def test_unmapped_not_normalized(self):
         result = self._make_result("_unmapped")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "_unmapped"
         assert len(v["warnings"]) == 0
+
+
+class TestPostProcessDefaults:
+    """BUG-FIX: post_process_extraction should set defaults for missing fields."""
+
+    def test_excerpt_kind_defaulted(self):
+        """excerpt_kind should default to 'teaching' if LLM omits it."""
+        result = {
+            "atoms": [{"atom_id": "x:matn:001", "text": "test",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "x:exc:001",
+                          "core_atoms": [{"atom_id": "x:matn:001"}],
+                          "taxonomy_node_id": "leaf1"}],
+        }
+        result = post_process_extraction(result, "test", "imlaa")
+        assert result["excerpts"][0]["excerpt_kind"] == "teaching"
+
+    def test_taxonomy_path_defaulted(self):
+        """taxonomy_path should default to empty string."""
+        result = {
+            "atoms": [], "excerpts": [{"excerpt_id": "x:exc:001",
+                                        "taxonomy_node_id": "leaf1"}],
+        }
+        result = post_process_extraction(result, "test", "imlaa")
+        assert result["excerpts"][0]["taxonomy_path"] == ""
+
+    def test_existing_excerpt_kind_not_overwritten(self):
+        """Existing excerpt_kind should not be overwritten by default."""
+        result = {
+            "atoms": [],
+            "excerpts": [{"excerpt_id": "x:exc:001",
+                          "excerpt_kind": "methodology",
+                          "taxonomy_node_id": "leaf1"}],
+        }
+        result = post_process_extraction(result, "test", "imlaa")
+        assert result["excerpts"][0]["excerpt_kind"] == "methodology"
+
+
+class TestNormalizeAtomEntriesNonMutating:
+    """BUG-FIX: _normalize_atom_entries should not mutate original dicts."""
+
+    def test_original_dict_not_mutated(self):
+        """Original atom dict should not be modified by normalization."""
+        original = {"atom_id": "x:matn:001"}
+        entries = [original]
+        normalized = _normalize_atom_entries(entries, "author_prose")
+        # Normalized result should have 'role' added
+        assert normalized[0]["role"] == "author_prose"
+        # Original should NOT have been mutated
+        assert "role" not in original

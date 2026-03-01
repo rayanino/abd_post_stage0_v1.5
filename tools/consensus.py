@@ -14,6 +14,7 @@ excerpt level using text overlap, not atom-ID matching.
 import copy
 import json
 import re
+import sys
 import unicodedata
 
 
@@ -217,14 +218,15 @@ def _merge_atoms_for_consensus(
             if aid:
                 needed_ids.add(aid)
 
-    # Check for collisions: same ID, different text
+    # Check for collisions: same ID, different text (use normalized comparison
+    # to avoid false collisions from diacritics/whitespace differences)
     remap = {}
     tag = _model_tag(losing_model)
     for aid in needed_ids:
         if aid in winning_atoms and aid in losing_atoms:
             w_text = winning_atoms[aid].get("text", "")
             l_text = losing_atoms[aid].get("text", "")
-            if w_text != l_text:
+            if normalize_for_comparison(w_text) != normalize_for_comparison(l_text):
                 # Real collision — disambiguate with _tag suffix to keep
                 # the 3-segment atom ID format (book:section:seq)
                 parts = aid.rsplit(":", 1)
@@ -326,7 +328,6 @@ def _optimal_assignment(overlap_matrix: list[list[float]],
     used = 0
     for row in range(n_a):
         optimal_from_here = dp(row, used)
-        skip_val = dp(row + 1, used)
         # Try each column to see which one achieves optimal
         matched = False
         for col in range(n_b):
@@ -920,6 +921,13 @@ def resolve_placement_disagreement(
         if not isinstance(parsed, dict):
             raise ValueError(f"Arbiter returned non-dict: {type(parsed)}")
 
+        # Validate expected keys are present
+        expected_keys = {"correct_placement", "reasoning", "confidence"}
+        missing_keys = expected_keys - set(parsed.keys())
+        if missing_keys:
+            print(f"  WARNING: arbiter response missing keys {missing_keys}; "
+                  f"received keys: {list(parsed.keys())}", file=sys.stderr)
+
         inp_tok = response.get("input_tokens", 0)
         out_tok = response.get("output_tokens", 0)
         cost = _compute_arbiter_cost(inp_tok, out_tok, arbiter_pricing)
@@ -1010,6 +1018,14 @@ def resolve_unmatched_excerpt(
         if not isinstance(parsed, dict):
             raise ValueError(f"Arbiter returned non-dict: {type(parsed)}")
 
+        # Validate expected keys
+        expected_keys = {"verdict", "reasoning", "confidence"}
+        missing_keys = expected_keys - set(parsed.keys())
+        if missing_keys:
+            print(f"  WARNING: unmatched arbiter response missing keys "
+                  f"{missing_keys}; received keys: {list(parsed.keys())}",
+                  file=sys.stderr)
+
         inp_tok = response.get("input_tokens", 0)
         out_tok = response.get("output_tokens", 0)
         cost = _compute_arbiter_cost(inp_tok, out_tok, arbiter_pricing)
@@ -1062,22 +1078,20 @@ def _extract_taxonomy_context(taxonomy_yaml: str, node_a: str, node_b: str) -> s
         if bare in targets and bare != stripped:  # must have had a trailing ':'
             matched_indices.add(i)
 
+    # Collect context windows, deduplicating by line index (not content)
+    # so that structurally identical lines from different nodes are preserved
+    seen_line_indices: set[int] = set()
     for idx in sorted(matched_indices):
         start = max(0, idx - 5)
         end = min(len(lines), idx + 6)
-        relevant.extend(lines[start:end])
+        for li in range(start, end):
+            if li not in seen_line_indices:
+                seen_line_indices.add(li)
+                relevant.append(lines[li])
         relevant.append("---")
 
     if relevant:
-        # Deduplicate overlapping context windows while preserving order
-        seen: set[str] = set()
-        deduped = []
-        for line in relevant:
-            key = line.rstrip()
-            if key not in seen:
-                seen.add(key)
-                deduped.append(line)
-        return "\n".join(deduped)
+        return "\n".join(relevant)
     return f"(nodes {node_a} and {node_b} not found in taxonomy)"
 
 
@@ -1134,6 +1148,12 @@ def build_consensus(
     # Determine preferred model (fewer issues wins, tie goes to model_a)
     issues_a_count = len(issues_a.get("errors", [])) + len(issues_a.get("warnings", []))
     issues_b_count = len(issues_b.get("errors", [])) + len(issues_b.get("warnings", []))
+    if prefer_model:
+        if prefer_model not in (model_a, model_b):
+            print(f"  WARNING: prefer_model '{prefer_model}' doesn't match either "
+                  f"model ({model_a}, {model_b}). Ignoring.",
+                  file=sys.stderr)
+            prefer_model = None
     if prefer_model:
         winning = prefer_model
     elif issues_a_count <= issues_b_count:
@@ -1209,7 +1229,7 @@ def build_consensus(
             })
         elif m["same_taxonomy"]:
             # FULL AGREEMENT -- high confidence
-            exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
+            exc = dict(m["excerpt_a"] if winning == model_a else m["excerpt_b"])
             other_exc = m["excerpt_b"] if winning == model_a else m["excerpt_a"]
             # H06: Enrich winning excerpt's empty metadata from losing model.
             # Only metadata fields — never overwrite content (core_atoms, etc.)
@@ -1321,7 +1341,7 @@ def build_consensus(
             if resolution:
                 keep = resolution.get("verdict") != "discard"
                 if resolution.get("confidence") == "certain":
-                    confidence = "medium" if keep else "discard"
+                    confidence = "medium" if keep else "low"
 
             detail = {
                 "type": "unmatched_excerpt",

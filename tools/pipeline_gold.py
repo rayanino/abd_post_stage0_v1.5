@@ -123,7 +123,7 @@ def touch_checkpoint_index(baseline_dir: str) -> str:
     fp = os.path.join(od, "index.txt")
     os.makedirs(os.path.dirname(fp), exist_ok=True)
     open(fp, "a", encoding="utf-8").close()
-    return os.path.relpath(fp, baseline_dir)
+    return os.path.relpath(fp, baseline_dir).replace("\\", "/")
 
 
 def init_state_if_missing(baseline_dir: str, meta: Dict[str, Any]) -> Dict[str, Any]:
@@ -133,8 +133,8 @@ def init_state_if_missing(baseline_dir: str, meta: Dict[str, Any]) -> Dict[str, 
             return json.load(f)
 
     # Create minimal CP0 state
-    v = os.path.basename(baseline_dir).split("_v", 1)[-1]
-    baseline_version = v if v.startswith("0.") else v
+    parts = os.path.basename(baseline_dir).split("_v", 1)
+    baseline_version = parts[-1] if len(parts) > 1 else ""
     st = {
         "record_type": "checkpoint_state",
         "checkpoint_state_version": "0.1",
@@ -169,6 +169,7 @@ def write_state(baseline_dir: str, st: Dict[str, Any]) -> None:
 def run_cmd(cmd: str, cwd: str, stdout_path: str | None = None, stderr_path: str | None = None) -> None:
     """Run a shell command, optionally capturing stdout/stderr to files."""
     print(f"\nRUN: {cmd}\nCWD: {cwd}\n")
+    res = None
     out_f = err_f = None
     try:
         if stdout_path:
@@ -183,6 +184,8 @@ def run_cmd(cmd: str, cwd: str, stdout_path: str | None = None, stderr_path: str
             out_f.close()
         if err_f:
             err_f.close()
+    if res is None:
+        die("Command did not execute (file I/O error before subprocess)")
     if res.returncode != 0:
         die(f"Command failed with exit code {res.returncode}")
 
@@ -219,7 +222,8 @@ def checkpoint_1(baseline_dir: str, meta: dict, st: dict, runtime: dict) -> None
     must_exist(errp, "CP1 stderr log")
 
     idx_rel = touch_checkpoint_index(baseline_dir)
-    artifacts = a + [os.path.relpath(outp, baseline_dir), os.path.relpath(errp, baseline_dir), idx_rel]
+    artifacts = a + [os.path.relpath(outp, baseline_dir).replace("\\", "/"),
+                     os.path.relpath(errp, baseline_dir).replace("\\", "/"), idx_rel]
     _set_done(st, 1, artifacts, command=cmd)
     print("CP1 OK")
 
@@ -319,11 +323,11 @@ def checkpoint_6(baseline_dir: str, meta: dict, st: dict, runtime: dict) -> None
         'baseline_manifest.json',
         'excerpts_rendered/INDEX.md',
         'checkpoint_outputs/index.txt',
-        os.path.relpath(v_out, baseline_dir),
-        os.path.relpath(v_err, baseline_dir),
-        os.path.relpath(r_out, baseline_dir),
-        os.path.relpath(r_err, baseline_dir),
-        os.path.relpath(fp_tool, baseline_dir),
+        os.path.relpath(v_out, baseline_dir).replace("\\", "/"),
+        os.path.relpath(v_err, baseline_dir).replace("\\", "/"),
+        os.path.relpath(r_out, baseline_dir).replace("\\", "/"),
+        os.path.relpath(r_err, baseline_dir).replace("\\", "/"),
+        os.path.relpath(fp_tool, baseline_dir).replace("\\", "/"),
         'checkpoint_state.json',
     ]
     st['checkpoints'].setdefault('6', {})
@@ -363,7 +367,8 @@ def checkpoint_6(baseline_dir: str, meta: dict, st: dict, runtime: dict) -> None
                 meta_path = os.path.join(baseline_dir, fn)
                 break
         if meta_path:
-            meta_obj = json.load(open(meta_path, encoding='utf-8'))
+            with open(meta_path, encoding='utf-8') as _mf:
+                meta_obj = json.load(_mf)
             meta_obj.setdefault('validation', {})
             meta_obj['validation']['validator'] = meta_obj['validation'].get('validator', 'validate_gold.py')
             meta_obj['validation']['validator_version'] = meta['validation'].get('validator_version', meta_obj['validation'].get('validator_version',''))
@@ -372,7 +377,8 @@ def checkpoint_6(baseline_dir: str, meta: dict, st: dict, runtime: dict) -> None
             meta_obj['validation']['errors'] = meta['validation'].get('errors', 0)
             meta_obj['validation']['result'] = meta['validation'].get('result', meta_obj['validation'].get('result',''))
             meta_obj['validation']['command'] = cmd
-            json.dump(meta_obj, open(meta_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+            with open(meta_path, 'w', encoding='utf-8') as _mf:
+                json.dump(meta_obj, _mf, ensure_ascii=False, indent=2)
     except Exception as e:
         die(f'Failed to sync validation report/metadata: {e}')
 
@@ -455,11 +461,11 @@ def checkpoint_6(baseline_dir: str, meta: dict, st: dict, runtime: dict) -> None
         "baseline_manifest.json",
         "excerpts_rendered/INDEX.md",
         "checkpoint_outputs/index.txt",
-        os.path.relpath(v_out, baseline_dir),
-        os.path.relpath(v_err, baseline_dir),
-        os.path.relpath(r_out, baseline_dir),
-        os.path.relpath(r_err, baseline_dir),
-        os.path.relpath(fp_tool, baseline_dir),
+        os.path.relpath(v_out, baseline_dir).replace("\\", "/"),
+        os.path.relpath(v_err, baseline_dir).replace("\\", "/"),
+        os.path.relpath(r_out, baseline_dir).replace("\\", "/"),
+        os.path.relpath(r_err, baseline_dir).replace("\\", "/"),
+        os.path.relpath(fp_tool, baseline_dir).replace("\\", "/"),
         "checkpoint_state.json",
     ]
     _set_done(st, 6, artifacts, command=cmd, notes="Validator + derived MD + manifest + captured logs")
@@ -482,8 +488,8 @@ def main() -> None:
     # Keep checkpoint_state aligned with the current runner + directory naming (audit clarity)
     st["pipeline_version"] = PIPELINE_VERSION
     try:
-        vdir = os.path.basename(baseline_dir).split("_v", 1)[-1]
-        st["baseline_version"] = vdir
+        parts = os.path.basename(baseline_dir).split("_v", 1)
+        st["baseline_version"] = parts[-1] if len(parts) > 1 else ""
     except Exception:
         pass
 

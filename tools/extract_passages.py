@@ -386,7 +386,7 @@ Next passage head (for context only — do NOT atomize or excerpt):
 
 ## Footnotes for this passage
 {footnotes}
-
+{heading_hints_section}
 {gold_section}
 
 Atomize and excerpt the current passage. Return a JSON object with keys: atoms, excerpts, footnote_excerpts, exclusions, notes.\
@@ -447,14 +447,32 @@ def load_gold_example(path: str | None) -> str:
 
 
 def get_passage_text(passage: dict, page_by_seq: dict) -> str:
-    """Assemble passage text from pages."""
+    """Assemble passage text from pages.
+
+    Warns on missing or empty pages so that gaps are detectable in logs.
+    """
     parts = []
+    expected = passage["end_seq_index"] - passage["start_seq_index"] + 1
+    missing = []
+    empty = []
     for seq in range(passage["start_seq_index"], passage["end_seq_index"] + 1):
         pg = page_by_seq.get(seq)
-        if pg:
-            matn = pg.get("matn_text", "")
-            if matn:
-                parts.append(matn)
+        if pg is None:
+            missing.append(seq)
+            continue
+        matn = pg.get("matn_text", "")
+        if matn:
+            parts.append(matn)
+        else:
+            empty.append(seq)
+    if missing:
+        print(f"  WARNING: {len(missing)} page(s) missing from page_by_seq "
+              f"for passage {passage.get('passage_id', '?')}: "
+              f"seq_index {missing}", file=sys.stderr)
+    if empty:
+        print(f"  WARNING: {len(empty)} page(s) with empty matn_text "
+              f"for passage {passage.get('passage_id', '?')}: "
+              f"seq_index {empty}", file=sys.stderr)
     return "\n\n".join(parts)
 
 
@@ -473,6 +491,26 @@ def get_passage_footnotes(passage: dict, page_by_seq: dict) -> str:
                 text = fn.get("text", "")
                 fns.append(f"[{num}] {text}")
     return "\n".join(fns) if fns else "(none)"
+
+
+def get_heading_hints(passage: dict, page_by_seq: dict) -> str:
+    """Collect ZWNJ heading hints from passage pages.
+
+    Pages whose matn starts with \\u200c\\u200c (double ZWNJ) consistently mark
+    section headings in Shamela exports.  Surfacing this as structured metadata
+    helps the LLM correctly assign atom_type='heading'.
+    """
+    hints = []
+    for seq in range(passage["start_seq_index"], passage["end_seq_index"] + 1):
+        pg = page_by_seq.get(seq)
+        if pg and pg.get("starts_with_zwnj_heading"):
+            page_num = pg.get("page_number", seq)
+            matn = pg.get("matn_text", "")
+            # Extract the first line as heading text preview
+            first_line = matn.split("\n")[0].replace("\u200c", "").strip()[:80]
+            if first_line:
+                hints.append(f"- Page {page_num}: \"{first_line}\"")
+    return "\n".join(hints) if hints else ""
 
 
 def get_context_tail(passages: list, idx: int, page_by_seq: dict, chars: int = 300) -> str:
@@ -549,6 +587,9 @@ def repair_truncated_json(text: str) -> str:
             repair += '}'
         else:
             repair += ']'
+    # Final pass: remove any trailing comma before ] or } that the stack
+    # closing may have introduced (e.g., …"bar"}, ] → …"bar"}])
+    repair = re.sub(r',(\s*[}\]])', r'\1', repair)
     return repair
 
 
@@ -582,7 +623,8 @@ def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
                 },
                 timeout=180.0,
             )
-        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout,
+                       httpx.PoolTimeout) as e:
             last_err = e
             if attempt >= _ANTHROPIC_MAX_RETRIES:
                 raise RuntimeError(
@@ -696,7 +738,8 @@ def call_llm_openrouter(system: str, user: str, model: str,
                 },
                 timeout=240.0,
             )
-        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout,
+                       httpx.PoolTimeout) as e:
             last_error = e
             if attempt < _OPENROUTER_MAX_RETRIES:
                 wait = _OPENROUTER_RETRY_BACKOFF[min(attempt, len(_OPENROUTER_RETRY_BACKOFF) - 1)]
@@ -722,7 +765,10 @@ def call_llm_openrouter(system: str, user: str, model: str,
         break  # success
 
     data = resp.json()
-    choice = data["choices"][0]
+    choices = data.get("choices", [])
+    if not choices:
+        raise RuntimeError(f"API returned empty choices for model {model}: {str(data)[:500]}")
+    choice = choices[0]
     text = choice["message"]["content"]
 
     # Strip markdown fences if present
@@ -791,7 +837,8 @@ def call_llm_openai(system: str, user: str, model: str,
                 },
                 timeout=240.0,
             )
-        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout,
+                       httpx.PoolTimeout) as e:
             last_error = e
             if attempt >= _ANTHROPIC_MAX_RETRIES:
                 raise RuntimeError(
@@ -823,7 +870,10 @@ def call_llm_openai(system: str, user: str, model: str,
         break  # success
 
     data = resp.json()
-    choice = data["choices"][0]
+    choices = data.get("choices", [])
+    if not choices:
+        raise RuntimeError(f"API returned empty choices for model {model}: {str(data)[:500]}")
+    choice = choices[0]
     text = choice["message"]["content"]
 
     # Strip markdown fences if present
@@ -926,8 +976,9 @@ def _normalize_atom_entries(entries, default_role: str) -> list[dict]:
         if isinstance(entry, str):
             normalized.append({"atom_id": entry, "role": default_role})
         elif isinstance(entry, dict):
-            entry.setdefault("role", default_role)
-            normalized.append(entry)
+            entry_copy = dict(entry)
+            entry_copy.setdefault("role", default_role)
+            normalized.append(entry_copy)
         else:
             normalized.append({"atom_id": str(entry), "role": default_role})
     return normalized
@@ -997,6 +1048,17 @@ def post_process_extraction(result: dict, book_id: str, science: str,
         exc.setdefault("case_types", [])
         exc.setdefault("heading_path", [])
         exc.setdefault("context_atoms", [])
+        exc.setdefault("excerpt_kind", "teaching")
+        exc.setdefault("taxonomy_path", "")
+        # Normalize dot-path / colon-path / slash-path taxonomy_node_id
+        # to just the last segment (leaf ID). LLMs sometimes return full
+        # paths like "aqidah.al_iman.ta3rif" instead of just "ta3rif".
+        node = exc.get("taxonomy_node_id", "")
+        if node:
+            for sep in (".", ":", "/"):
+                if sep in node:
+                    exc["taxonomy_node_id"] = node.rsplit(sep, 1)[-1]
+                    break
         # Normalize core/context atoms to objects with roles
         exc["core_atoms"] = _normalize_atom_entries(
             exc.get("core_atoms", []), "author_prose"
@@ -1062,6 +1124,12 @@ def validate_extraction(result: dict, passage_id: str,
 
     atoms = result.get("atoms", [])
     excerpts = result.get("excerpts", [])
+
+    # Check 0: Non-empty arrays
+    if not atoms:
+        errors.append("Empty atoms array — extraction produced no atoms")
+    if not excerpts:
+        errors.append("Empty excerpts array — extraction produced no excerpts")
 
     # Build atom lookup
     atom_by_id = {}
@@ -1194,6 +1262,8 @@ def validate_extraction(result: dict, passage_id: str,
         eid = exc.get("excerpt_id", "???")
         for entry in exc.get("core_atoms", []):
             aid = _extract_atom_id(entry)
+            if not aid:
+                continue  # skip empty/missing atom IDs
             if aid in core_seen:
                 errors.append(
                     f"Atom {aid} is core in both {core_seen[aid]} and {eid}"
@@ -1217,25 +1287,8 @@ def validate_extraction(result: dict, passage_id: str,
                 )
 
     # --- Check 10: Leaf-only placement (PLACE.P2) ---
-    # First, normalize taxonomy_node_id: LLMs sometimes return full paths
-    # (e.g., "aqidah.al_iman_billah.asma_wa_sifat.al_istiwa" or
-    # "manhaj_ahl_al_sunna:al_ittiba3") instead of just the leaf ID.
-    # Extract the last segment and check if it's a valid leaf.
-    for exc in excerpts:
-        node = exc.get("taxonomy_node_id", "")
-        if node and node != "_unmapped" and node not in taxonomy_leaves:
-            # Try extracting last segment from dot-path or colon-path
-            for sep in (".", ":", "/"):
-                if sep in node:
-                    last_segment = node.rsplit(sep, 1)[-1]
-                    if last_segment in taxonomy_leaves:
-                        exc["taxonomy_node_id"] = last_segment
-                        info.append(
-                            f"Normalized taxonomy_node_id '{node}' → "
-                            f"'{last_segment}' for {exc.get('excerpt_id','???')}"
-                        )
-                        break
-
+    # Note: taxonomy_node_id normalization (dot/colon/slash path → leaf ID)
+    # now happens in post_process_extraction. Validation only reports.
     for exc in excerpts:
         node = exc.get("taxonomy_node_id", "")
         if node and node != "_unmapped" and node not in taxonomy_leaves:
@@ -1631,6 +1684,8 @@ def extract_single_model(
 
     # Correction retry loop
     retries_used = 0
+    prev_n_errors = len(issues["errors"])
+    prev_n_warnings = len(issues["warnings"])
     if n_issues > 0 and max_retries > 0:
         for retry in range(max_retries):
             print(f"  [{model}] Correction attempt {retry + 1}/{max_retries}...")
@@ -1639,6 +1694,9 @@ def extract_single_model(
                 passage_text, openai_key,
             )
             if correction is None:
+                print(f"    Correction API call failed — keeping "
+                      f"current result ({prev_n_issues} issues remain)",
+                      file=sys.stderr)
                 break
 
             retries_used += 1
@@ -1661,6 +1719,20 @@ def extract_single_model(
             if n_issues == 0:
                 break
 
+            # Detect persistent errors: stop if errors didn't improve
+            # (errors are blocking; warnings are not — compare separately)
+            cur_errors = len(issues["errors"])
+            cur_warnings = len(issues["warnings"])
+            if cur_errors > prev_n_errors or (
+                cur_errors == prev_n_errors and cur_warnings >= prev_n_warnings
+            ):
+                print(f"    No improvement ({cur_errors}E {cur_warnings}W, "
+                      f"was {prev_n_errors}E {prev_n_warnings}W) — stopping retries",
+                      file=sys.stderr)
+                break
+            prev_n_errors = cur_errors
+            prev_n_warnings = cur_warnings
+
     cost_info = {
         "model": model,
         "input_tokens": in_tok,
@@ -1679,7 +1751,14 @@ def run_extraction(args):
     # Load inputs
     passages = load_jsonl(args.passages)
     pages = load_jsonl(args.pages)
-    page_by_seq = {p["seq_index"]: p for p in pages}
+    # Build page index by seq_index; warn on duplicates (BUG-008)
+    page_by_seq: dict[int, dict] = {}
+    for p in pages:
+        seq = p["seq_index"]
+        if seq in page_by_seq:
+            print(f"  WARNING: duplicate seq_index {seq} in pages.jsonl — "
+                  f"later page overwrites earlier one", file=sys.stderr)
+        page_by_seq[seq] = p
     taxonomy_yaml = load_taxonomy_yaml(args.taxonomy)
     taxonomy_leaves = extract_taxonomy_leaves(args.taxonomy, args.science)
     gold_text = load_gold_example(args.gold)
@@ -1762,6 +1841,7 @@ def run_extraction(args):
             continue
 
         footnotes = get_passage_footnotes(passage, page_by_seq)
+        heading_hints = get_heading_hints(passage, page_by_seq)
         prev_tail = get_context_tail(passages, idx, page_by_seq)
         next_head = get_context_head(passages, idx, page_by_seq)
 
@@ -1789,12 +1869,22 @@ def run_extraction(args):
             excerpt_start_seq=excerpt_seq,
         )
 
+        # Build heading hints section
+        heading_hints_section = ""
+        if heading_hints:
+            heading_hints_section = (
+                "\n## Heading Hints (ZWNJ-marked section headings detected "
+                "in source)\nThe following lines start new sections — assign "
+                "atom_type='heading' to these atoms:\n" + heading_hints
+            )
+
         user = USER_PROMPT.format(
             prev_passage_tail=prev_tail,
             passage_id=pid,
             passage_text=passage_text,
             next_passage_head=next_head,
             footnotes=footnotes,
+            heading_hints_section=heading_hints_section,
             gold_section=gold_section,
         )
 

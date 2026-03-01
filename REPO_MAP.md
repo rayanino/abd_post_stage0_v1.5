@@ -85,7 +85,7 @@ taxonomy/
 
 **The taxonomy is alive:** Trees evolve as books reveal finer topic distinctions. Evolution is LLM-driven with human approval. See `CLAUDE.md` for the full evolution model.
 
-**Taxonomy evolution engine:** `tools/evolve_taxonomy.py` — Phase A complete (signal detection + LLM proposals). 5 signal types: unmapped, same_book_cluster, category_leaf, multi_topic_excerpt, user_specified.
+**Taxonomy evolution engine:** `tools/evolve_taxonomy.py` — Phase A + B complete (signal detection, LLM proposals, apply proposals to YAML, excerpt redistribution, rollback, multi-model consensus). 5 signal types: unmapped, same_book_cluster, category_leaf, multi_topic_excerpt, user_specified.
 
 ### Tools
 
@@ -98,7 +98,9 @@ taxonomy/
 | `tools/extract_passages.py` | ~2115 | 3+4 | **LLM-based extraction**: atomization + excerpting + taxonomy placement. Multi-model consensus. Verified on إملاء + عقيدة. |
 | `tools/consensus.py` | ~1722 | 3+4 | Multi-model consensus engine: text-overlap matching, LLM arbiter |
 | `tools/assemble_excerpts.py` | ~530 | 7 | Self-contained excerpt assembly + taxonomy folder distribution |
-| `tools/evolve_taxonomy.py` | ~1460 | 6 | Taxonomy evolution: signal detection + LLM proposals (Phase A) |
+| `tools/evolve_taxonomy.py` | ~2280 | 6 | Taxonomy evolution: signal detection, LLM proposals, apply, redistribute, rollback, multi-model consensus (Phase A + B) |
+| `tools/human_gate.py` | ~570 | Cross | Human gate: correction persistence, correction replay, pattern detection, gate checkpoints |
+| `tools/cross_validate.py` | ~530 | Cross | Cross-validation: placement, self-containment, cross-book consistency (LLM + algorithmic) |
 | `tools/extract_clean_input.py` | 234 | 3 (CP1) | Extract clean text from HTML for manual atomization (legacy) |
 | `tools/validate_gold.py` | ~1930 | QA | Validate gold baselines against schema |
 | `tools/render_excerpts_md.py` | 271 | QA | Render excerpts as readable Markdown |
@@ -142,7 +144,7 @@ Each `intake_metadata.json` carries a `scholarly_context` block (author death/bi
 
 ### Tests
 
-832+ tests pass across 8 test files (parametrized tests expand the count).
+940+ tests pass across 10 test files (parametrized tests expand the count).
 
 | Test file | Tests | Covers |
 |-----------|-------|--------|
@@ -150,10 +152,12 @@ Each `intake_metadata.json` carries a `scholarly_context` block (author death/bi
 | `tests/test_enrich.py` | ~16 | `tools/enrich.py` |
 | `tests/test_normalization.py` | ~193 | `tools/normalize_shamela.py` |
 | `tests/test_structure_discovery.py` | ~86 | `tools/discover_structure.py` |
-| `tests/test_extraction.py` | ~160 | `tools/extract_passages.py` |
+| `tests/test_extraction.py` | ~165 | `tools/extract_passages.py` |
 | `tests/test_consensus.py` | ~120 | `tools/consensus.py` |
 | `tests/test_assembly.py` | ~50 | `tools/assemble_excerpts.py` |
-| `tests/test_evolution.py` | ~62 | `tools/evolve_taxonomy.py` |
+| `tests/test_evolution.py` | ~90 | `tools/evolve_taxonomy.py` |
+| `tests/test_human_gate.py` | ~39 | `tools/human_gate.py` |
+| `tests/test_cross_validate.py` | ~32 | `tools/cross_validate.py` |
 
 ---
 

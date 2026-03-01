@@ -150,11 +150,12 @@ def _parse_baseline_dirs(active_gold_md: str):
     import re, os
     base = os.path.dirname(active_gold_md)
     dirs = []
-    for line in open(active_gold_md, encoding="utf-8"):
-        m = re.search(r"`([^`]*passage\d+_v[0-9.]+/?)`", line)
-        if m:
-            rel = m.group(1).rstrip("/")
-            dirs.append(os.path.abspath(os.path.join(base, rel)))
+    with open(active_gold_md, encoding="utf-8") as f:
+        for line in f:
+            m = re.search(r"`([^`]*passage\d+_v[0-9][0-9A-Za-z._+\-]*/?)`", line)
+            if m:
+                rel = m.group(1).rstrip("/")
+                dirs.append(os.path.abspath(os.path.join(base, rel)))
     return dirs
 
 
@@ -249,7 +250,8 @@ def _validate_jsonl_file(path: str, schema_obj, report, prefix: str) -> bool:
 def _sha256_bytes(path: str) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
-        h.update(f.read())
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
     return h.hexdigest()
 
 
@@ -1754,6 +1756,8 @@ def main():
                        help="Path to taxonomy_registry.yaml to verify taxonomy snapshot identity (optional)")
     parser.add_argument("--skip-clean-input-check", action="store_true",
                        help="Skip Checkpoint-1 clean input artifact checks")
+    parser.add_argument("--skip-checkpoint-state-check", action="store_true",
+                       help="Skip checkpoint state machine validation")
     args = parser.parse_args()
 
     print(f"\n{BANNER}")
@@ -1831,7 +1835,7 @@ def main():
 
     schema = None
     if args.schema:
-        with open(args.schema) as f:
+        with open(args.schema, encoding="utf-8") as f:
             schema = json.load(f)
         report.note(f"Schema: {args.schema}")
 

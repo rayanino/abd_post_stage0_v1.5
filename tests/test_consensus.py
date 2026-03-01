@@ -2967,3 +2967,137 @@ class TestFieldEnrichmentOnFullAgreement:
         # Winning model's values should be preserved
         assert exc["case_types"] == ["A1_pure_definition"]
         assert exc["boundary_reasoning"] == "Good reasoning here"
+
+
+class TestConfidenceValues:
+    """Tests that confidence values are always valid (high/medium/low)."""
+
+    def test_no_discard_confidence(self):
+        """Confidence must never be 'discard' — previously a bug in unmatched handling."""
+        # The valid confidence values used throughout the codebase
+        valid_confidences = {"high", "medium", "low"}
+
+        # Build minimal data where one model has an unmatched excerpt
+        atoms_a = [_make_atom("A1", "content", "نص عربي أول")]
+        exc_a = [_make_excerpt("E1", ["A1"], "node_a",
+                               excerpt_title="القسم الأول")]
+        ra = _make_result(atoms_a, exc_a)
+
+        # Model B has completely different content → unmatched
+        atoms_b = [_make_atom("B1", "content", "محتوى مختلف تماما")]
+        exc_b = [_make_excerpt("E2", ["B1"], "node_b",
+                               excerpt_title="القسم الثاني")]
+        rb = _make_result(atoms_b, exc_b)
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+
+        # Check all per_excerpt confidence values are valid
+        for entry in consensus.get("consensus_meta", {}).get("per_excerpt", []):
+            conf = entry.get("confidence", "")
+            assert conf in valid_confidences, (
+                f"Invalid confidence '{conf}' found in per_excerpt entry: {entry}"
+            )
+
+
+class TestOptimalAssignmentDeadCode:
+    """Tests that _optimal_assignment reconstruction has no dead code."""
+
+    def test_skip_row_reconstruction(self):
+        """Verify reconstruction works when some rows are skipped (no match above threshold)."""
+        # 3x3 matrix where row 1 has no value above threshold
+        matrix = [
+            [0.8, 0.1, 0.0],
+            [0.05, 0.03, 0.02],  # all below 0.3 threshold
+            [0.0, 0.1, 0.9],
+        ]
+        pairs = _optimal_assignment(matrix, threshold=0.3)
+        assert pairs is not None
+        # Should match row 0→col 0 and row 2→col 2, skipping row 1
+        assert len(pairs) == 2
+        assert (0, 0) in pairs
+        assert (2, 2) in pairs
+
+
+class TestPreferModelValidation:
+    """BUG-FIX: prefer_model should be validated against actual model names."""
+
+    def test_invalid_prefer_model_ignored(self, capsys):
+        """Mistyped prefer_model should be ignored with a warning."""
+        from consensus import build_consensus
+
+        result_a = {
+            "atoms": [{"atom_id": "a:matn:000001", "text": "نص",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "a:exc:000001",
+                          "taxonomy_node_id": "leaf1",
+                          "core_atoms": [{"atom_id": "a:matn:000001",
+                                          "role": "author_prose"}]}],
+        }
+        result_b = {
+            "atoms": [{"atom_id": "b:matn:000001", "text": "نص",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "b:exc:000001",
+                          "taxonomy_node_id": "leaf1",
+                          "core_atoms": [{"atom_id": "b:matn:000001",
+                                          "role": "author_prose"}]}],
+        }
+        issues_a = {"errors": [], "warnings": []}
+        issues_b = {"errors": [], "warnings": ["some warning"]}
+
+        consensus = build_consensus(
+            "P001", result_a, result_b,
+            "model_a", "model_b",
+            issues_a, issues_b,
+            prefer_model="typo_model",  # doesn't match either
+        )
+        captured = capsys.readouterr()
+        assert "typo_model" in captured.err
+        assert "Ignoring" in captured.err
+        # Should fall back to model_a (fewer issues)
+        assert consensus["excerpts"][0].get("taxonomy_node_id") == "leaf1"
+
+
+class TestEnrichmentNonMutating:
+    """BUG-FIX: enrichment in full agreement should not mutate original results."""
+
+    def test_enrichment_does_not_mutate_original(self):
+        """Full agreement enrichment should copy the excerpt, not mutate it."""
+        from consensus import build_consensus
+
+        result_a = {
+            "atoms": [{"atom_id": "a:matn:000001", "text": "نص",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "a:exc:000001",
+                          "taxonomy_node_id": "leaf1",
+                          "core_atoms": [{"atom_id": "a:matn:000001",
+                                          "role": "author_prose"}],
+                          "case_types": []}],  # empty, will be enriched
+        }
+        result_b = {
+            "atoms": [{"atom_id": "b:matn:000001", "text": "نص",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "b:exc:000001",
+                          "taxonomy_node_id": "leaf1",
+                          "core_atoms": [{"atom_id": "b:matn:000001",
+                                          "role": "author_prose"}],
+                          "case_types": ["A1_pure_definition"]}],
+        }
+        issues_a = {"errors": [], "warnings": []}
+        issues_b = {"errors": [], "warnings": []}
+
+        # Save reference to original excerpt
+        original_exc_a = result_a["excerpts"][0]
+
+        consensus = build_consensus(
+            "P001", result_a, result_b,
+            "model_a", "model_b",
+            issues_a, issues_b,
+        )
+        # The consensus should have enriched case_types
+        consensus_exc = consensus["excerpts"][0]
+        assert consensus_exc.get("case_types") == ["A1_pure_definition"]
+        # The original should NOT have been mutated
+        assert original_exc_a["case_types"] == []

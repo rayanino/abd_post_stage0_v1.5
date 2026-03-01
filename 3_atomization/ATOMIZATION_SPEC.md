@@ -66,19 +66,7 @@ For each passage in `passages.jsonl` where `digestible == true`:
 3. 2–3 gold few-shot examples showing input text → atom list
 4. The expected output format (JSON)
 
-**LLM output:** A list of atoms, each with:
-```json
-{
-  "atom_id": "A001",
-  "text_ar": "الكلمة ثلاثة أقسام: اسم، وفعل، وحرف.",
-  "source_page": 13,
-  "source_locator": {"page": 13, "line_start": 5, "line_end": 5},
-  "is_heading": false,
-  "bond_group": null,
-  "bond_reason": null,
-  "notes": null
-}
-```
+**LLM output:** A list of atoms. For the current output format, see §5 below and `schemas/gold_standard_schema_v0.3.3.json`. The automated tool (`tools/extract_passages.py`) handles atom ID assignment, post-processing, and field normalization.
 
 **Post-processing validation (deterministic):**
 - Every character in the source text must be covered by exactly one atom (no gaps, no overlaps)
@@ -93,18 +81,20 @@ For each passage in `passages.jsonl` where `digestible == true`:
 
 ## 5. Atom Properties (from schema)
 
-Each atom has the following fields (per `schemas/gold_standard_schema_v0.3.3.json`):
+For the authoritative atom schema, see `schemas/gold_standard_schema_v0.3.3.json` (atom_record definition) and `project_glossary.md` §3. Key fields:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `atom_id` | string | Yes | Sequential within passage (A001, A002...) |
-| `text_ar` | string | Yes | Arabic text of the atom |
-| `source_page` | integer | Yes | Page number where the atom appears |
-| `source_locator` | object | Yes | `{page, line_start, line_end}` |
-| `is_heading` | boolean | Yes | True if this atom is a heading (Binding Decisions §5) |
-| `bond_group` | string | No | Group ID if bonded to adjacent atoms (ATOM.B) |
-| `bond_reason` | string | No | Why these atoms are bonded |
-| `notes` | string | No | Any special notes about this atom |
+| `atom_id` | string | Yes | Format: `{book_id}:{layer}:{6-digit seq}` (e.g., `jawahir:matn:000004`) |
+| `text` | string | Yes | Arabic text of the atom (verbatim from source) |
+| `atom_type` | enum | Yes | `prose_sentence`, `bonded_cluster`, `heading`, `verse_evidence`, `quran_quote_standalone`, `list_item` |
+| `record_type` | string | Yes | `"atom_record"` |
+| `book_id` | string | Yes | The book's canonical ID |
+| `source_layer` | string | Yes | `"matn"` or `"footnote"` |
+| `page_hint` | integer | No | Page number where the atom appears |
+| `source_anchor` | object | No | `{char_offset_start, char_offset_end}` into canonical text |
+| `is_prose_tail` | boolean | No | True if this atom continues from a previous passage |
+| `bonded_cluster_trigger` | object | No | Why these atoms are bonded (structured trigger type) |
 
 ---
 

@@ -201,8 +201,10 @@ def normalize_arabic_for_match(text: str) -> str:
     out = "".join(c for c in text if c not in diacritics)
     # Normalize alef-maqsura / ya
     out = out.replace("ى", "ي")
-    # Normalize alef variants
-    out = out.replace("إ", "ا").replace("أ", "ا").replace("آ", "ا")
+    # Normalize alef variants (including Alef Wasla U+0671 from Quranic text)
+    out = out.replace("إ", "ا").replace("أ", "ا").replace("آ", "ا").replace("\u0671", "ا")
+    # Strip tatweel (kashida, U+0640) — stylistic lengthening
+    out = out.replace("\u0640", "")
     # Collapse whitespace
     out = re.sub(r"\s+", " ", out).strip()
     return out
@@ -701,30 +703,36 @@ def build_page_index(pages: list[PageRecord]) -> dict[tuple[int, int], PageRecor
 # Pass 3: LLM-Assisted Discovery (Tier 3)
 # ---------------------------------------------------------------------------
 
-LLM_DEFAULT_MODEL = "claude-sonnet-4-20250514"
+LLM_DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 LLM_MAX_RETRIES = 3
 
 
 def _init_llm_client():
-    """Initialize Anthropic client. Returns (client, error_message)."""
+    """Initialize httpx-based LLM client info. Returns (api_key, error_message).
+
+    No SDK dependency — uses raw httpx like extract_passages.py.
+    """
     try:
-        import anthropic
+        import httpx  # noqa: F401 — ensure httpx is available
     except ImportError:
-        return None, "anthropic package not installed. Install with: pip install anthropic --break-system-packages"
+        return None, "httpx package not installed. Install with: pip install httpx"
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return None, "ANTHROPIC_API_KEY environment variable not set."
 
-    return anthropic.Anthropic(api_key=api_key), None
+    return api_key, None
 
 
-def call_llm(client, prompt: str, *, max_tokens: int = 4096, model: str = LLM_DEFAULT_MODEL) -> Optional[dict]:
-    """Call LLM and parse JSON response. Returns parsed dict or None on failure.
+def call_llm(api_key: str, prompt: str, *, max_tokens: int = 4096, model: str = LLM_DEFAULT_MODEL) -> Optional[dict]:
+    """Call LLM via raw httpx and parse JSON response. Returns parsed dict or None on failure.
 
     Handles markdown fence stripping, retry on JSON parse failure (up to LLM_MAX_RETRIES).
     """
+    import httpx
+
     last_raw = ""
+    last_error = ""
     for attempt in range(LLM_MAX_RETRIES):
         try:
             messages = [{"role": "user", "content": prompt}]
@@ -737,10 +745,26 @@ def call_llm(client, prompt: str, *, max_tokens: int = 4096, model: str = LLM_DE
                                "Please respond with ONLY a valid JSON object, no markdown fences or preamble."
                 })
 
-            response = client.messages.create(
-                model=model, max_tokens=max_tokens, messages=messages,
+            resp = httpx.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "messages": messages,
+                },
+                timeout=180.0,
             )
-            raw_text = response.content[0].text.strip()
+            if resp.status_code != 200:
+                print(f"  [LLM] API error status {resp.status_code}: {resp.text[:300]}", file=sys.stderr)
+                return None
+
+            data = resp.json()
+            raw_text = data["content"][0]["text"].strip()
             last_raw = raw_text
 
             # Strip markdown fences if present
@@ -779,7 +803,7 @@ def _build_context_samples(
 
         text = page.matn_text
         # If inline heading, start after the heading boundary
-        if h.heading_text_boundary and h.heading_text_boundary < len(text):
+        if h.heading_text_boundary is not None and h.heading_text_boundary < len(text):
             text = text[h.heading_text_boundary:]
         else:
             # Skip lines that ARE the heading
@@ -824,7 +848,7 @@ def _load_prompt_template(prompt_path: str) -> str:
 
 
 def pass3a_macro_structure(
-    client,
+    api_key: str,
     headings: list[HeadingCandidate],
     pages: list[PageRecord],
     toc_entries: list[TOCEntry],
@@ -889,7 +913,7 @@ def pass3a_macro_structure(
     print(f"  [Pass 3a] Prompt size: ~{est_input_tokens} tokens ({len(headings)} candidates)")
 
     # Call LLM
-    result = call_llm(client, prompt, max_tokens=8192)
+    result = call_llm(api_key, prompt, max_tokens=8192)
     if not result:
         return None
 
@@ -904,7 +928,7 @@ def pass3a_macro_structure(
 
     # Validate each decision
     valid_actions = {"confirm", "reject", "modify"}
-    max_seq = max(p.seq_index for p in pages)
+    max_seq = max((p.seq_index for p in pages), default=0)
     for d in decisions:
         if d.get("action") not in valid_actions:
             print(f"  [Pass 3a] WARNING: invalid action '{d.get('action')}' for candidate {d.get('candidate_index')}")
@@ -919,7 +943,7 @@ def pass3a_macro_structure(
 
 
 def pass3b_deep_scan(
-    client,
+    api_key: str,
     section_title: str,
     section_type: str,
     start_seq: int,
@@ -987,7 +1011,7 @@ def pass3b_deep_scan(
     est_input_tokens = len(prompt) // 4
     print(f"    [Pass 3b] '{section_title[:40]}' ({page_count}p, ~{est_input_tokens} tokens)")
 
-    result = call_llm(client, prompt, max_tokens=4096)
+    result = call_llm(api_key, prompt, max_tokens=4096)
     return result
 
 
@@ -1051,7 +1075,7 @@ def integrate_pass3_results(
     print(f"  [Pass 3] {len(confirmed)} confirmed, {rejected_count} rejected")
 
     # Phase 2: Add new divisions from Pass 3a
-    max_seq = max(p.seq_index for p in pages)
+    max_seq = max((p.seq_index for p in pages), default=0)
     page_by_seq = {p.seq_index: p for p in pages}
     # Track next document_position for new headings
     max_doc_pos = max((h.document_position for h in headings), default=0) + 1
@@ -1205,7 +1229,7 @@ def build_hierarchical_tree(
             seen.add(key)
             deduped.append(h)
 
-    max_seq = max(p.seq_index for p in pages)
+    max_seq = max((p.seq_index for p in pages), default=0)
     page_by_seq = {p.seq_index: p for p in pages}
 
     # Phase 1: Create all DivisionNode objects
@@ -1239,7 +1263,7 @@ def build_hierarchical_tree(
 
         # Determine editor_inserted
         editor_inserted = False
-        if h.title and (h.title.startswith("[") or h.title.startswith("[")):
+        if h.title and (h.title.startswith("[") or h.title.startswith("\u3010")):
             editor_inserted = True
 
         # Placeholder page range — will be refined
@@ -1404,20 +1428,18 @@ def build_hierarchical_tree(
         end_page = page_by_seq.get(div.end_seq_index)
         if end_page:
             if multi_volume:
-                div.page_hint_end = f"ج{end_page.volume}:ص:{int_to_indic(end_page.page_number_int)}"
+                div.page_hint_end = make_page_hint(end_page.volume, end_page.page_number_int, multi_volume=True)
             else:
                 div.page_hint_end = f"ص:{int_to_indic(end_page.page_number_int)}"
 
-    # Phase 5: Add review flags
+    # Phase 5: Add review flags (extend existing, don't replace)
     for div in divisions:
-        flags = []
-        if div.digestible == "uncertain":
-            flags.append("needs_human_review")
-        if div.confidence == "low":
-            flags.append("low_confidence")
-        if div.page_count > 30:
-            flags.append("long_passage")
-        div.review_flags = flags
+        if div.digestible == "uncertain" and "needs_human_review" not in div.review_flags:
+            div.review_flags.append("needs_human_review")
+        if div.confidence == "low" and "low_confidence" not in div.review_flags:
+            div.review_flags.append("low_confidence")
+        if div.page_count > 30 and "long_passage" not in div.review_flags:
+            div.review_flags.append("long_passage")
 
     return divisions
 
@@ -1456,6 +1478,9 @@ def cross_reference_toc(
     matched_div_ids: set[str] = set()
 
     for ti, toc in enumerate(toc_entries):
+        if toc.page_number is None:
+            missed.append({"toc_index": ti, "title": toc.title, "reason": "no_page_number"})
+            continue
         best_score = 0.0
         best_div = None
 
@@ -1631,14 +1656,14 @@ def apply_overrides(
                 div.digestible = "false"
                 div.content_type = "non_content"
                 div.review_flags.append("human_rejected")
-                div.human_override = ov.get("notes", "rejected by human")
+                div.human_override = {"action": "rejected", "notes": ov.get("notes", "rejected by human")}
                 changes += 1
 
             elif action == "confirmed":
                 if div.digestible == "uncertain":
                     div.digestible = "true"
                 div.confidence = "confirmed"
-                div.human_override = ov.get("notes", "confirmed by human")
+                div.human_override = {"action": "confirmed", "notes": ov.get("notes", "confirmed by human")}
                 changes += 1
 
             elif action == "modify":
@@ -1650,7 +1675,7 @@ def apply_overrides(
                     div.digestible = ov["digestible"]
                 if "content_type" in ov:
                     div.content_type = ov["content_type"]
-                div.human_override = ov.get("notes", "modified by human")
+                div.human_override = {"action": "modified", "notes": ov.get("notes", "modified by human")}
                 changes += 1
 
         elif item_type == "passage":
@@ -1684,7 +1709,7 @@ def apply_overrides(
                                 page_hint_end=owner_div.page_hint_end,
                                 parent_id=owner_div.parent_id,
                                 page_count=owner_div.end_seq_index - split_seq + 1,
-                                human_override=ov.get("notes", "split by human"),
+                                human_override={"action": "split", "notes": ov.get("notes", "split by human")},
                             )
                             # Truncate the original division
                             owner_div.end_seq_index = split_seq - 1
@@ -2520,9 +2545,11 @@ def main():
             print(f"[Pass 1] Processing {html_path} (volume {vol_i})")
 
         vol_num = vol_i if multi_volume else 1
+        # Filter pages to current volume so positional map indices are correct
+        vol_pages = [p for p in pages if p.volume == vol_num] if multi_volume else pages
         headings, toc_pages, html_page_count = pass1_extract_html_headings(
             html_path, page_index, volume_number=vol_num, multi_volume=multi_volume,
-            pages_list=pages,
+            pages_list=vol_pages,
         )
         all_pass1_headings.extend(headings)
         all_toc_pages.extend(toc_pages)
@@ -2646,8 +2673,8 @@ def main():
         print(f"[Tree] Built {len(divisions)} divisions (flat — no hierarchy)")
     else:
         # Initialize LLM client
-        client, err = _init_llm_client()
-        if not client:
+        api_key, err = _init_llm_client()
+        if not api_key:
             print(f"[Pass 3] ERROR: {err}", file=sys.stderr)
             print("[Pass 3] Falling back to deterministic passes only.")
             science_id = metadata.get("science_id") or metadata.get("primary_science")
@@ -2658,7 +2685,7 @@ def main():
             print("[Pass 3a] Macro structure discovery...")
             pass3_stats["llm_calls"] += 1
             result_3a = pass3a_macro_structure(
-                client, all_headings, pages, toc_entries, metadata, prompt_dir,
+                api_key, all_headings, pages, toc_entries, metadata, prompt_dir,
             )
 
             if not result_3a:
@@ -2698,7 +2725,7 @@ def main():
                         confirmed_headings.append((i, h))
 
                     # Compute approximate page ranges for deep scan eligibility
-                    max_seq = max(p.seq_index for p in pages)
+                    max_seq = max((p.seq_index for p in pages), default=0)
                     deep_scan_targets = []
                     for idx_in_list, (orig_idx, h) in enumerate(confirmed_headings):
                         dec = decision_map.get(orig_idx, {})
@@ -2737,7 +2764,7 @@ def main():
                         for orig_idx, h, end_est, sub_headings in deep_scan_targets:
                             pass3_stats["llm_calls"] += 1
                             result_3b = pass3b_deep_scan(
-                                client,
+                                api_key,
                                 section_title=h.title,
                                 section_type=h.keyword_type or "implicit",
                                 start_seq=h.seq_index,
@@ -2756,19 +2783,25 @@ def main():
                         print("[Pass 3b] No divisions > 5 pages — skipping deep scan.")
 
                 # Integrate all Pass 3 results
-                enriched_headings = integrate_pass3_results(
-                    all_headings, result_3a, pass3b_results, pages,
-                )
+                try:
+                    enriched_headings = integrate_pass3_results(
+                        all_headings, result_3a, pass3b_results, pages,
+                    )
 
-                # Build hierarchical tree
-                science_id = metadata.get("science_id") or metadata.get("primary_science")
-                divisions = build_hierarchical_tree(
-                    enriched_headings, pages, book_id, multi_volume, keywords,
-                    verbose=args.verbose,
-                )
-                print(f"[Tree] Built {len(divisions)} divisions (hierarchical)")
-                max_depth = max((d.level for d in divisions), default=0)
-                print(f"  Max depth: {max_depth}, LLM calls: {pass3_stats['llm_calls']}")
+                    # Build hierarchical tree
+                    science_id = metadata.get("science_id") or metadata.get("primary_science")
+                    divisions = build_hierarchical_tree(
+                        enriched_headings, pages, book_id, multi_volume, keywords,
+                        verbose=args.verbose,
+                    )
+                    print(f"[Tree] Built {len(divisions)} divisions (hierarchical)")
+                    max_depth = max((d.level for d in divisions), default=0)
+                    print(f"  Max depth: {max_depth}, LLM calls: {pass3_stats['llm_calls']}")
+                except Exception as e:
+                    print(f"[Pass 3] Integration/tree build FAILED: {e}", file=sys.stderr)
+                    print("[Pass 3] Falling back to deterministic tree.", file=sys.stderr)
+                    divisions = build_division_tree(all_headings, pages, book_id, multi_volume, keywords)
+                    print(f"[Tree] Built {len(divisions)} divisions (flat — fallback after error)")
 
     # --- Post-tree validation and cross-referencing ---
 
@@ -2797,7 +2830,7 @@ def main():
         if os.path.exists(args.apply_overrides):
             print(f"[Override] Applying overrides from {args.apply_overrides}")
             divisions, overrides_applied = apply_overrides(
-                divisions, passages if 'passages' in dir() else [],
+                divisions, [],
                 args.apply_overrides, pages,
             )
             if overrides_applied:
