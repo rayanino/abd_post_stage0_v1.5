@@ -3,3 +3,4 @@
 # See: spec/runtime_contract_v0.1.md
 
 PyYAML>=6.0
+httpx>=0.24.0

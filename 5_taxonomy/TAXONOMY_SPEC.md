@@ -1,5 +1,21 @@
 # Stage 5: Taxonomy Placement & Evolution — Specification
 
+> ## ⚠️ SCHEMA DRIFT WARNING
+>
+> This spec was written before the automated tools existed. The **placement rules** (§4.1) and
+> **evolution rules** (§5) are accurate. However, some **field names and ID formats** in examples
+> are outdated:
+>
+> | What this spec says | What's actually true | Section |
+> |---------------------|---------------------|---------|
+> | Field `placed_at` | Actual field: `taxonomy_node_id` | §4.1 |
+> | `"triggered_by_excerpt": "EXC_042"` | Actual format: `{book_id}:exc:000042` | §4.2 |
+> | صرف/نحو trees "not yet created" | All 4 core science trees exist (892 leaves total) | §3 |
+>
+> **For authoritative schema:** `schemas/gold_standard_schema_v0.3.3.json`
+> **For taxonomy evolution tool:** `tools/evolve_taxonomy.py`
+> **For field definitions:** `project_glossary.md` §6
+
 **Status:** Draft — placement rules exist; evolution mechanism underspecified
 **Precision level:** Medium (placement checklists inherited; tree evolution process needs zoom-in)
 **Dependencies:** Stage 4 (Excerpting) output. Requires base taxonomy trees.
@@ -48,10 +64,11 @@ balagha:
 ```
 
 **Current state:**
-- إملاء: `imlaa_v0.1` exists (44 leaves) ✓
-- بلاغة: `balagha_v0_4` exists (202 nodes, 143 leaves) ✓
-- صرف: **Not yet created** — base outline to be provided
-- نحو: **Not yet created** — base outline to be provided
+- إملاء: `imlaa_v1_0` active (105 leaves), `imlaa_v0.1` historical (44 leaves) ✓
+- بلاغة: `balagha_v1_0` active (335 leaves), historical versions v0_2–v0_4 ✓
+- صرف: `sarf_v1_0` active (226 leaves) ✓
+- نحو: `nahw_v1_0` active (226 leaves) ✓
+- عقيدة: `aqidah_v0_2` (28 leaves, evolved from v0.1 after E2E testing) ✓
 
 ---
 
@@ -81,7 +98,7 @@ When an excerpt teaches a topic not represented in the current tree:
   "new_node_id": "aqsam_al_khabar",
   "new_node_title_ar": "أقسام الخبر",
   "justification": "Excerpt teaches classification of khabar types not covered by existing leaves",
-  "triggered_by_excerpt": "EXC_042"
+  "triggered_by_excerpt": "jawahir:exc:000042"
 }
 ```
 

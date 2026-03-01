@@ -701,7 +701,7 @@ def build_page_index(pages: list[PageRecord]) -> dict[tuple[int, int], PageRecor
 # Pass 3: LLM-Assisted Discovery (Tier 3)
 # ---------------------------------------------------------------------------
 
-LLM_DEFAULT_MODEL = "claude-sonnet-4-20250514"
+LLM_DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 LLM_MAX_RETRIES = 3
 
 

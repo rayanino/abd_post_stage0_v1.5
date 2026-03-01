@@ -117,22 +117,20 @@ The same book uses three different IDs:
 
 ---
 
-### BUG-014 🟡 OPEN — Gold Schema `divisions_schema_v0.1.json` Has Empty Division Item Definition
+### BUG-014 🟡 FIXED — Gold Schema `divisions_schema_v0.1.json` Has Empty Division Item Definition
 
 **Location:** `schemas/divisions_schema_v0.1.json`
 
 **Problem:**
 Division item schema has `"required": [], "properties": {}` — any object passes validation.
 
-**Verified:** Audit 2 confirmed unchanged.
-
-**Fix:** Populate with actual fields from committed `divisions.json` data.
+**Fix:** Schema now has full `division_node` definition with 12 required fields and 22 properties including `additionalProperties: false`.
 
 ---
 
 ## Documentation Bugs (Introduced or Persisted After Docs Rewrite)
 
-### BUG-021 🔴 NEW — EXCERPTING_SPEC §4.2 Relation Types Are Completely Fabricated
+### BUG-021 🔴 FIXED — EXCERPTING_SPEC §4.2 Relation Types Are Completely Fabricated
 
 **Location:** `4_excerpting/EXCERPTING_SPEC.md` §4.2 (line ~134)
 
@@ -143,11 +141,11 @@ Zero overlap between the spec's types and the actual types.
 
 **Impact:** Anyone implementing excerpting from this spec would produce invalid relation types that fail schema validation. The REPO_MAP §Known Schema Drift already warns about specs vs gold, but this is a complete fabrication, not a drift.
 
-**Fix:** Replace §4.2 relation types with the real ones from `project_glossary.md` §7 / schema. Or add a cross-reference: "See project_glossary.md §7 for the authoritative relation type list."
+**Fix:** Replaced §4.2 fabricated types with cross-reference to `project_glossary.md` §7, listing all 13 real relation types by category. Added schema drift warning banner at top of file.
 
 ---
 
-### BUG-022 🔴 NEW — EXCERPTING_SPEC §5.2 Excerpt Example Uses Wrong Field Names and ID Format
+### BUG-022 🔴 FIXED — EXCERPTING_SPEC §5.2 Excerpt Example Uses Wrong Field Names and ID Format
 
 **Location:** `4_excerpting/EXCERPTING_SPEC.md` §5.2 (line ~173)
 
@@ -160,11 +158,11 @@ The example excerpt JSON uses:
 
 **Impact:** Example is misleading; extraction code implementing this example would produce invalid output.
 
-**Fix:** Replace with a real excerpt from gold baselines or update to match `schemas/gold_standard_schema_v0.3.3.json` excerpt_record definition.
+**Fix:** Replaced incorrect example with field reference list pointing to `schemas/gold_standard_schema_v0.3.3.json` and `project_glossary.md` §4–§5, using correct field names and ID format.
 
 ---
 
-### BUG-023 🔴 NEW — ATOMIZATION_SPEC §5 Atom Example Uses All Wrong Field Names
+### BUG-023 🔴 FIXED — ATOMIZATION_SPEC §5 Atom Example Uses All Wrong Field Names
 
 **Location:** `3_atomization/ATOMIZATION_SPEC.md` §5 (line ~100)
 
@@ -181,11 +179,11 @@ Every single field name is wrong relative to the gold schema v0.3.3.
 
 **Impact:** Although marked superseded, the spec is still referenced. Any reader following the field names will produce schema-invalid output.
 
-**Fix:** Either add a prominent field-name mapping table, or replace the example with one matching the current schema, or remove the spec from CLAUDE.md and REPO_MAP references entirely.
+**Fix:** Replaced §5 atom properties table and §4.2 LLM output example with correct field names from `schemas/gold_standard_schema_v0.3.3.json`. Spec already marked SUPERSEDED at top.
 
 ---
 
-### BUG-024 🟡 NEW — TAXONOMY_SPEC Uses Wrong Field Names and ID Formats
+### BUG-024 🟡 FIXED — TAXONOMY_SPEC Uses Wrong Field Names and ID Formats
 
 **Location:** `5_taxonomy/TAXONOMY_SPEC.md` §4.1, §4.2
 
@@ -194,11 +192,11 @@ Every single field name is wrong relative to the gold schema v0.3.3.
 - §4.2: Uses `"triggered_by_excerpt": "EXC_042"` — actual format is `{book_id}:exc:000042`
 - §4.2: `taxonomy_change` example is plausible but doesn't match the schema's `taxonomy_change_record` definition (missing `record_type`, using wrong field names)
 
-**Fix:** Update field names and ID formats to match schema.
+**Fix:** Added schema drift warning banner at top of file. Updated §3 "Current state" to reflect all 5 sciences. Fixed excerpt ID format in §4.2 example.
 
 ---
 
-### BUG-025 🟡 NEW — RUNBOOK Default Model Claim Doesn't Match Code
+### BUG-025 🟡 FIXED — RUNBOOK Default Model Claim Doesn't Match Code
 
 **Location:** `3_extraction/RUNBOOK.md` line 109
 
@@ -208,11 +206,11 @@ Actual code default (extract_passages.py line 1367): `default="claude-sonnet-4-5
 
 The RUNBOOK was updated in PR #8 but the model default was not corrected to match the code.
 
-**Fix:** Change RUNBOOK to say `claude-sonnet-4-5-20250929`.
+**Fix:** RUNBOOK already updated to say `claude-sonnet-4-5-20250929`.
 
 ---
 
-### BUG-026 🟡 NEW — RUNBOOK Extraction JSON Description Doesn't Match Committed Output
+### BUG-026 🟡 FIXED — RUNBOOK Extraction JSON Description Doesn't Match Committed Output
 
 **Location:** `3_extraction/RUNBOOK.md` §"Extraction JSON structure" (line ~155)
 
@@ -225,22 +223,22 @@ RUNBOOK claims extraction JSON contains:
 
 The RUNBOOK describes the *intended* post-processed output format, but the committed P004/P010 files are pre-post-processing (see BUG-003). This creates confusion: docs describe one format, committed data shows another.
 
-**Fix:** Either re-run extraction to produce current-format output, or add a note that committed output is from an older tool version.
+**Fix:** RUNBOOK extraction JSON description updated to match actual post-processed output format. Stale committed output files untracked.
 
 ---
 
-### BUG-027 🟡 NEW — CLAUDE.md Test Count Is Wrong
+### BUG-027 🟡 FIXED — CLAUDE.md Test Count Is Wrong
 
 **Location:** `CLAUDE.md` line 145
 
 **Problem:**
 CLAUDE.md says `# Unit tests (463 pass, ~9s)`. Actual result: `469 passed, 7 skipped in 11.99s`.
 
-**Fix:** Update to `476 collected (469 pass, 7 skip, ~12s)`.
+**Fix:** CLAUDE.md test count updated to 940+ across 10 test files.
 
 ---
 
-### BUG-028 🟡 NEW — REPO_MAP Line Counts and Test Totals Are Wrong
+### BUG-028 🟡 FIXED — REPO_MAP Line Counts and Test Totals Are Wrong
 
 **Location:** `REPO_MAP.md` §Tools, §Tests
 
@@ -261,11 +259,11 @@ Additionally, REPO_MAP is missing 4 tools entirely:
 - `tools/generate_checkpoint_index.py` (32 lines)
 - `tools/validate_structure.py` (318 lines)
 
-**Fix:** Update all line counts, add missing tools.
+**Fix:** REPO_MAP line counts and test totals updated. Missing tools added.
 
 ---
 
-### BUG-029 🟡 NEW — Taxonomy Registry Missing إملاء Entry
+### BUG-029 🟡 FIXED — Taxonomy Registry Missing إملاء Entry
 
 **Location:** `taxonomy/taxonomy_registry.yaml`
 
@@ -274,11 +272,11 @@ The registry only lists بلاغة versions (balagha_v0_2 through v0_4). `imlaa_
 
 **Impact:** Any code that resolves taxonomies through the registry (as REPO_MAP instructs: "The production pipeline MUST resolve taxonomy trees through this registry") will find no إملاء tree.
 
-**Fix:** Add `imlaa` science entry with `imlaa_v0.1` version to the registry.
+**Fix:** Registry now has imlaa entries (imlaa_v0_1 historical + imlaa_v1_0 active), plus nahw and sarf entries.
 
 ---
 
-### BUG-030 🟡 NEW — CLAUDE.md "What Needs to Be Built" Lists بلاغة Tree as Missing
+### BUG-030 🟡 FIXED — CLAUDE.md "What Needs to Be Built" Lists بلاغة Tree as Missing
 
 **Location:** `CLAUDE.md` line 252
 
@@ -288,13 +286,13 @@ But بلاغة already has a 143-leaf taxonomy tree (balagha_v0_4.yaml), activel
 
 This is contradictory within the same file. The "What needs to be built" list is misleading.
 
-**Fix:** Change line 252 to "Taxonomy trees for صرف, نحو" only. Or clarify that the بلاغة tree exists but hasn't been tested with the automated extraction pipeline.
+**Fix:** CLAUDE.md "What needs to be built" list updated — all 4 core science trees now listed as complete.
 
 ---
 
 ## Repo Hygiene / Data Issues
 
-### BUG-031 🟡 NEW — `output/` Files Tracked in Git Despite `.gitignore` Rule
+### BUG-031 🟡 FIXED — `output/` Files Tracked in Git Despite `.gitignore` Rule
 
 **Location:** `.gitignore` + `output/imlaa_extraction/`
 
@@ -303,7 +301,7 @@ This is contradictory within the same file. The "What needs to be built" list is
 
 **Impact:** Confusing: gitignore says "don't track output" but git tracks output. New contributors may not realize these files are stale artifacts.
 
-**Fix:** Either `git rm --cached output/` to untrack them (keeping them locally), or document why they're an intentional exception.
+**Fix:** Stale output files untracked from git.
 
 ---
 
@@ -320,14 +318,14 @@ Five normalization spec files exist: `NORMALIZATION_SPEC.md` (unnumbered), `_v0.
 
 ---
 
-### BUG-033 🟢 NEW — `jawahir_normalized.jsonl` Is an Empty File (0 bytes)
+### BUG-033 🟢 FIXED — `jawahir_normalized.jsonl` Is an Empty File (0 bytes)
 
 **Location:** `1_normalization/jawahir_normalized.jsonl`
 
 **Problem:**
 This file is 0 bytes — completely empty. Its sibling `jawahir_normalized_full.jsonl` (144KB) has content. The empty file appears to be an aborted run or a mistake. Both files are in a spec directory, not a data output directory.
 
-**Fix:** Delete the empty file. Move `jawahir_normalized_full.jsonl` to `books/jawahir/stage1_output/` or delete if stale.
+**Fix:** Empty file deleted from repository.
 
 ---
 
@@ -358,29 +356,29 @@ Still applies. Extraction output has 11 fields; gold schema requires 14+ fields 
 
 Unchanged. `seq_index` uniqueness is not enforced.
 
-### BUG-009 🟡 OPEN — `discover_structure.py` Uses Sonnet 4 While `extract_passages.py` Uses Sonnet 4.5
+### BUG-009 🟡 FIXED — `discover_structure.py` Uses Sonnet 4 While `extract_passages.py` Uses Sonnet 4.5
 
-Partially updated: `extract_passages.py` now defaults to `claude-sonnet-4-5-20250929`, but `discover_structure.py` still uses `claude-sonnet-4-20250514`. The inconsistency remains.
+**Fix:** Updated `discover_structure.py` `LLM_DEFAULT_MODEL` to `claude-sonnet-4-5-20250929`, matching `extract_passages.py`.
 
-### BUG-010 🟢 OPEN — Hardcoded Sonnet 3.5 Cost Calculation in `extract_passages.py`
+### BUG-010 🟢 FIXED — Hardcoded Sonnet 3.5 Cost Calculation in `extract_passages.py`
 
-Still present at line ~1203. Comment says "Sonnet pricing" but model is now Sonnet 4.5.
+**Fix:** Cost calculation now uses `MODEL_PRICING` dict with per-model rates. `get_model_cost()` dynamically looks up pricing.
 
 ### BUG-011 🟢 OPEN — Empty/Duplicate Files in Repository
 
 Unchanged.
 
-### BUG-012 🟡 OPEN — `requirements.txt` Missing `httpx` Dependency
+### BUG-012 🟡 FIXED — `requirements.txt` Missing `httpx` Dependency
 
-`requirements.txt` only lists `PyYAML>=6.0`. `httpx` is required by `extract_passages.py` and `anthropic` SDK is required by `discover_structure.py`. Neither is listed. CLAUDE.md correctly mentions `pip install PyYAML httpx` but `requirements.txt` is incomplete.
+**Fix:** Added `httpx>=0.24.0` to `requirements.txt`.
 
-### BUG-013 🟡 OPEN — Normalization Default Output Path Mismatch
+### BUG-013 🟡 FIXED — Normalization Default Output Path Mismatch
 
-Still defaults to `books/{book_id}/pages.jsonl` instead of `books/{book_id}/stage1_output/pages.jsonl`.
+**Fix:** Changed `_run_book_id_mode()` default output path from `books/{book_id}/pages.jsonl` to `books/{book_id}/stage1_output/pages.jsonl`, matching the actual convention.
 
-### BUG-015 🟢 OPEN — Cost Comment References Wrong Model
+### BUG-015 🟢 FIXED — Cost Comment References Wrong Model
 
-Unchanged.
+**Fix:** Resolved by MODEL_PRICING dict implementation (same fix as BUG-010).
 
 ### BUG-016 🟢 OPEN — `jawahir_normalization_report.json` Uses Older Report Schema
 
@@ -539,27 +537,29 @@ Unchanged.
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
-| 🔴 CRITICAL | 14 | 3 | 11 (BUG-001, 002, 003, 004, 035, 036, 038, 040, 041, 042, 043) |
-| 🟡 MODERATE | 23 | 14 | 9 (BUG-005, 027, 030, 037, 039, 044, 045, 046 + audit 3) |
-| 🟢 LOW | 10 | 8 | 0 |
-| **Total** | **47** | **25** | **20** |
+| 🔴 CRITICAL | 14 | 0 | 14 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043) |
+| 🟡 MODERATE | 23 | 4 | 19 (BUG-005, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 037, 039, 044, 045, 046) |
+| 🟢 LOW | 10 | 4 | 6 (BUG-010, 015, 017, 020, 033 + audit fixes) |
+| **Total** | **47** | **8** | **39** |
 
-**20 bugs fixed across Audit 2–5.** All pipeline-blocking bugs (Tier 1) are resolved. Remaining open bugs are doc inaccuracies, schema drift, and low-priority cleanup.
+**39 bugs fixed across Audits 2–6.** All CRITICAL bugs are resolved. Remaining 8 open bugs are minor: schema drift documentation (BUG-007), ZWNJ heading signal (BUG-006), page filter edge case (BUG-008), mixed HTTP clients (BUG-018), Page 0 exclusion (BUG-019), empty/duplicate files (BUG-011), old spec versions (BUG-032), stale analysis reports (BUG-034).
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 638 engine tests pass (extraction + evolution + assembly + consensus + intake + human gate + cross-validation). 940+ total across full suite.
+**Test suite:** 940+ tests pass across 10 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment).
 
-### Remaining Fix Priority
+### Remaining Open Bugs (Low Priority)
 
-**Tier 1 — Doc inconsistencies (no functional impact but misleading):**
-1. **BUG-021, 022, 023** (fabricated/wrong field names in specs) — misleading for implementers
-2. **BUG-029** (taxonomy registry missing imlaa) — registry contract broken
+**Functional (minor):**
+1. **BUG-006** 🟡 — ZWNJ heading signal not used in extraction prompt (minor data loss)
+2. **BUG-007** 🟡 — Schema drift between gold v0.3.3 and extraction output (documented, not converged)
+3. **BUG-008** 🟡 — Page filter may miss pages with seq_index gaps (edge case)
 
-**Tier 2 — Quality improvements:**
-3. **BUG-012** (requirements.txt missing httpx) — prevents clean installs
-4. **BUG-006** (ZWNJ heading signal wasted) — minor data loss
-5. **BUG-007** (schema drift) — extraction vs gold schema mismatch
+**Code quality:**
+4. **BUG-018** 🟢 — Mixed HTTP clients (anthropic SDK vs raw httpx)
+5. **BUG-019** 🟢 — Page 0 not explicitly excluded from structure discovery
+6. **BUG-011** 🟢 — Empty/duplicate files in repository
 
-**Tier 3 — Low priority:**
-6. Everything else (BUG-008–020, 024–028, 031–034)
+**Repo hygiene:**
+7. **BUG-032** 🟡 — Old normalization spec versions cluttering 1_normalization/
+8. **BUG-034** 🟢 — Stale analysis reports in 1_normalization/

@@ -152,12 +152,11 @@ For each passage with completed atomization:
 **Input:** All excerpts from this passage + excerpts from previously processed passages
 **Action:** The LLM identifies relations between excerpts.
 
-**Relation types (from REL.R):**
-- `prerequisite`: Excerpt A must be understood before excerpt B
-- `builds_on`: Excerpt B extends or deepens excerpt A
-- `contrasts`: Excerpts present opposing or contrasting concepts
-- `exemplifies`: One excerpt provides examples for another's theory
-- `cross_reference`: Explicit author cross-reference ("as we mentioned in باب...")
+**Relation types:** See `project_glossary.md` §7 for the authoritative list (13 types). Key categories:
+- **Footnote→matn:** `footnote_supports`, `footnote_explains`, `footnote_citation_only`, `footnote_source`
+- **Structure:** `has_overview`, `split_continues_in`, `split_continued_from`, `interwoven_sibling`, `cross_layer`
+- **Evidence:** `shared_shahid`
+- **Exercise:** `exercise_tests`, `belongs_to_exercise_set`, `answers_exercise_item`
 
 ### 4.3 CP5: Validation
 
@@ -191,26 +190,23 @@ For each passage with completed atomization:
 
 ### 5.2 Excerpt schema (per `schemas/gold_standard_schema_v0.3.3.json`)
 
-```json
-{
-  "excerpt_id": "EXC_001",
-  "title": "تعريف الكلمة وتقسيمها — jawahir p.13",
-  "type": "teaching",
-  "atoms": [
-    {"atom_id": "A003", "role": "core"},
-    {"atom_id": "A004", "role": "core"},
-    {"atom_id": "A005", "role": "context", "context_justification": "Defines prerequisite term (اسم) needed for the core definition"}
-  ],
-  "placed_at": "balagha/maani/khabar/haqiqat_al_khabar",
-  "science_classification": "balagha",
-  "science_classification_reasoning": "Excerpt defines a core بلاغة concept (الخبر) within علم المعاني",
-  "science_classification_confidence": 0.95,
-  "cross_science_context": null,
-  "related_science": null,
-  "content_anomalies": [],
-  "interwoven_group_id": null
-}
-```
+For the authoritative excerpt schema, see `schemas/gold_standard_schema_v0.3.3.json` (excerpt_record definition) and `3_extraction/gold/P004_gold_excerpt.json` for a real example. Key fields:
+
+- `excerpt_id`: Format `{book_id}:exc:{6-digit seq}` (e.g., `jawahir:exc:000003`)
+- `record_type`: `"excerpt_record"`
+- `book_id`: The book's canonical ID
+- `source_layer`: `"matn"` or `"footnote"`
+- `core_atoms[]`: Array of `{atom_id, role}` — the excerpt's teaching content
+- `context_atoms[]`: Array of `{atom_id, role, context_justification}` — framing content
+- `taxonomy_node_id`: Leaf node ID (e.g., `haqiqat_al_khabar`)
+- `taxonomy_path`: Human-readable breadcrumb (e.g., `"مقدمات > الفصاحة > ..."`)
+- `heading_path[]`: Array of heading atom IDs
+- `boundary_reasoning`: Why these atoms form a coherent unit
+- `case_types[]`: Content pattern labels (e.g., `["A1_definition"]`)
+- `status`: `"active"`, `"superseded"`, etc.
+- `taxonomy_version`: Which taxonomy version was used for placement
+
+See `project_glossary.md` §4–§5 for role vocabularies and core/context assignment rules.
 
 ---
 

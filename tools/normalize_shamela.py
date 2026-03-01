@@ -972,9 +972,10 @@ def _run_book_id_mode(args):
     books_dir = args.books_dir
     repo_root = os.path.dirname(os.path.abspath(books_dir)) if books_dir != "books" else "."
 
-    # Default output paths: books/{book_id}/pages.jsonl
-    out_jsonl = args.out_jsonl or os.path.join(books_dir, book_id, "pages.jsonl")
-    out_report = args.out_report or os.path.join(books_dir, book_id, "normalization_report.json")
+    # Default output paths: books/{book_id}/stage1_output/pages.jsonl
+    stage1_dir = os.path.join(books_dir, book_id, "stage1_output")
+    out_jsonl = args.out_jsonl or os.path.join(stage1_dir, "pages.jsonl")
+    out_report = args.out_report or os.path.join(stage1_dir, "normalization_report.json")
 
     print(f"Book ID: {book_id}")
     print(f"Reading intake metadata from: {books_dir}/{book_id}/intake_metadata.json")
