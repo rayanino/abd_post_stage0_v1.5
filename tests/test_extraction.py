@@ -39,6 +39,7 @@ from extract_passages import (
     get_context_head,
     get_context_tail,
     get_model_cost,
+    get_heading_hints,
     get_passage_footnotes,
     get_passage_text,
     load_gold_example,
@@ -291,6 +292,108 @@ class TestGetPassageFootnotes:
         page_by_seq = {0: {"footnote_preamble": "هذا تعليق المحقق على النص.", "footnotes": []}}
         result = get_passage_footnotes(passage, page_by_seq)
         assert result == "هذا تعليق المحقق على النص."
+
+
+# ---------------------------------------------------------------------------
+# Tests: get_heading_hints (BUG-006)
+# ---------------------------------------------------------------------------
+
+class TestGetHeadingHints:
+    """Tests for ZWNJ heading hint extraction (BUG-006)."""
+
+    def test_basic_heading_hint(self):
+        """Pages with starts_with_zwnj_heading=True produce hints."""
+        passage = {"start_seq_index": 5, "end_seq_index": 7}
+        page_by_seq = {
+            5: {"starts_with_zwnj_heading": True, "page_number": 10,
+                "matn_text": "\u200c\u200cباب الهمزة المتوسطة\nنص عادي"},
+            6: {"starts_with_zwnj_heading": False, "page_number": 11,
+                "matn_text": "نص عادي فقط"},
+            7: {"starts_with_zwnj_heading": True, "page_number": 12,
+                "matn_text": "\u200c\u200cفصل في كتابة الألف اللينة\nتفاصيل"},
+        }
+        result = get_heading_hints(passage, page_by_seq)
+        assert 'Page 10' in result
+        assert 'باب الهمزة المتوسطة' in result
+        assert 'Page 12' in result
+        assert 'فصل في كتابة الألف اللينة' in result
+        # Page 11 should NOT appear (no heading)
+        assert 'Page 11' not in result
+
+    def test_no_heading_pages(self):
+        """Passage with no ZWNJ headings returns empty string."""
+        passage = {"start_seq_index": 1, "end_seq_index": 2}
+        page_by_seq = {
+            1: {"starts_with_zwnj_heading": False, "matn_text": "نص"},
+            2: {"starts_with_zwnj_heading": False, "matn_text": "نص آخر"},
+        }
+        result = get_heading_hints(passage, page_by_seq)
+        assert result == ""
+
+    def test_missing_flag_treated_as_false(self):
+        """Pages without starts_with_zwnj_heading key produce no hints."""
+        passage = {"start_seq_index": 1, "end_seq_index": 1}
+        page_by_seq = {1: {"matn_text": "نص بدون علامة"}}
+        result = get_heading_hints(passage, page_by_seq)
+        assert result == ""
+
+    def test_zwnj_stripped_from_output(self):
+        """ZWNJ characters are stripped from the hint text."""
+        passage = {"start_seq_index": 3, "end_seq_index": 3}
+        page_by_seq = {3: {
+            "starts_with_zwnj_heading": True, "page_number": 5,
+            "matn_text": "\u200c\u200cباب\u200c الإمالة",
+        }}
+        result = get_heading_hints(passage, page_by_seq)
+        assert "\u200c" not in result
+        assert "باب الإمالة" in result
+
+    def test_first_line_truncated_at_80_chars(self):
+        """Long heading text is truncated to 80 characters."""
+        long_heading = "أ" * 100
+        passage = {"start_seq_index": 1, "end_seq_index": 1}
+        page_by_seq = {1: {
+            "starts_with_zwnj_heading": True, "page_number": 1,
+            "matn_text": long_heading,
+        }}
+        result = get_heading_hints(passage, page_by_seq)
+        # The quoted text inside should be max 80 chars
+        assert "أ" * 80 in result
+        assert "أ" * 81 not in result
+
+    def test_missing_page_in_seq_range(self):
+        """Missing seq_index in page_by_seq is gracefully skipped."""
+        passage = {"start_seq_index": 1, "end_seq_index": 3}
+        page_by_seq = {
+            1: {"starts_with_zwnj_heading": True, "page_number": 1,
+                "matn_text": "\u200c\u200cعنوان أول"},
+            # seq 2 is missing
+            3: {"starts_with_zwnj_heading": True, "page_number": 3,
+                "matn_text": "\u200c\u200cعنوان ثالث"},
+        }
+        result = get_heading_hints(passage, page_by_seq)
+        assert "Page 1" in result
+        assert "Page 3" in result
+
+    def test_empty_first_line_skipped(self):
+        """Pages where ZWNJ stripping yields empty text produce no hint."""
+        passage = {"start_seq_index": 1, "end_seq_index": 1}
+        page_by_seq = {1: {
+            "starts_with_zwnj_heading": True, "page_number": 1,
+            "matn_text": "\u200c\u200c\u200c",  # only ZWNJs
+        }}
+        result = get_heading_hints(passage, page_by_seq)
+        assert result == ""
+
+    def test_fallback_page_number_is_seq_index(self):
+        """When page_number is missing, seq_index is used."""
+        passage = {"start_seq_index": 42, "end_seq_index": 42}
+        page_by_seq = {42: {
+            "starts_with_zwnj_heading": True,
+            "matn_text": "\u200c\u200cمقدمة المؤلف",
+        }}
+        result = get_heading_hints(passage, page_by_seq)
+        assert "Page 42" in result
 
 
 # ---------------------------------------------------------------------------

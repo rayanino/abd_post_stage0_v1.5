@@ -305,7 +305,7 @@ This is contradictory within the same file. The "What needs to be built" list is
 
 ---
 
-### BUG-032 🟡 NEW — 4 Old Normalization Spec Versions Cluttering `1_normalization/`
+### BUG-032 🟡 FIXED — 4 Old Normalization Spec Versions Cluttering `1_normalization/`
 
 **Location:** `1_normalization/`
 
@@ -314,7 +314,7 @@ Five normalization spec files exist: `NORMALIZATION_SPEC.md` (unnumbered), `_v0.
 
 **Impact:** A reader may accidentally read v0.3 or v0.4 instead of v0.5 and follow outdated rules.
 
-**Fix:** Move old versions to `archive/` or add version indicators making it clear only v0.5 is current.
+**Fix:** Moved old versions (unnumbered, v0.2, v0.3, v0.4) to `archive/normalization_specs/`.
 
 ---
 
@@ -329,7 +329,7 @@ This file is 0 bytes — completely empty. Its sibling `jawahir_normalized_full.
 
 ---
 
-### BUG-034 🟢 NEW — Stale Analysis Reports in `1_normalization/`
+### BUG-034 🟢 FIXED — Stale Analysis Reports in `1_normalization/`
 
 **Location:** `1_normalization/STAGE1_AUDIT_REPORT.md`, `STAGE1_CRITICAL_ANALYSIS.md`, `STAGE1_ROUND2_ANALYSIS.md`
 
@@ -338,23 +338,23 @@ These are one-time analysis documents from Stage 1 development. They reference s
 
 **Impact:** Low — useful as historical reference, but a new reader might treat findings as current issues.
 
-**Fix:** Move to `archive/` or add a header noting they're historical.
+**Fix:** Moved all three reports to `archive/normalization_analysis/`.
 
 ---
 
 ## Previously Reported (Status Updates)
 
-### BUG-006 🟡 OPEN — ZWNJ Heading Signal Wasted in Extraction
+### BUG-006 🟡 FIXED — ZWNJ Heading Signal Wasted in Extraction
 
-Still unfixed. `get_passage_footnotes()` and the extraction prompt don't use ZWNJ markers.
+**Fix:** Added `get_heading_hints()` function that extracts ZWNJ-marked heading lines from passage pages. Integrated into extraction prompt as `{heading_hints_section}` — when headings are detected, the LLM receives structured hints to assign `atom_type='heading'` correctly. 8 tests added.
 
 ### BUG-007 🟡 OPEN — Schema Drift Between Gold v0.3.3 and Extraction Output
 
 Still applies. Extraction output has 11 fields; gold schema requires 14+ fields on excerpts. Extraction atoms have 5 fields; schema requires 7+. The REPO_MAP §Known Schema Drift documents this, but nothing has converged.
 
-### BUG-008 🟡 OPEN — Page Filter May Miss Pages Due to seq_index Gaps
+### BUG-008 🟡 FIXED — Page Filter May Miss Pages Due to seq_index Gaps
 
-Unchanged. `seq_index` uniqueness is not enforced.
+**Fix:** Changed `page_by_seq` construction from dict comprehension to explicit loop that detects and warns on duplicate `seq_index` values in `pages.jsonl`.
 
 ### BUG-009 🟡 FIXED — `discover_structure.py` Uses Sonnet 4 While `extract_passages.py` Uses Sonnet 4.5
 
@@ -538,28 +538,22 @@ Unchanged.
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
 | 🔴 CRITICAL | 14 | 0 | 14 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043) |
-| 🟡 MODERATE | 23 | 4 | 19 (BUG-005, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 037, 039, 044, 045, 046) |
-| 🟢 LOW | 10 | 4 | 6 (BUG-010, 015, 017, 020, 033 + audit fixes) |
-| **Total** | **47** | **8** | **39** |
+| 🟡 MODERATE | 23 | 1 | 22 (BUG-005, 006, 008, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 032, 037, 039, 044, 045, 046) |
+| 🟢 LOW | 10 | 3 | 7 (BUG-010, 015, 017, 020, 033, 034 + audit fixes) |
+| **Total** | **47** | **4** | **43** |
 
-**39 bugs fixed across Audits 2–6.** All CRITICAL bugs are resolved. Remaining 8 open bugs are minor: schema drift documentation (BUG-007), ZWNJ heading signal (BUG-006), page filter edge case (BUG-008), mixed HTTP clients (BUG-018), Page 0 exclusion (BUG-019), empty/duplicate files (BUG-011), old spec versions (BUG-032), stale analysis reports (BUG-034).
+**43 bugs fixed across Audits 2–6.** All CRITICAL bugs are resolved. Remaining 4 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018), Page 0 exclusion (BUG-019), empty/duplicate files (BUG-011).
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 940+ tests pass across 10 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment).
+**Test suite:** 948+ tests pass across 10 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment).
 
 ### Remaining Open Bugs (Low Priority)
 
 **Functional (minor):**
-1. **BUG-006** 🟡 — ZWNJ heading signal not used in extraction prompt (minor data loss)
-2. **BUG-007** 🟡 — Schema drift between gold v0.3.3 and extraction output (documented, not converged)
-3. **BUG-008** 🟡 — Page filter may miss pages with seq_index gaps (edge case)
+1. **BUG-007** 🟡 — Schema drift between gold v0.3.3 and extraction output (documented, not converged)
 
 **Code quality:**
-4. **BUG-018** 🟢 — Mixed HTTP clients (anthropic SDK vs raw httpx)
-5. **BUG-019** 🟢 — Page 0 not explicitly excluded from structure discovery
-6. **BUG-011** 🟢 — Empty/duplicate files in repository
-
-**Repo hygiene:**
-7. **BUG-032** 🟡 — Old normalization spec versions cluttering 1_normalization/
-8. **BUG-034** 🟢 — Stale analysis reports in 1_normalization/
+2. **BUG-018** 🟢 — Mixed HTTP clients (anthropic SDK vs raw httpx)
+3. **BUG-019** 🟢 — Page 0 not explicitly excluded from structure discovery
+4. **BUG-011** 🟢 — Empty/duplicate files in repository

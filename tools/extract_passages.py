@@ -386,7 +386,7 @@ Next passage head (for context only — do NOT atomize or excerpt):
 
 ## Footnotes for this passage
 {footnotes}
-
+{heading_hints_section}
 {gold_section}
 
 Atomize and excerpt the current passage. Return a JSON object with keys: atoms, excerpts, footnote_excerpts, exclusions, notes.\
@@ -473,6 +473,26 @@ def get_passage_footnotes(passage: dict, page_by_seq: dict) -> str:
                 text = fn.get("text", "")
                 fns.append(f"[{num}] {text}")
     return "\n".join(fns) if fns else "(none)"
+
+
+def get_heading_hints(passage: dict, page_by_seq: dict) -> str:
+    """Collect ZWNJ heading hints from passage pages.
+
+    Pages whose matn starts with \\u200c\\u200c (double ZWNJ) consistently mark
+    section headings in Shamela exports.  Surfacing this as structured metadata
+    helps the LLM correctly assign atom_type='heading'.
+    """
+    hints = []
+    for seq in range(passage["start_seq_index"], passage["end_seq_index"] + 1):
+        pg = page_by_seq.get(seq)
+        if pg and pg.get("starts_with_zwnj_heading"):
+            page_num = pg.get("page_number", seq)
+            matn = pg.get("matn_text", "")
+            # Extract the first line as heading text preview
+            first_line = matn.split("\n")[0].replace("\u200c", "").strip()[:80]
+            if first_line:
+                hints.append(f"- Page {page_num}: \"{first_line}\"")
+    return "\n".join(hints) if hints else ""
 
 
 def get_context_tail(passages: list, idx: int, page_by_seq: dict, chars: int = 300) -> str:
@@ -1679,7 +1699,14 @@ def run_extraction(args):
     # Load inputs
     passages = load_jsonl(args.passages)
     pages = load_jsonl(args.pages)
-    page_by_seq = {p["seq_index"]: p for p in pages}
+    # Build page index by seq_index; warn on duplicates (BUG-008)
+    page_by_seq: dict[int, dict] = {}
+    for p in pages:
+        seq = p["seq_index"]
+        if seq in page_by_seq:
+            print(f"  WARNING: duplicate seq_index {seq} in pages.jsonl — "
+                  f"later page overwrites earlier one", file=sys.stderr)
+        page_by_seq[seq] = p
     taxonomy_yaml = load_taxonomy_yaml(args.taxonomy)
     taxonomy_leaves = extract_taxonomy_leaves(args.taxonomy, args.science)
     gold_text = load_gold_example(args.gold)
@@ -1762,6 +1789,7 @@ def run_extraction(args):
             continue
 
         footnotes = get_passage_footnotes(passage, page_by_seq)
+        heading_hints = get_heading_hints(passage, page_by_seq)
         prev_tail = get_context_tail(passages, idx, page_by_seq)
         next_head = get_context_head(passages, idx, page_by_seq)
 
@@ -1789,12 +1817,22 @@ def run_extraction(args):
             excerpt_start_seq=excerpt_seq,
         )
 
+        # Build heading hints section
+        heading_hints_section = ""
+        if heading_hints:
+            heading_hints_section = (
+                "\n## Heading Hints (ZWNJ-marked section headings detected "
+                "in source)\nThe following lines start new sections — assign "
+                "atom_type='heading' to these atoms:\n" + heading_hints
+            )
+
         user = USER_PROMPT.format(
             prev_passage_tail=prev_tail,
             passage_id=pid,
             passage_text=passage_text,
             next_passage_head=next_head,
             footnotes=footnotes,
+            heading_hints_section=heading_hints_section,
             gold_section=gold_section,
         )
 
