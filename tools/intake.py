@@ -653,7 +653,10 @@ def write_registry(registry_data, registry_path, new_entry):
                       sort_keys=False, width=120)
         os.replace(tmp_path, str(registry_path))
     except Exception:
-        os.unlink(tmp_path)
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass  # cleanup failure should not mask the original exception
         raise
 
 

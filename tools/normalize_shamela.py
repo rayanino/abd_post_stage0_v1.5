@@ -73,9 +73,6 @@ FONT_COLOR_RE = re.compile(r"<font\s+color=[^>]+>(.*?)</font>", re.DOTALL)
 # guard ensures we only strip confirmed footnote ref numbers.
 FN_REF_IN_MATN_RE = re.compile(r"\s*\((\d+)\)\s*(?=[.،؛:؟!»\])}\s(]|$)")
 
-# Footnote number prefix in footnote text: (N) ـ at start of footnote
-FN_NUM_PREFIX_RE = re.compile(r"^\((\d+)\)\s*[ـ\-–]\s*")
-
 # Verse star markers: * text * (rare in Shamela)
 VERSE_STAR_RE = re.compile(r"\*\s*([^*]+?)\s*\*")
 
@@ -535,8 +532,7 @@ def normalize_page(page_html: str, volume: int = 1) -> Optional[PageRecord]:
     matn_text, fn_refs = strip_fn_refs_from_matn(matn_text, known_fn_numbers=fn_numbers)
     matn_text = normalize_whitespace(matn_text)
 
-    # Validate cross-references
-    fn_numbers = {fn.number for fn in footnotes}
+    # Validate cross-references (fn_numbers already computed above)
     ref_numbers = set(fn_refs)
 
     orphan_refs = ref_numbers - fn_numbers
@@ -742,9 +738,7 @@ def normalize_multivolume(
     page_end: int | None = None,
 ) -> tuple[list[PageRecord], list[NormalizationReport]]:
     """Normalize all volume files in a multi-volume book directory."""
-    volumes = discover_volume_files(dir_path)
-    if not volumes:
-        raise ValueError(f"No numbered .htm files found in {dir_path}")
+    volumes = discover_volume_files(dir_path)  # raises ValueError if empty
 
     all_pages: list[PageRecord] = []
     reports: list[NormalizationReport] = []
@@ -970,7 +964,8 @@ def _run_book_id_mode(args):
     """Process a book by its Stage 0 book_id."""
     book_id = args.book_id
     books_dir = args.books_dir
-    repo_root = os.path.dirname(os.path.abspath(books_dir)) if books_dir != "books" else "."
+    # Derive repo root from script location (works regardless of cwd)
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     # Default output paths: books/{book_id}/stage1_output/pages.jsonl
     stage1_dir = os.path.join(books_dir, book_id, "stage1_output")

@@ -230,10 +230,8 @@ def extract_from_tarjama(text):
     ]:
         m = re.search(pattern, text)
         if m:
-            raw = m.group(2) if m.lastindex >= 2 and "death" not in str(m.group(0)) else m.group(1)
-            # For the range pattern, take the second (death) number
-            if m.lastindex >= 2:
-                raw = m.group(2)
+            # For the range pattern (2 groups), take the second (death) number
+            raw = m.group(2) if m.lastindex and m.lastindex >= 2 else m.group(1)
             num = int(raw.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")))
             if 1 <= num <= 1500:
                 extracted["author_death_hijri"] = num
@@ -242,11 +240,14 @@ def extract_from_tarjama(text):
     # Birth date
     for pattern in [
         r"(?:ولد|مولده)\s*(?:سنة\s*)?(\d+)\s*هـ",
+        r"(?:ولد|مولده)\s*(?:سنة\s*)?([٠-٩]+)\s*هـ",
         r"\((\d+)\s*[-–]\s*\d+\s*هـ",  # (666 - 739 هـ) → birth is first number
+        r"\(([٠-٩]+)\s*[-–]\s*[٠-٩]+\s*هـ",  # Arabic-Indic variant
     ]:
         m = re.search(pattern, text)
         if m:
-            num = int(m.group(1))
+            raw = m.group(1)
+            num = int(raw.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")))
             if 1 <= num <= 1500:
                 extracted["author_birth_hijri"] = num
                 break
