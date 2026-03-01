@@ -201,8 +201,10 @@ def normalize_arabic_for_match(text: str) -> str:
     out = "".join(c for c in text if c not in diacritics)
     # Normalize alef-maqsura / ya
     out = out.replace("ى", "ي")
-    # Normalize alef variants
-    out = out.replace("إ", "ا").replace("أ", "ا").replace("آ", "ا")
+    # Normalize alef variants (including Alef Wasla U+0671 from Quranic text)
+    out = out.replace("إ", "ا").replace("أ", "ا").replace("آ", "ا").replace("\u0671", "ا")
+    # Strip tatweel (kashida, U+0640) — stylistic lengthening
+    out = out.replace("\u0640", "")
     # Collapse whitespace
     out = re.sub(r"\s+", " ", out).strip()
     return out
@@ -725,6 +727,7 @@ def call_llm(client, prompt: str, *, max_tokens: int = 4096, model: str = LLM_DE
     Handles markdown fence stripping, retry on JSON parse failure (up to LLM_MAX_RETRIES).
     """
     last_raw = ""
+    last_error = ""
     for attempt in range(LLM_MAX_RETRIES):
         try:
             messages = [{"role": "user", "content": prompt}]
@@ -1239,7 +1242,7 @@ def build_hierarchical_tree(
 
         # Determine editor_inserted
         editor_inserted = False
-        if h.title and (h.title.startswith("[") or h.title.startswith("[")):
+        if h.title and (h.title.startswith("[") or h.title.startswith("\u3010")):
             editor_inserted = True
 
         # Placeholder page range — will be refined
@@ -2797,7 +2800,7 @@ def main():
         if os.path.exists(args.apply_overrides):
             print(f"[Override] Applying overrides from {args.apply_overrides}")
             divisions, overrides_applied = apply_overrides(
-                divisions, passages if 'passages' in dir() else [],
+                divisions, [],
                 args.apply_overrides, pages,
             )
             if overrides_applied:

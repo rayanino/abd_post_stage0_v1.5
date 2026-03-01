@@ -343,6 +343,136 @@ class TestSignalDetection:
         result = deduplicate_signals([sig1, sig2])
         assert len(result) == 2
 
+    def test_dedup_preserves_unmapped_as_separate(self):
+        """Each unmapped signal should remain separate (each may be about a different topic)."""
+        sig1 = EvolutionSignal(
+            signal_type="unmapped", node_id="_unmapped", science="imlaa",
+            excerpt_ids=["e1"], excerpt_texts=["topic A text"],
+            excerpt_metadata=[{}], context="unmapped 1",
+        )
+        sig2 = EvolutionSignal(
+            signal_type="unmapped", node_id="_unmapped", science="imlaa",
+            excerpt_ids=["e2"], excerpt_texts=["topic B text"],
+            excerpt_metadata=[{}], context="unmapped 2",
+        )
+
+        result = deduplicate_signals([sig1, sig2])
+        # Must NOT merge — each unmapped excerpt needs its own LLM evaluation
+        assert len(result) == 2
+        ids = [r.excerpt_ids[0] for r in result]
+        assert "e1" in ids
+        assert "e2" in ids
+
+
+class TestBookIdDerivation:
+    """Verify that scan_cluster_signals derives book_id from atom_id prefix."""
+
+    def test_cluster_detects_same_book_via_atom_id_prefix(self):
+        """Excerpts with atom_ids sharing a book prefix should be grouped together."""
+        atoms = [
+            _make_atom("qimlaa:matn:001", "نص أول"),
+            _make_atom("qimlaa:matn:002", "نص ثاني"),
+        ]
+        # Use atom_id dicts in core_atoms (matching extraction output format)
+        excerpts = [
+            {
+                "excerpt_id": "qimlaa:exc:001",
+                "excerpt_title": "Test 1",
+                "taxonomy_node_id": "ta3rif_alhamza",
+                "taxonomy_path": "path > to > ta3rif_alhamza",
+                "core_atoms": [{"atom_id": "qimlaa:matn:001", "role": "author_prose"}],
+                "context_atoms": [],
+                "boundary_reasoning": "test",
+            },
+            {
+                "excerpt_id": "qimlaa:exc:002",
+                "excerpt_title": "Test 2",
+                "taxonomy_node_id": "ta3rif_alhamza",
+                "taxonomy_path": "path > to > ta3rif_alhamza",
+                "core_atoms": [{"atom_id": "qimlaa:matn:002", "role": "author_prose"}],
+                "context_atoms": [],
+                "boundary_reasoning": "test",
+            },
+        ]
+        passage = _make_passage("P001", atoms, excerpts)
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+        taxonomy_map = _make_taxonomy_map()
+
+        signals = scan_cluster_signals(
+            [passage], atoms_indexes, taxonomy_map, "imlaa",
+        )
+        assert len(signals) == 1
+        assert signals[0].signal_type == "same_book_cluster"
+
+    def test_different_books_no_cluster_signal(self):
+        """Excerpts from different books (different atom_id prefix) should NOT cluster."""
+        atoms = [
+            _make_atom("qimlaa:matn:001", "نص من كتاب أ"),
+            _make_atom("shadha:matn:001", "نص من كتاب ب"),
+        ]
+        excerpts = [
+            {
+                "excerpt_id": "qimlaa:exc:001",
+                "excerpt_title": "From book A",
+                "taxonomy_node_id": "ta3rif_alhamza",
+                "taxonomy_path": "path",
+                "core_atoms": [{"atom_id": "qimlaa:matn:001", "role": "author_prose"}],
+                "context_atoms": [],
+                "boundary_reasoning": "test",
+            },
+            {
+                "excerpt_id": "shadha:exc:001",
+                "excerpt_title": "From book B",
+                "taxonomy_node_id": "ta3rif_alhamza",
+                "taxonomy_path": "path",
+                "core_atoms": [{"atom_id": "shadha:matn:001", "role": "author_prose"}],
+                "context_atoms": [],
+                "boundary_reasoning": "test",
+            },
+        ]
+        passage = _make_passage("P001", atoms, excerpts)
+        atoms_indexes = {"P001": build_atoms_index(atoms)}
+        taxonomy_map = _make_taxonomy_map()
+
+        signals = scan_cluster_signals(
+            [passage], atoms_indexes, taxonomy_map, "imlaa",
+        )
+        # Different books at the same node is normal — should NOT trigger signal
+        assert len(signals) == 0
+
+
+class TestVersionIncrement:
+    """Verify generate_change_records uses _increment_version consistently."""
+
+    def test_change_records_version_matches_increment(self):
+        from tools.evolve_taxonomy import _increment_version
+        proposal = EvolutionProposal(
+            signal=EvolutionSignal(
+                signal_type="same_book_cluster",
+                node_id="ta3rif_alhamza",
+                science="imlaa",
+                excerpt_ids=["e1"],
+                excerpt_texts=["text"],
+                excerpt_metadata=[{}],
+                context="test",
+            ),
+            proposal_id="EP-001",
+            change_type="leaf_granulated",
+            new_nodes=[{"node_id": "sub1", "title": "Sub 1"}],
+            parent_node_id="ta3rif_alhamza",
+            redistribution={"e1": "sub1"},
+            reasoning="Split for finer granularity",
+            model="test-model",
+            confidence="high",
+            cost={"input_tokens": 0, "output_tokens": 0, "total_cost": 0},
+        )
+        records = generate_change_records(
+            [proposal], "imlaa_v1_0", "qimlaa",
+        )
+        # Version in change records should match _increment_version output
+        expected = _increment_version("imlaa_v1_0")
+        assert records[0]["taxonomy_version_after"] == expected
+
 
 # ---------------------------------------------------------------------------
 # Tests: Category Leaf Signals (RC3)

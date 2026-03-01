@@ -170,7 +170,16 @@ def scan_cluster_signals(
         pid = passage["passage_id"]
         for exc in passage.get("excerpts", []):
             node_id = exc.get("taxonomy_node_id", "")
+            # Derive book_id from core_atoms atom_id prefix (book_id is on
+            # atoms, not excerpts — exc.get("book_id") would always be "")
             book_id = exc.get("book_id", "")
+            if not book_id:
+                core_atoms = exc.get("core_atoms", [])
+                if core_atoms:
+                    first_ref = core_atoms[0]
+                    atom_id = first_ref if isinstance(first_ref, str) else first_ref.get("atom_id", "")
+                    if ":" in atom_id:
+                        book_id = atom_id.split(":")[0]
             if node_id and node_id != "_unmapped":
                 key = (book_id, node_id)
                 book_node_excerpts.setdefault(key, []).append((exc, pid))
@@ -425,6 +434,11 @@ def deduplicate_signals(signals: list[EvolutionSignal]) -> list[EvolutionSignal]
     seen: dict[tuple[str, str], EvolutionSignal] = {}
 
     for sig in signals:
+        # Don't merge unmapped signals — each may be about a different topic
+        # and needs individual LLM evaluation
+        if sig.signal_type == "unmapped":
+            seen[(sig.signal_type, sig.node_id, id(sig))] = sig
+            continue
         key = (sig.signal_type, sig.node_id)
         if key in seen:
             existing = seen[key]
@@ -1018,13 +1032,8 @@ def generate_change_records(
 ) -> list[dict]:
     """Convert proposals to taxonomy_changes.jsonl records (gold format)."""
     records = []
-    # Derive proposed new version
-    # e.g., "imlaa_v1_0" -> "imlaa_v1_1"
-    parts = taxonomy_version.rsplit("_", 1)
-    if len(parts) == 2 and parts[1].isdigit():
-        new_version = f"{parts[0]}_{int(parts[1]) + 1}"
-    else:
-        new_version = f"{taxonomy_version}_evolved"
+    # Derive proposed new version — use _increment_version for consistency
+    new_version = _increment_version(taxonomy_version)
 
     for i, proposal in enumerate(proposals, 1):
         change_id = f"TC-{i:03d}"

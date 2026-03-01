@@ -182,6 +182,14 @@ class TestNormalizeArabic:
     def test_collapse_whitespace(self):
         assert normalize_arabic_for_match("الباب  الأول") == "الباب الاول"
 
+    def test_normalize_alef_wasla(self):
+        """Alef Wasla (U+0671) used in Quranic text should normalize to plain alef."""
+        assert normalize_arabic_for_match("\u0671سم") == normalize_arabic_for_match("اسم")
+
+    def test_strip_tatweel(self):
+        """Tatweel/kashida (U+0640) is stylistic and should be stripped."""
+        assert normalize_arabic_for_match("كتـــاب") == normalize_arabic_for_match("كتاب")
+
 
 class TestMakePageHint:
     def test_single_volume(self):
