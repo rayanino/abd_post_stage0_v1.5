@@ -1127,7 +1127,7 @@ class TestPass3Integration:
         assert len(enriched) == 4
 
         import yaml
-        with open("2_structure_discovery/structural_patterns.yaml") as f:
+        with open("2_structure_discovery/structural_patterns.yaml", encoding="utf-8") as f:
             patterns = yaml.safe_load(f)
         keywords = load_keywords(patterns)
 
@@ -1227,7 +1227,7 @@ class TestPass3Integration:
         enriched = integrate_pass3_results(headings, result_3a, {}, pages)
 
         import yaml
-        with open("2_structure_discovery/structural_patterns.yaml") as f:
+        with open("2_structure_discovery/structural_patterns.yaml", encoding="utf-8") as f:
             patterns = yaml.safe_load(f)
         keywords = load_keywords(patterns)
 
