@@ -1301,11 +1301,14 @@ def _modify_v0_yaml(
     data: dict,
     parent_node_id: str,
     new_nodes: list[dict],
-) -> dict:
+) -> tuple[dict, bool]:
     """Apply a leaf_granulated change to a v0 (nested-dict) taxonomy.
 
     Converts the parent leaf to a branch by removing ``_leaf: true`` and
     adding new sub-nodes as children.
+
+    Returns ``(data, found)`` where *found* indicates whether the parent
+    node was located in the taxonomy.
     """
     def _walk(d: dict) -> bool:
         if not isinstance(d, dict):
@@ -1326,19 +1329,22 @@ def _modify_v0_yaml(
                 return True
         return False
 
-    _walk(data)
-    return data
+    found = _walk(data)
+    return data, found
 
 
 def _modify_v1_yaml(
     data: dict,
     parent_node_id: str,
     new_nodes: list[dict],
-) -> dict:
+) -> tuple[dict, bool]:
     """Apply a leaf_granulated change to a v1 (structured) taxonomy.
 
     Converts the parent leaf to a branch by removing ``leaf: true`` and
     adding ``children`` with the new sub-nodes.
+
+    Returns ``(data, found)`` where *found* indicates whether the parent
+    node was located in the taxonomy.
     """
     taxonomy_block = data.get("taxonomy", {})
     nodes = taxonomy_block.get("nodes", [])
@@ -1348,7 +1354,7 @@ def _modify_v1_yaml(
             if node.get("id") == parent_node_id:
                 # Found the target — convert leaf to branch
                 node.pop("leaf", None)
-                children = []
+                children = node.get("children", [])
                 for new_node in new_nodes:
                     child = {
                         "id": new_node["node_id"],
@@ -1363,16 +1369,20 @@ def _modify_v1_yaml(
                     return True
         return False
 
-    _walk(nodes)
-    return data
+    found = _walk(nodes)
+    return data, found
 
 
 def _add_node_v0(
     data: dict,
     parent_node_id: str,
     new_nodes: list[dict],
-) -> dict:
-    """Add new leaf nodes under an existing branch in v0 format."""
+) -> tuple[dict, bool]:
+    """Add new leaf nodes under an existing branch in v0 format.
+
+    Returns ``(data, found)`` where *found* indicates whether the parent
+    node was located in the taxonomy.
+    """
     def _walk(d: dict) -> bool:
         if not isinstance(d, dict):
             return False
@@ -1390,16 +1400,20 @@ def _add_node_v0(
                 return True
         return False
 
-    _walk(data)
-    return data
+    found = _walk(data)
+    return data, found
 
 
 def _add_node_v1(
     data: dict,
     parent_node_id: str,
     new_nodes: list[dict],
-) -> dict:
-    """Add new leaf nodes under an existing branch in v1 format."""
+) -> tuple[dict, bool]:
+    """Add new leaf nodes under an existing branch in v1 format.
+
+    Returns ``(data, found)`` where *found* indicates whether the parent
+    node was located in the taxonomy.
+    """
     taxonomy_block = data.get("taxonomy", {})
     nodes = taxonomy_block.get("nodes", [])
 
@@ -1421,8 +1435,8 @@ def _add_node_v1(
                     return True
         return False
 
-    _walk(nodes)
-    return data
+    found = _walk(nodes)
+    return data, found
 
 
 def _detect_yaml_format(data: dict) -> str:
@@ -1466,14 +1480,21 @@ def apply_proposal_to_yaml(
 
         if change_type == "leaf_granulated":
             if fmt == "v0":
-                data = _modify_v0_yaml(data, parent_node_id, new_nodes)
+                data, found = _modify_v0_yaml(data, parent_node_id, new_nodes)
             else:
-                data = _modify_v1_yaml(data, parent_node_id, new_nodes)
+                data, found = _modify_v1_yaml(data, parent_node_id, new_nodes)
         elif change_type == "node_added":
             if fmt == "v0":
-                data = _add_node_v0(data, parent_node_id, new_nodes)
+                data, found = _add_node_v0(data, parent_node_id, new_nodes)
             else:
-                data = _add_node_v1(data, parent_node_id, new_nodes)
+                data, found = _add_node_v1(data, parent_node_id, new_nodes)
+        else:
+            found = True  # unknown change types pass through
+
+        if not found:
+            print(f"  WARNING: parent node '{parent_node_id}' not found in taxonomy "
+                  f"for proposal change_type='{change_type}' — skipping",
+                  file=sys.stderr)
 
     # Write new version
     out_path = Path(output_dir)

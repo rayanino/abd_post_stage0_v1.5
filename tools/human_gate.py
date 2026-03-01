@@ -107,13 +107,14 @@ def create_correction_record(
             f"Must be one of: {sorted(VALID_CORRECTION_TYPES)}"
         )
 
+    now = datetime.now(timezone.utc)
     if not correction_id:
-        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        ts = now.strftime("%Y%m%d%H%M%S%f")
         correction_id = f"CORR-{ts}-{excerpt_id}"
 
     return {
         "correction_id": correction_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": now.isoformat(),
         "excerpt_id": excerpt_id,
         "passage_id": passage_id,
         "book_id": book_id,
@@ -321,10 +322,12 @@ def replay_correction(
         effective_openai = openai_key or os.environ.get("OPENAI_API_KEY")
         effective_openrouter = openrouter_key or os.environ.get("OPENROUTER_API_KEY")
 
-        result = run_extraction(
-            passages_path=passages_file,
-            pages_path=pages_file,
-            taxonomy_path=taxonomy_path,
+        # run_extraction expects an argparse Namespace, not keyword args
+        import argparse
+        extraction_args = argparse.Namespace(
+            passages=passages_file,
+            pages=pages_file,
+            taxonomy=taxonomy_path,
             book_id=book_id,
             book_title="",
             science=science,
@@ -333,9 +336,16 @@ def replay_correction(
             api_key=effective_key,
             openai_key=effective_openai,
             openrouter_key=effective_openrouter,
-            passage_ids=[passage_id],
+            passage_ids=passage_id,  # comma-separated string, not list
+            gold=None,
+            dry_run=False,
+            verbose=False,
+            consensus_mode=False,
+            model_list=[model],
+            arbiter_model=None,
             correction_context=context,
         )
+        result = run_extraction(extraction_args)
 
     # Save replay metadata
     replay_meta = {
@@ -557,13 +567,16 @@ def load_checkpoint(extraction_dir: str) -> dict:
     Returns empty state if no checkpoint exists.
     """
     cp_path = Path(extraction_dir) / "gate_checkpoint.json"
+    default = {"version": "0.1", "excerpts": {}}
     if not cp_path.exists():
-        return {
-            "version": "0.1",
-            "excerpts": {},
-        }
+        return default
     with open(cp_path, "r", encoding="utf-8") as f:
-        return json.loads(f.read())
+        data = json.loads(f.read())
+    if not isinstance(data, dict) or not isinstance(data.get("excerpts"), dict):
+        print(f"  WARNING: corrupt gate_checkpoint.json — resetting to default",
+              file=sys.stderr)
+        return default
+    return data
 
 
 def save_checkpoint(extraction_dir: str, checkpoint: dict) -> str:

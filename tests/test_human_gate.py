@@ -717,3 +717,117 @@ class TestFullCorrectionWorkflow:
         assert summary["by_state"]["approved"] == 2
         assert summary["by_state"]["corrected"] == 1
         assert summary["pending_count"] == 0
+
+
+class TestCorrectionIdMicrosecondPrecision:
+    """BUG-FIX: correction IDs should use microsecond precision to avoid collisions."""
+
+    def test_id_has_microseconds(self):
+        from tools.human_gate import create_correction_record
+        record = create_correction_record(
+            excerpt_id="E001",
+            correction_type="boundary",
+            original_output={"text": "original"},
+            human_correction={"text": "fixed"},
+            passage_id="P001",
+            book_id="test",
+            science="imlaa",
+            model="test-model",
+            reason="Test",
+        )
+        cid = record["correction_id"]
+        # Format: CORR-YYYYMMDDHHMMSSffffff-E001
+        # The timestamp part should be 20 chars (14 date + 6 microsecond)
+        parts = cid.split("-")
+        assert len(parts) >= 3
+        ts_part = parts[1]
+        assert len(ts_part) == 20, f"Timestamp should include microseconds: {ts_part}"
+
+    def test_timestamp_consistent_with_id(self):
+        """timestamp field and correction_id should use the same datetime."""
+        from tools.human_gate import create_correction_record
+        record = create_correction_record(
+            excerpt_id="E001",
+            correction_type="boundary",
+            original_output={"text": "original"},
+            human_correction={"text": "fixed"},
+            passage_id="P001",
+            book_id="test",
+            science="imlaa",
+            model="test-model",
+            reason="Test",
+        )
+        # Both should reference the same second
+        cid_ts = record["correction_id"].split("-")[1][:14]  # YYYYMMDDHHMMSS
+        iso_ts = record["timestamp"][:19].replace("-", "").replace("T", "").replace(":", "")
+        assert cid_ts == iso_ts
+
+
+class TestLoadCheckpointValidation:
+    """BUG-FIX: load_checkpoint should validate JSON structure."""
+
+    def test_corrupt_checkpoint_returns_default(self, tmp_path):
+        from tools.human_gate import load_checkpoint
+        cp_path = tmp_path / "gate_checkpoint.json"
+        # Write a corrupt checkpoint (list instead of dict)
+        cp_path.write_text("[1, 2, 3]", encoding="utf-8")
+        result = load_checkpoint(str(tmp_path))
+        assert result == {"version": "0.1", "excerpts": {}}
+
+    def test_missing_excerpts_key_returns_default(self, tmp_path):
+        from tools.human_gate import load_checkpoint
+        cp_path = tmp_path / "gate_checkpoint.json"
+        cp_path.write_text('{"version": "0.1"}', encoding="utf-8")
+        result = load_checkpoint(str(tmp_path))
+        assert result == {"version": "0.1", "excerpts": {}}
+
+    def test_valid_checkpoint_loads_normally(self, tmp_path):
+        from tools.human_gate import load_checkpoint
+        cp_path = tmp_path / "gate_checkpoint.json"
+        data = {"version": "0.1", "excerpts": {"E001": {"state": "approved"}}}
+        cp_path.write_text(json.dumps(data), encoding="utf-8")
+        result = load_checkpoint(str(tmp_path))
+        assert result == data
+
+
+class TestReplayCorrectionSignature:
+    """BUG-FIX: replay_correction should build argparse.Namespace for run_extraction."""
+
+    def test_replay_uses_injected_fn(self):
+        """Testing path (call_extract_fn) still works as before."""
+        from tools.human_gate import replay_correction
+        import tempfile
+
+        correction = {
+            "correction_id": "CORR-TEST",
+            "excerpt_id": "E001",
+            "passage_id": "P001",
+            "book_id": "test",
+            "science": "imlaa",
+            "model": "test-model",
+            "correction_type": "boundary",
+            "original_output": {"core_atoms": ["A001"]},
+            "human_correction": {"core_atoms": ["A001", "A002"]},
+            "reason": "Test reason",
+        }
+
+        captured = {}
+
+        def mock_extract(**kwargs):
+            captured.update(kwargs)
+            return {"status": "ok"}
+
+        with tempfile.TemporaryDirectory() as td:
+            result = replay_correction(
+                correction=correction,
+                passages_file="passages.jsonl",
+                pages_file="pages.jsonl",
+                taxonomy_path="tax.yaml",
+                book_id="test",
+                science="imlaa",
+                output_dir=td,
+                call_extract_fn=mock_extract,
+            )
+
+        assert result["status"] == "completed"
+        assert "correction_context" in captured

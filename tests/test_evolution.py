@@ -2713,3 +2713,88 @@ class TestRollbackManifestPath:
             assert parent_count == 1, (
                 f"parent_node appears {parent_count} times in path: {to_path}"
             )
+
+
+class TestModifyYamlReturnFound:
+    """BUG-FIX: _modify_v0_yaml/_modify_v1_yaml should report whether parent was found."""
+
+    def test_v0_found(self):
+        from tools.evolve_taxonomy import _modify_v0_yaml
+        data = {"science": {"parent_leaf": {"_leaf": True}}}
+        new_nodes = [{"node_id": "child1", "title_ar": "فرع"}]
+        result, found = _modify_v0_yaml(data, "parent_leaf", new_nodes)
+        assert found is True
+        assert "child1" in result["science"]["parent_leaf"]
+
+    def test_v0_not_found(self):
+        from tools.evolve_taxonomy import _modify_v0_yaml
+        data = {"science": {"other_leaf": {"_leaf": True}}}
+        new_nodes = [{"node_id": "child1"}]
+        result, found = _modify_v0_yaml(data, "nonexistent", new_nodes)
+        assert found is False
+        # Data unchanged
+        assert "_leaf" in result["science"]["other_leaf"]
+
+    def test_v1_found(self):
+        from tools.evolve_taxonomy import _modify_v1_yaml
+        data = {
+            "taxonomy": {
+                "nodes": [{"id": "leaf1", "title": "Leaf", "leaf": True}]
+            }
+        }
+        new_nodes = [{"node_id": "sub1", "title_ar": "فرع1"}]
+        result, found = _modify_v1_yaml(data, "leaf1", new_nodes)
+        assert found is True
+        assert "children" in result["taxonomy"]["nodes"][0]
+
+    def test_v1_not_found(self):
+        from tools.evolve_taxonomy import _modify_v1_yaml
+        data = {
+            "taxonomy": {
+                "nodes": [{"id": "leaf1", "title": "Leaf", "leaf": True}]
+            }
+        }
+        new_nodes = [{"node_id": "sub1"}]
+        result, found = _modify_v1_yaml(data, "nonexistent", new_nodes)
+        assert found is False
+
+    def test_v1_preserves_existing_children(self):
+        """BUG-FIX: _modify_v1_yaml should append to existing children, not overwrite."""
+        from tools.evolve_taxonomy import _modify_v1_yaml
+        data = {
+            "taxonomy": {
+                "nodes": [{
+                    "id": "parent",
+                    "title": "Parent",
+                    "leaf": True,
+                    "children": [{"id": "existing", "title": "Existing", "leaf": True}],
+                }]
+            }
+        }
+        new_nodes = [{"node_id": "new_child", "title_ar": "جديد"}]
+        result, found = _modify_v1_yaml(data, "parent", new_nodes)
+        assert found is True
+        children = result["taxonomy"]["nodes"][0]["children"]
+        assert len(children) == 2
+        assert children[0]["id"] == "existing"
+        assert children[1]["id"] == "new_child"
+
+    def test_add_node_v0_returns_found(self):
+        from tools.evolve_taxonomy import _add_node_v0
+        data = {"science": {"branch": {"existing_leaf": {"_leaf": True}}}}
+        new_nodes = [{"node_id": "new_leaf"}]
+        result, found = _add_node_v0(data, "branch", new_nodes)
+        assert found is True
+        assert "new_leaf" in result["science"]["branch"]
+
+    def test_add_node_v1_returns_found(self):
+        from tools.evolve_taxonomy import _add_node_v1
+        data = {
+            "taxonomy": {
+                "nodes": [{"id": "branch", "title": "Branch", "children": []}]
+            }
+        }
+        new_nodes = [{"node_id": "new_leaf", "title_ar": "جديد"}]
+        result, found = _add_node_v1(data, "branch", new_nodes)
+        assert found is True
+        assert len(result["taxonomy"]["nodes"][0]["children"]) == 1
