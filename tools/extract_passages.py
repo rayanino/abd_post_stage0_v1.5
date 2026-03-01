@@ -447,14 +447,32 @@ def load_gold_example(path: str | None) -> str:
 
 
 def get_passage_text(passage: dict, page_by_seq: dict) -> str:
-    """Assemble passage text from pages."""
+    """Assemble passage text from pages.
+
+    Warns on missing or empty pages so that gaps are detectable in logs.
+    """
     parts = []
+    expected = passage["end_seq_index"] - passage["start_seq_index"] + 1
+    missing = []
+    empty = []
     for seq in range(passage["start_seq_index"], passage["end_seq_index"] + 1):
         pg = page_by_seq.get(seq)
-        if pg:
-            matn = pg.get("matn_text", "")
-            if matn:
-                parts.append(matn)
+        if pg is None:
+            missing.append(seq)
+            continue
+        matn = pg.get("matn_text", "")
+        if matn:
+            parts.append(matn)
+        else:
+            empty.append(seq)
+    if missing:
+        print(f"  WARNING: {len(missing)} page(s) missing from page_by_seq "
+              f"for passage {passage.get('passage_id', '?')}: "
+              f"seq_index {missing}", file=sys.stderr)
+    if empty:
+        print(f"  WARNING: {len(empty)} page(s) with empty matn_text "
+              f"for passage {passage.get('passage_id', '?')}: "
+              f"seq_index {empty}", file=sys.stderr)
     return "\n\n".join(parts)
 
 
@@ -1083,6 +1101,12 @@ def validate_extraction(result: dict, passage_id: str,
     atoms = result.get("atoms", [])
     excerpts = result.get("excerpts", [])
 
+    # Check 0: Non-empty arrays
+    if not atoms:
+        errors.append("Empty atoms array — extraction produced no atoms")
+    if not excerpts:
+        errors.append("Empty excerpts array — extraction produced no excerpts")
+
     # Build atom lookup
     atom_by_id = {}
     for a in atoms:
@@ -1651,6 +1675,7 @@ def extract_single_model(
 
     # Correction retry loop
     retries_used = 0
+    prev_n_issues = n_issues
     if n_issues > 0 and max_retries > 0:
         for retry in range(max_retries):
             print(f"  [{model}] Correction attempt {retry + 1}/{max_retries}...")
@@ -1659,6 +1684,9 @@ def extract_single_model(
                 passage_text, openai_key,
             )
             if correction is None:
+                print(f"    Correction API call failed — keeping "
+                      f"current result ({prev_n_issues} issues remain)",
+                      file=sys.stderr)
                 break
 
             retries_used += 1
@@ -1680,6 +1708,14 @@ def extract_single_model(
 
             if n_issues == 0:
                 break
+
+            # Detect persistent errors: if no improvement, stop wasting tokens
+            if n_issues >= prev_n_issues:
+                print(f"    No improvement ({n_issues} issues remain, "
+                      f"was {prev_n_issues}) — stopping retries",
+                      file=sys.stderr)
+                break
+            prev_n_issues = n_issues
 
     cost_info = {
         "model": model,

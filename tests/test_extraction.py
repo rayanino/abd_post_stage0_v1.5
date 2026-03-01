@@ -238,6 +238,28 @@ class TestGetPassageText:
         result = get_passage_text(passage, page_by_seq)
         assert result == ""
 
+    def test_missing_page_warns(self, capsys):
+        """Missing pages should print a warning to stderr."""
+        passage = {"start_seq_index": 1, "end_seq_index": 3, "passage_id": "P099"}
+        page_by_seq = {1: {"matn_text": "أ."}, 3: {"matn_text": "ج."}}
+        get_passage_text(passage, page_by_seq)
+        err = capsys.readouterr().err
+        assert "WARNING" in err
+        assert "missing" in err
+        assert "P099" in err
+
+    def test_empty_matn_warns(self, capsys):
+        """Pages with empty matn_text should produce a warning."""
+        passage = {"start_seq_index": 1, "end_seq_index": 2, "passage_id": "P100"}
+        page_by_seq = {
+            1: {"matn_text": "نص"},
+            2: {"matn_text": ""},
+        }
+        get_passage_text(passage, page_by_seq)
+        err = capsys.readouterr().err
+        assert "WARNING" in err
+        assert "empty" in err
+
 
 # ---------------------------------------------------------------------------
 # Tests: get_passage_footnotes
@@ -749,6 +771,25 @@ class TestValidateAllPass:
         issues = validate_extraction(result, "P001", leaves)
         assert issues["errors"] == [], f"Unexpected errors: {issues['errors']}"
         assert issues["warnings"] == [], f"Unexpected warnings: {issues['warnings']}"
+
+
+class TestValidateEmptyArrays:
+    """Check 0: empty atoms or excerpts should produce errors."""
+
+    def test_empty_atoms_produces_error(self):
+        result = {"atoms": [], "excerpts": [{"excerpt_id": "x:exc:000001",
+            "core_atoms": [{"atom_id": "x:matn:000001", "role": "teaches"}],
+            "context_atoms": [], "taxonomy_node": "leaf", "excerpt_title": "t",
+            "excerpt_kind": "teaching", "case_types": ["A1_pure_definition"],
+            "source_layer": "matn", "boundary_reasoning": "x"}]}
+        issues = validate_extraction(result, "P001", {"leaf"})
+        assert any("Empty atoms" in e for e in issues["errors"])
+
+    def test_empty_excerpts_produces_error(self):
+        result = {"atoms": [{"atom_id": "x:matn:000001", "atom_type": "prose_sentence",
+            "text": "نص", "source_layer": "matn"}], "excerpts": []}
+        issues = validate_extraction(result, "P001", {"leaf"})
+        assert any("Empty excerpts" in e for e in issues["errors"])
 
 
 # ---------------------------------------------------------------------------
