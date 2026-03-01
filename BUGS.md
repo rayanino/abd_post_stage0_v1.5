@@ -348,9 +348,9 @@ These are one-time analysis documents from Stage 1 development. They reference s
 
 **Fix:** Added `get_heading_hints()` function that extracts ZWNJ-marked heading lines from passage pages. Integrated into extraction prompt as `{heading_hints_section}` — when headings are detected, the LLM receives structured hints to assign `atom_type='heading'` correctly. 8 tests added.
 
-### BUG-007 🟡 OPEN — Schema Drift Between Gold v0.3.3 and Extraction Output
+### BUG-007 🟡 CLOSED (BY DESIGN) — Schema Drift Between Gold v0.3.3 and Extraction Output
 
-Still applies. Extraction output has 11 fields; gold schema requires 14+ fields on excerpts. Extraction atoms have 5 fields; schema requires 7+. The REPO_MAP §Known Schema Drift documents this, but nothing has converged.
+**Resolution:** The gold schema v0.3.3 is a **union schema** documenting all fields across the full pipeline lifecycle (extraction → consensus → assembly → distribution). Each stage produces a stage-appropriate subset. Extraction outputs 21/34 excerpt fields and 8/17 atom fields — the remaining fields are added by downstream stages (assembly adds `scholarly_context`, `heading_path`, `content_summary`; distribution adds folder placement metadata). This is intentional stage-specific design, not drift. The REPO_MAP §Known Schema Drift already documents this correctly.
 
 ### BUG-008 🟡 FIXED — Page Filter May Miss Pages Due to seq_index Gaps
 
@@ -380,25 +380,25 @@ Still applies. Extraction output has 11 fields; gold schema requires 14+ fields 
 
 **Fix:** Resolved by MODEL_PRICING dict implementation (same fix as BUG-010).
 
-### BUG-016 🟢 OPEN — `jawahir_normalization_report.json` Uses Older Report Schema
+### BUG-016 🟢 FIXED — `jawahir_normalization_report.json` Uses Older Report Schema
 
-Unchanged.
+**Fix:** Removed the stale `1_normalization/jawahir_normalization_report.json` (old 11-field flat schema). The current-schema version already exists at `1_normalization/gold_samples/jawahir_normalization_report.json` (21+ fields with nested `volumes` structure).
 
 ### BUG-017 🟢 ~~OPEN~~ NOT A BUG — ~~Duplicate~~ `LLM_DEFAULT_MODEL` in `discover_structure.py`
 
 **False positive.** `LLM_DEFAULT_MODEL` is defined exactly once (line 704) and used once (line 722 as default argument). There is no duplication. The original audit's "grep confirms two identical definitions" claim was incorrect — grep found the definition and the usage, not two definitions.
 
-### BUG-018 🟢 OPEN — Mixed HTTP Clients (`anthropic` SDK vs raw `httpx`)
+### BUG-018 🟢 FIXED — Mixed HTTP Clients (`anthropic` SDK vs raw `httpx`)
 
-Unchanged.
+**Fix:** Converted `enrich.py` and `discover_structure.py` from `anthropic` SDK to raw `httpx`, matching the pattern in `extract_passages.py`. The `anthropic` package is no longer imported anywhere in the codebase. Only `httpx` (the declared dependency in `requirements.txt`) is used for all API calls.
 
 ### BUG-019 🟢 CLOSED (NOT A BUG) — Page 0 Not Explicitly Excluded from Structure Discovery
 
 **Investigation:** Page 0 (seq_index=0) contains book metadata (title, author, publisher) with `page_number: None`. Structure discovery implicitly skips it because headings are discovered from HTML tags on content pages starting at seq_index=1. Verified on imla (P001 starts at seq_index=1) and wasitiyyah. No explicit guard needed — the existing behavior is correct.
 
-### BUG-020 🟢 OPEN — Gold Baselines vs Extraction Tool Use Different Output Formats
+### BUG-020 🟢 CLOSED (BY DESIGN) — Gold Baselines vs Extraction Tool Use Different Output Formats
 
-Unchanged.
+**Resolution:** Same root cause as BUG-007. Gold baselines (بلاغة, hand-crafted) use the full union schema v0.3.3 with all 34 excerpt fields. Extraction tool produces stage-appropriate output with 21 fields — downstream stages (assembly, distribution) add the remaining fields. The gold baselines serve as end-state reference for the fully-assembled output, not as extraction-stage output targets.
 
 ---
 
@@ -1138,36 +1138,15 @@ Unchanged.
 
 ## Summary
 
-| Severity | Count | Open | Fixed |
+| Severity | Count | Open | Fixed/Closed |
 |----------|-------|------|-------|
-| 🔴 CRITICAL | 36 | 0 | 36 (BUG-001–004, 021–023, 035, 036, 038, 040–043, 047–049, 051, 053, 056–058, 065, 066, 071, 072, 081–084, 089, 091, 092, 094, 099, 100) |
-| 🟡 MODERATE | 57 | 1 | 56 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080, 085–088, 090, 093, 095–098, 101, 102, 104–106) |
-| 🟢 LOW | 16 | 1 | 15 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070, 103, 107, 108 + audit fixes) |
-| **Total** | **109** | **2** | **107** |
+| 🔴 CRITICAL | 36 | 0 | 36 |
+| 🟡 MODERATE | 57 | 0 | 57 (BUG-007 closed as by-design) |
+| 🟢 LOW | 16 | 0 | 16 (BUG-016, 018 fixed; BUG-020 closed as by-design) |
+| **Total** | **109** | **0** | **109** |
 
-**107 bugs fixed across Audits 2–15.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
+**All 109 bugs resolved across Audits 2–16.** All CRITICAL bugs fixed. BUG-007 and BUG-020 closed as by-design (schema is intentionally stage-specific). BUG-017 and BUG-019 closed as not-a-bug.
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 1030 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
-
-| Severity | Count | Open | Fixed |
-|----------|-------|------|-------|
-| 🔴 CRITICAL | 26 | 0 | 26 (BUG-001–004, 021–023, 035, 036, 038, 040–043, 047–049, 051, 053, 056–058, 065, 066, 071, 072) |
-| 🟡 MODERATE | 42 | 1 | 41 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080) |
-| 🟢 LOW | 13 | 1 | 12 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070 + audit fixes) |
-| **Total** | **81** | **2** | **79** |
-
-**79 bugs fixed across Audits 2–11.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
-
-**Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
-
-**Test suite:** 1024 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
-
-### Remaining Open Bugs (Low Priority)
-
-**Functional (minor):**
-1. **BUG-007** 🟡 — Schema drift between gold v0.3.3 and extraction output (documented, not converged)
-
-**Code quality:**
-2. **BUG-018** 🟢 — Mixed HTTP clients (anthropic SDK vs raw httpx)
+**Test suite:** 1032 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.

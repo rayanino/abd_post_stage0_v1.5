@@ -708,24 +708,29 @@ LLM_MAX_RETRIES = 3
 
 
 def _init_llm_client():
-    """Initialize Anthropic client. Returns (client, error_message)."""
+    """Initialize httpx-based LLM client info. Returns (api_key, error_message).
+
+    No SDK dependency — uses raw httpx like extract_passages.py.
+    """
     try:
-        import anthropic
+        import httpx  # noqa: F401 — ensure httpx is available
     except ImportError:
-        return None, "anthropic package not installed. Install with: pip install anthropic --break-system-packages"
+        return None, "httpx package not installed. Install with: pip install httpx"
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return None, "ANTHROPIC_API_KEY environment variable not set."
 
-    return anthropic.Anthropic(api_key=api_key), None
+    return api_key, None
 
 
-def call_llm(client, prompt: str, *, max_tokens: int = 4096, model: str = LLM_DEFAULT_MODEL) -> Optional[dict]:
-    """Call LLM and parse JSON response. Returns parsed dict or None on failure.
+def call_llm(api_key: str, prompt: str, *, max_tokens: int = 4096, model: str = LLM_DEFAULT_MODEL) -> Optional[dict]:
+    """Call LLM via raw httpx and parse JSON response. Returns parsed dict or None on failure.
 
     Handles markdown fence stripping, retry on JSON parse failure (up to LLM_MAX_RETRIES).
     """
+    import httpx
+
     last_raw = ""
     last_error = ""
     for attempt in range(LLM_MAX_RETRIES):
@@ -740,10 +745,26 @@ def call_llm(client, prompt: str, *, max_tokens: int = 4096, model: str = LLM_DE
                                "Please respond with ONLY a valid JSON object, no markdown fences or preamble."
                 })
 
-            response = client.messages.create(
-                model=model, max_tokens=max_tokens, messages=messages,
+            resp = httpx.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "messages": messages,
+                },
+                timeout=180.0,
             )
-            raw_text = response.content[0].text.strip()
+            if resp.status_code != 200:
+                print(f"  [LLM] API error status {resp.status_code}: {resp.text[:300]}", file=sys.stderr)
+                return None
+
+            data = resp.json()
+            raw_text = data["content"][0]["text"].strip()
             last_raw = raw_text
 
             # Strip markdown fences if present
@@ -827,7 +848,7 @@ def _load_prompt_template(prompt_path: str) -> str:
 
 
 def pass3a_macro_structure(
-    client,
+    api_key: str,
     headings: list[HeadingCandidate],
     pages: list[PageRecord],
     toc_entries: list[TOCEntry],
@@ -892,7 +913,7 @@ def pass3a_macro_structure(
     print(f"  [Pass 3a] Prompt size: ~{est_input_tokens} tokens ({len(headings)} candidates)")
 
     # Call LLM
-    result = call_llm(client, prompt, max_tokens=8192)
+    result = call_llm(api_key, prompt, max_tokens=8192)
     if not result:
         return None
 
@@ -922,7 +943,7 @@ def pass3a_macro_structure(
 
 
 def pass3b_deep_scan(
-    client,
+    api_key: str,
     section_title: str,
     section_type: str,
     start_seq: int,
@@ -990,7 +1011,7 @@ def pass3b_deep_scan(
     est_input_tokens = len(prompt) // 4
     print(f"    [Pass 3b] '{section_title[:40]}' ({page_count}p, ~{est_input_tokens} tokens)")
 
-    result = call_llm(client, prompt, max_tokens=4096)
+    result = call_llm(api_key, prompt, max_tokens=4096)
     return result
 
 
@@ -2652,8 +2673,8 @@ def main():
         print(f"[Tree] Built {len(divisions)} divisions (flat — no hierarchy)")
     else:
         # Initialize LLM client
-        client, err = _init_llm_client()
-        if not client:
+        api_key, err = _init_llm_client()
+        if not api_key:
             print(f"[Pass 3] ERROR: {err}", file=sys.stderr)
             print("[Pass 3] Falling back to deterministic passes only.")
             science_id = metadata.get("science_id") or metadata.get("primary_science")
@@ -2664,7 +2685,7 @@ def main():
             print("[Pass 3a] Macro structure discovery...")
             pass3_stats["llm_calls"] += 1
             result_3a = pass3a_macro_structure(
-                client, all_headings, pages, toc_entries, metadata, prompt_dir,
+                api_key, all_headings, pages, toc_entries, metadata, prompt_dir,
             )
 
             if not result_3a:
@@ -2743,7 +2764,7 @@ def main():
                         for orig_idx, h, end_est, sub_headings in deep_scan_targets:
                             pass3_stats["llm_calls"] += 1
                             result_3b = pass3b_deep_scan(
-                                client,
+                                api_key,
                                 section_title=h.title,
                                 section_type=h.keyword_type or "implicit",
                                 start_seq=h.seq_index,

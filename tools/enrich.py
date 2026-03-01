@@ -314,10 +314,10 @@ def enrich_from_text(metadata, text, gaps):
 def enrich_via_api(metadata, gaps, batch=False):
     """Use Anthropic API to research the author and fill gaps."""
     try:
-        import anthropic
+        import httpx
     except ImportError:
-        print("ERROR: anthropic package not installed.", file=sys.stderr)
-        print("  Install with: pip install anthropic --break-system-packages", file=sys.stderr)
+        print("ERROR: httpx package not installed.", file=sys.stderr)
+        print("  Install with: pip install httpx", file=sys.stderr)
         sys.exit(1)
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -379,15 +379,29 @@ Example response:
 {{"author_death_hijri": 471, "author_birth_hijri": 400, "fiqh_madhab": "shafii", "grammatical_school": null, "geographic_origin": "الجرجاني", "book_type": "matn"}}"""
 
     print("  Calling Anthropic API...")
-    client = anthropic.Anthropic(api_key=api_key)
 
+    raw_text = ""
     try:
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=500,
-            messages=[{"role": "user", "content": prompt}],
+        resp = httpx.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-sonnet-4-5-20250929",
+                "max_tokens": 500,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=120.0,
         )
-        raw_text = response.content[0].text.strip()
+        if resp.status_code != 200:
+            print(f"  ERROR: API returned status {resp.status_code}: {resp.text[:300]}", file=sys.stderr)
+            return ctx, False
+
+        data = resp.json()
+        raw_text = data["content"][0]["text"].strip()
 
         # Parse JSON response (strip markdown fences if present)
         clean = re.sub(r"```json\s*|```\s*", "", raw_text).strip()
