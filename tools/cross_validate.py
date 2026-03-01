@@ -169,7 +169,7 @@ def _resolve_excerpt_text(
         if atom:
             parts.append(atom.get("text", ""))
 
-    return "\n".join(parts)
+    return "\n\n".join(parts)
 
 
 def _call_llm_or_mock(
@@ -474,6 +474,10 @@ def validate_self_containment(
             if parsed:
                 llm_self_contained = parsed.get("is_self_contained", True)
                 llm_issues = parsed.get("issues", [])
+            else:
+                # LLM call was attempted but failed — don't silently pass
+                llm_self_contained = None
+                llm_issues = ["LLM self-containment check failed (no response)"]
 
         all_issues = algo_issues + llm_issues
         status = "fail" if all_issues else "pass"
@@ -561,11 +565,13 @@ def validate_cross_book_consistency(
             node_excerpts[node_id].append(data)
 
     # Filter to nodes with 2+ excerpts from different books
-    multi_book_nodes = {}
+    multi_book_nodes: dict[str, list] = {}
+    multi_book_ids: dict[str, set] = {}  # node_id → set of real book_ids
     for node_id, excerpts in node_excerpts.items():
         book_ids = set(e.get("book_id", "") for e in excerpts) - {""}
         if len(book_ids) >= 2:
             multi_book_nodes[node_id] = excerpts
+            multi_book_ids[node_id] = book_ids
 
     results = []
     coherent_count = 0
@@ -605,7 +611,7 @@ def validate_cross_book_consistency(
             results.append({
                 "node_id": node_id,
                 "excerpt_count": len(excerpts),
-                "book_count": len(set(e.get("book_id", "") for e in excerpts)),
+                "book_count": len(multi_book_ids.get(node_id, set())),
                 "status": "llm_error",
             })
             continue
@@ -624,7 +630,7 @@ def validate_cross_book_consistency(
             "node_id": node_id,
             "node_path": node_path,
             "excerpt_count": len(excerpts),
-            "book_count": len(set(e.get("book_id", "") for e in excerpts)),
+            "book_count": len(multi_book_ids.get(node_id, set())),
             "excerpt_ids": [e.get("excerpt_id", "") for e in excerpts],
             "is_coherent": is_coherent,
             "outlier_excerpt_ids": outliers,

@@ -1026,20 +1026,75 @@ Unchanged.
 
 ---
 
+### BUG-099 — 🔴 CRITICAL — _resolve_excerpt_text joins atoms with single newline [FIXED]
+**File:** `tools/cross_validate.py` (line 172)
+**Found:** Audit 14 (2026-03-01) — code review of cross_validate.py
+**Status:** FIXED
+
+**Problem:** `_resolve_excerpt_text` joined atom texts with `"\n"` (single newline) instead of `"\n\n"` (double newline). Arabic paragraph boundaries were lost, producing a run-on text block that misrepresented the content structure to the placement validation LLM.
+
+**Fix:** Changed `"\n".join(parts)` to `"\n\n".join(parts)` to match the assembly tool's paragraph separator convention.
+
+---
+
+### BUG-100 — 🔴 CRITICAL — Self-containment LLM failure silently passes excerpt [FIXED]
+**File:** `tools/cross_validate.py` (lines 458, 474–479)
+**Found:** Audit 14 (2026-03-01) — code review of cross_validate.py
+**Status:** FIXED
+
+**Problem:** When `_parse_llm_json(response)` returned `None` (LLM call failed), `llm_issues` stayed as `[]` and the excerpt was marked `"pass"`. The caller could not distinguish "LLM check skipped because algo failed" from "LLM call errored out".
+
+**Fix:** Added `else` branch after `if parsed:` that sets `llm_issues` to an error message string, ensuring the excerpt is marked `"fail"` when the LLM check was attempted but failed.
+
+---
+
+### BUG-101 — 🟡 MODERATE — Cross-book book_count inflated by empty book_id [FIXED]
+**File:** `tools/cross_validate.py` (lines 608, 627)
+**Found:** Audit 14 (2026-03-01) — code review of cross_validate.py
+**Status:** FIXED
+
+**Problem:** `book_count` was computed as `len(set(e.get("book_id", "") for e in excerpts))`, which counts the empty string as a distinct book — inflating the count by 1 when any excerpt has no `book_id`.
+
+**Fix:** Pre-compute `multi_book_ids[node_id]` (filtered set excluding `""`) and use `len(multi_book_ids.get(node_id, set()))` in both result dicts.
+
+---
+
+### BUG-102 — 🟡 MODERATE — Cluster signal tests used atom IDs without book prefix [FIXED]
+**File:** `tests/test_evolution.py` (TestSignalDetection class)
+**Found:** Audit 14 (2026-03-01) — test coverage review
+**Status:** FIXED
+
+**Problem:** Tests for `scan_cluster_signals` used bare atom IDs like `"a1"` (no colon), so `book_id` derivation via `atom_id.split(":")[0]` returned empty string for all excerpts. Tests passed because all excerpts got the same empty book_id, not because same-book detection actually worked.
+
+**Fix:** Changed all atom IDs in cluster tests to use proper `book:section:seq` format (e.g., `"qimlaa:matn:001"`) so the book-ID derivation path is actually exercised.
+
+---
+
+### BUG-103 — 🟢 LOW — Tautological TestMultiVolumePositionalMap tests [FIXED]
+**File:** `tests/test_structure_discovery.py` (lines 1447–1494)
+**Found:** Audit 14 (2026-03-01) — test coverage review
+**Status:** FIXED
+
+**Problem:** Both tests in `TestMultiVolumePositionalMap` tested inline Python list operations (list comprehension filtering, identity comparison), not any function from `discover_structure.py`. They would pass even if the multi-volume code was broken.
+
+**Fix:** Removed the tautological tests. Multi-volume functionality is tested through the actual integration tests in `TestPass1And2Integration` and `TestPass3IntegrationFallback`.
+
+---
+
 ## Summary
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
-| 🔴 CRITICAL | 34 | 0 | 34 (BUG-001–004, 021–023, 035, 036, 038, 040–043, 047–049, 051, 053, 056–058, 065, 066, 071, 072, 081–084, 089, 091, 092, 094) |
-| 🟡 MODERATE | 52 | 1 | 51 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080, 085–088, 090, 093, 095–098) |
-| 🟢 LOW | 13 | 1 | 12 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070 + audit fixes) |
-| **Total** | **99** | **2** | **97** |
+| 🔴 CRITICAL | 36 | 0 | 36 (BUG-001–004, 021–023, 035, 036, 038, 040–043, 047–049, 051, 053, 056–058, 065, 066, 071, 072, 081–084, 089, 091, 092, 094, 099, 100) |
+| 🟡 MODERATE | 54 | 1 | 53 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080, 085–088, 090, 093, 095–098, 101, 102) |
+| 🟢 LOW | 14 | 1 | 13 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070, 103 + audit fixes) |
+| **Total** | **104** | **2** | **102** |
 
-**97 bugs fixed across Audits 2–13.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
+**102 bugs fixed across Audits 2–14.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 1032 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
+**Test suite:** 1030 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|

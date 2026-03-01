@@ -1444,55 +1444,6 @@ class TestRegressionMergeCondition:
         assert len(passages) == 5, f"Expected 5 passages, got {len(passages)}"
 
 
-class TestMultiVolumePositionalMap:
-    """Tests that multi-volume Pass 1 uses per-volume page lists."""
-
-    def test_volume_pages_filtered_correctly(self):
-        """Verify that pass1 receives only pages for the current volume."""
-        # Create pages for 2 volumes
-        pages_v1 = [
-            PageRecord(seq_index=1, page_number_int=1, volume=1,
-                       matn_text="", page_hint="V1P1"),
-            PageRecord(seq_index=2, page_number_int=2, volume=1,
-                       matn_text="", page_hint="V1P2"),
-        ]
-        pages_v2 = [
-            PageRecord(seq_index=3, page_number_int=1, volume=2,
-                       matn_text="", page_hint="V2P1"),
-            PageRecord(seq_index=4, page_number_int=2, volume=2,
-                       matn_text="", page_hint="V2P2"),
-        ]
-        all_pages = pages_v1 + pages_v2
-
-        # Filter as the fixed code does
-        vol1_pages = [p for p in all_pages if p.volume == 1]
-        vol2_pages = [p for p in all_pages if p.volume == 2]
-
-        assert len(vol1_pages) == 2
-        assert len(vol2_pages) == 2
-
-        # Volume 2's first page should map to position 0 in its filtered list
-        assert vol2_pages[0].seq_index == 3
-        assert vol2_pages[0].page_hint == "V2P1"
-
-        # Before the fix, position 0 would map to volume 1's first page
-        assert all_pages[0].seq_index == 1  # Wrong if used for volume 2!
-
-    def test_single_volume_gets_full_list(self):
-        """Single-volume books should get the full pages list (no filtering)."""
-        pages = [
-            PageRecord(seq_index=1, page_number_int=1, volume=1,
-                       matn_text="", page_hint="P1"),
-            PageRecord(seq_index=2, page_number_int=2, volume=1,
-                       matn_text="", page_hint="P2"),
-        ]
-
-        multi_volume = False
-        vol_pages = [p for p in pages if p.volume == 1] if multi_volume else pages
-        # Should be the same list object (no filtering)
-        assert vol_pages is pages
-
-
 class TestPass3IntegrationFallback:
     """Tests that Pass 3 integration failures fall back to deterministic tree."""
 

@@ -175,12 +175,12 @@ class TestSignalDetection:
 
     def test_detects_same_book_clusters(self):
         atoms = [
-            _make_atom("a1", "نص أول"),
-            _make_atom("a2", "نص ثاني"),
+            _make_atom("qimlaa:matn:001", "نص أول"),
+            _make_atom("qimlaa:matn:002", "نص ثاني"),
         ]
         excerpts = [
-            _make_excerpt("q:exc:001", "ta3rif_alhamza", ["a1"]),
-            _make_excerpt("q:exc:002", "ta3rif_alhamza", ["a2"]),
+            _make_excerpt("q:exc:001", "ta3rif_alhamza", ["qimlaa:matn:001"]),
+            _make_excerpt("q:exc:002", "ta3rif_alhamza", ["qimlaa:matn:002"]),
         ]
         passage = _make_passage("P001", atoms, excerpts)
         atoms_indexes = {"P001": build_atoms_index(atoms)}
@@ -196,8 +196,8 @@ class TestSignalDetection:
         assert len(signals[0].excerpt_ids) == 2
 
     def test_no_cluster_signal_for_single_excerpt(self):
-        atoms = [_make_atom("a1", "text")]
-        excerpts = [_make_excerpt("q:exc:001", "ta3rif_alhamza", ["a1"])]
+        atoms = [_make_atom("qimlaa:matn:001", "text")]
+        excerpts = [_make_excerpt("q:exc:001", "ta3rif_alhamza", ["qimlaa:matn:001"])]
         passage = _make_passage("P001", atoms, excerpts)
         atoms_indexes = {"P001": build_atoms_index(atoms)}
         taxonomy_map = _make_taxonomy_map()
@@ -209,14 +209,14 @@ class TestSignalDetection:
 
     def test_cluster_with_three_excerpts(self):
         atoms = [
-            _make_atom("a1", "نص 1"),
-            _make_atom("a2", "نص 2"),
-            _make_atom("a3", "نص 3"),
+            _make_atom("qimlaa:matn:001", "نص 1"),
+            _make_atom("qimlaa:matn:002", "نص 2"),
+            _make_atom("qimlaa:matn:003", "نص 3"),
         ]
         excerpts = [
-            _make_excerpt("q:exc:001", "hamzat_alwasl", ["a1"]),
-            _make_excerpt("q:exc:002", "hamzat_alwasl", ["a2"]),
-            _make_excerpt("q:exc:003", "hamzat_alwasl", ["a3"]),
+            _make_excerpt("q:exc:001", "hamzat_alwasl", ["qimlaa:matn:001"]),
+            _make_excerpt("q:exc:002", "hamzat_alwasl", ["qimlaa:matn:002"]),
+            _make_excerpt("q:exc:003", "hamzat_alwasl", ["qimlaa:matn:003"]),
         ]
         passage = _make_passage("P001", atoms, excerpts)
         atoms_indexes = {"P001": build_atoms_index(atoms)}
@@ -262,12 +262,12 @@ class TestSignalDetection:
     def test_no_cluster_for_different_books(self):
         """Excerpts from DIFFERENT books at same node = expected, NOT a cluster signal."""
         atoms = [
-            _make_atom("a1", "نص الكتاب الأول"),
-            _make_atom("a2", "نص الكتاب الثاني"),
+            _make_atom("book_alpha:matn:001", "نص الكتاب الأول"),
+            _make_atom("book_beta:matn:001", "نص الكتاب الثاني"),
         ]
-        exc1 = _make_excerpt("q:exc:001", "ta3rif_alhamza", ["a1"])
+        exc1 = _make_excerpt("q:exc:001", "ta3rif_alhamza", ["book_alpha:matn:001"])
         exc1["book_id"] = "book_alpha"
-        exc2 = _make_excerpt("q:exc:002", "ta3rif_alhamza", ["a2"])
+        exc2 = _make_excerpt("q:exc:002", "ta3rif_alhamza", ["book_beta:matn:001"])
         exc2["book_id"] = "book_beta"
         passage = _make_passage("P001", atoms, [exc1, exc2])
         atoms_indexes = {"P001": build_atoms_index(atoms)}
@@ -282,15 +282,15 @@ class TestSignalDetection:
         """Three excerpts at same node: 2 from book A, 1 from book B.
         Only book A should produce a cluster signal."""
         atoms = [
-            _make_atom("a1", "نص 1"),
-            _make_atom("a2", "نص 2"),
-            _make_atom("a3", "نص 3"),
+            _make_atom("book_alpha:matn:001", "نص 1"),
+            _make_atom("book_alpha:matn:002", "نص 2"),
+            _make_atom("book_beta:matn:001", "نص 3"),
         ]
-        exc1 = _make_excerpt("q:exc:001", "ta3rif_alhamza", ["a1"])
+        exc1 = _make_excerpt("q:exc:001", "ta3rif_alhamza", ["book_alpha:matn:001"])
         exc1["book_id"] = "book_alpha"
-        exc2 = _make_excerpt("q:exc:002", "ta3rif_alhamza", ["a2"])
+        exc2 = _make_excerpt("q:exc:002", "ta3rif_alhamza", ["book_alpha:matn:002"])
         exc2["book_id"] = "book_alpha"
-        exc3 = _make_excerpt("q:exc:003", "ta3rif_alhamza", ["a3"])
+        exc3 = _make_excerpt("q:exc:003", "ta3rif_alhamza", ["book_beta:matn:001"])
         exc3["book_id"] = "book_beta"
         passage = _make_passage("P001", atoms, [exc1, exc2, exc3])
         atoms_indexes = {"P001": build_atoms_index(atoms)}
