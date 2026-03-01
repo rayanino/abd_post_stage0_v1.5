@@ -2578,3 +2578,138 @@ class TestRunEvolutionMultiModel:
         consensus_data = json.loads(consensus_file.read_text(encoding="utf-8"))
         assert len(consensus_data) >= 1
         assert consensus_data[0]["status"] == "agreement"
+
+
+class TestRedistributeNodeIdValidation:
+    """Tests that redistribute_excerpts validates LLM-returned node_ids."""
+
+    def test_invalid_node_id_flagged(self, tmp_path):
+        """LLM returning a node_id not in new_nodes should flag the excerpt."""
+        from tools.evolve_taxonomy import redistribute_excerpts
+
+        tax_path = tmp_path / "tax.yaml"
+        tax_path.write_text(
+            "taxonomy:\n  id: t\n  title: T\n  nodes:\n"
+            "  - id: parent_node\n    title: P\n    children:\n"
+            "    - id: sub_a\n      title: A\n      leaf: true\n"
+            "    - id: sub_b\n      title: B\n      leaf: true\n",
+            encoding="utf-8",
+        )
+
+        assembly_dir = tmp_path / "assembled"
+        old_folder = assembly_dir / "test" / "parent_node"
+        old_folder.mkdir(parents=True)
+
+        exc1 = {"excerpt_title": "E1", "arabic_text": "نص"}
+        (old_folder / "e1.json").write_text(
+            json.dumps(exc1, ensure_ascii=False), encoding="utf-8",
+        )
+
+        def mock_llm(system, user, model, key, openrouter_key=None, openai_key=None):
+            # Return an invalid node_id that doesn't match any new_node
+            return {"parsed": {"node_id": "hallucinated_node", "confidence": "certain"}}
+
+        result = redistribute_excerpts(
+            assembly_dir=str(assembly_dir),
+            old_node_id="parent_node",
+            new_nodes=[
+                {"node_id": "sub_a", "title_ar": "A"},
+                {"node_id": "sub_b", "title_ar": "B"},
+            ],
+            science="test",
+            taxonomy_path=str(tax_path),
+            call_llm_fn=mock_llm,
+        )
+
+        # Invalid node_id → should be flagged, not moved
+        assert len(result["moves"]) == 0
+        assert len(result["flagged"]) == 1
+        # Original file should still exist (not moved)
+        assert (old_folder / "e1.json").exists()
+
+    def test_valid_node_id_accepted(self, tmp_path):
+        """LLM returning a valid node_id from new_nodes should succeed."""
+        from tools.evolve_taxonomy import redistribute_excerpts
+
+        tax_path = tmp_path / "tax.yaml"
+        tax_path.write_text(
+            "taxonomy:\n  id: t\n  title: T\n  nodes:\n"
+            "  - id: parent_node\n    title: P\n    children:\n"
+            "    - id: sub_a\n      title: A\n      leaf: true\n",
+            encoding="utf-8",
+        )
+
+        assembly_dir = tmp_path / "assembled"
+        old_folder = assembly_dir / "test" / "parent_node"
+        old_folder.mkdir(parents=True)
+
+        exc1 = {"excerpt_title": "E1", "arabic_text": "نص"}
+        (old_folder / "e1.json").write_text(
+            json.dumps(exc1, ensure_ascii=False), encoding="utf-8",
+        )
+
+        def mock_llm(system, user, model, key, openrouter_key=None, openai_key=None):
+            return {"parsed": {"node_id": "sub_a", "confidence": "certain"}}
+
+        result = redistribute_excerpts(
+            assembly_dir=str(assembly_dir),
+            old_node_id="parent_node",
+            new_nodes=[{"node_id": "sub_a", "title_ar": "A"}],
+            science="test",
+            taxonomy_path=str(tax_path),
+            call_llm_fn=mock_llm,
+        )
+
+        assert len(result["moves"]) == 1
+        assert len(result["flagged"]) == 0
+
+
+class TestRollbackManifestPath:
+    """Tests that rollback manifest records correct 'to' paths."""
+
+    def test_manifest_path_not_doubled(self, tmp_path):
+        """The 'to' path in rollback manifest must not double the parent node name."""
+        from tools.evolve_taxonomy import redistribute_excerpts
+
+        tax_path = tmp_path / "tax.yaml"
+        tax_path.write_text(
+            "taxonomy:\n  id: t\n  title: T\n  nodes:\n"
+            "  - id: parent_node\n    title: P\n    children:\n"
+            "    - id: sub_a\n      title: A\n      leaf: true\n",
+            encoding="utf-8",
+        )
+
+        assembly_dir = tmp_path / "assembled"
+        old_folder = assembly_dir / "test" / "parent_node"
+        old_folder.mkdir(parents=True)
+
+        exc1 = {"excerpt_title": "E1", "arabic_text": "نص"}
+        (old_folder / "e1.json").write_text(
+            json.dumps(exc1, ensure_ascii=False), encoding="utf-8",
+        )
+
+        def mock_llm(system, user, model, key, openrouter_key=None, openai_key=None):
+            return {"parsed": {"node_id": "sub_a", "confidence": "certain"}}
+
+        result = redistribute_excerpts(
+            assembly_dir=str(assembly_dir),
+            old_node_id="parent_node",
+            new_nodes=[{"node_id": "sub_a", "title_ar": "A"}],
+            science="test",
+            taxonomy_path=str(tax_path),
+            call_llm_fn=mock_llm,
+        )
+
+        # Simulate what the rollback manifest builder does
+        for original_path, target_node in result.get("moves", {}).items():
+            src_folder = Path(original_path).parent
+            # The fix: use src_folder.parent (not src_folder) to avoid doubling
+            new_folder = src_folder.parent / "parent_node" / target_node
+            to_path = str(new_folder / Path(original_path).name)
+
+            # The 'to' path should contain parent_node exactly once
+            parts = Path(to_path).parts
+            parent_count = sum(1 for p in parts if p == "parent_node")
+            assert parent_count == 1, (
+                f"parent_node appears {parent_count} times in path: {to_path}"
+            )

@@ -1587,10 +1587,13 @@ def redistribute_excerpts(
 
     # Build new node descriptions for LLM
     node_descriptions = []
+    valid_node_ids: set[str] = set()
     for node in new_nodes:
         nid = node.get("node_id", "")
         title = node.get("title_ar", nid)
         node_descriptions.append(f"- {nid}: {title}")
+        if nid:
+            valid_node_ids.add(nid)
     nodes_text = "\n".join(node_descriptions)
 
     moves: dict[str, str] = {}
@@ -1646,6 +1649,10 @@ def redistribute_excerpts(
 
                 if parsed and parsed.get("node_id"):
                     target_node = parsed["node_id"]
+                    if target_node not in valid_node_ids:
+                        # LLM returned an invalid node_id — flag for review
+                        flagged.append(str(excerpt_file))
+                        continue
                     confidence = parsed.get("confidence", "uncertain")
                     if confidence == "uncertain":
                         flagged.append(str(excerpt_file))
@@ -1862,9 +1869,14 @@ def apply_evolution(
             redistribution_summary[parent_node] = result
 
             # Record moves for rollback manifest
+            # The actual move in redistribute_excerpts goes to:
+            #   old_folder.parent / old_node_id / target_node_id
+            # where old_folder is the node's current folder. Since
+            # Path(original_path).parent IS old_folder, we need .parent
+            # to avoid doubling the node name in the path.
             for original_path, target_node in result.get("moves", {}).items():
-                old_folder = Path(original_path).parent
-                new_folder = old_folder / parent_node / target_node
+                src_folder = Path(original_path).parent
+                new_folder = src_folder.parent / parent_node / target_node
                 file_moves.append({
                     "from": original_path,
                     "to": str(new_folder / Path(original_path).name),

@@ -2523,9 +2523,11 @@ def main():
             print(f"[Pass 1] Processing {html_path} (volume {vol_i})")
 
         vol_num = vol_i if multi_volume else 1
+        # Filter pages to current volume so positional map indices are correct
+        vol_pages = [p for p in pages if p.volume == vol_num] if multi_volume else pages
         headings, toc_pages, html_page_count = pass1_extract_html_headings(
             html_path, page_index, volume_number=vol_num, multi_volume=multi_volume,
-            pages_list=pages,
+            pages_list=vol_pages,
         )
         all_pass1_headings.extend(headings)
         all_toc_pages.extend(toc_pages)
@@ -2759,19 +2761,25 @@ def main():
                         print("[Pass 3b] No divisions > 5 pages — skipping deep scan.")
 
                 # Integrate all Pass 3 results
-                enriched_headings = integrate_pass3_results(
-                    all_headings, result_3a, pass3b_results, pages,
-                )
+                try:
+                    enriched_headings = integrate_pass3_results(
+                        all_headings, result_3a, pass3b_results, pages,
+                    )
 
-                # Build hierarchical tree
-                science_id = metadata.get("science_id") or metadata.get("primary_science")
-                divisions = build_hierarchical_tree(
-                    enriched_headings, pages, book_id, multi_volume, keywords,
-                    verbose=args.verbose,
-                )
-                print(f"[Tree] Built {len(divisions)} divisions (hierarchical)")
-                max_depth = max((d.level for d in divisions), default=0)
-                print(f"  Max depth: {max_depth}, LLM calls: {pass3_stats['llm_calls']}")
+                    # Build hierarchical tree
+                    science_id = metadata.get("science_id") or metadata.get("primary_science")
+                    divisions = build_hierarchical_tree(
+                        enriched_headings, pages, book_id, multi_volume, keywords,
+                        verbose=args.verbose,
+                    )
+                    print(f"[Tree] Built {len(divisions)} divisions (hierarchical)")
+                    max_depth = max((d.level for d in divisions), default=0)
+                    print(f"  Max depth: {max_depth}, LLM calls: {pass3_stats['llm_calls']}")
+                except Exception as e:
+                    print(f"[Pass 3] Integration/tree build FAILED: {e}", file=sys.stderr)
+                    print("[Pass 3] Falling back to deterministic tree.", file=sys.stderr)
+                    divisions = build_division_tree(all_headings, pages, book_id, multi_volume, keywords)
+                    print(f"[Tree] Built {len(divisions)} divisions (flat — fallback after error)")
 
     # --- Post-tree validation and cross-referencing ---
 
