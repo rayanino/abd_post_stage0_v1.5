@@ -29,6 +29,7 @@ from assemble_excerpts import (
     parse_taxonomy_yaml,
     resolve_atom_texts,
     validate_assembled_excerpt,
+    normalize_node_id,
     _extract_atom_id,
     _extract_atom_role,
 )
@@ -688,6 +689,69 @@ class TestDistributeExcerpts:
 
 
 # ---------------------------------------------------------------------------
+# normalize_node_id Tests (BUG-043 DRY refactor)
+# ---------------------------------------------------------------------------
+
+class TestNormalizeNodeId:
+    """Tests for the BUG-043 path normalization helper."""
+
+    def _map(self):
+        return {
+            "al_istiwa": TaxonomyNodeInfo("al_istiwa", "الاستواء",
+                ["aqidah", "al_istiwa"], ["عقيدة", "الاستواء"],
+                True, "aqidah/al_istiwa"),
+            "hamza_wasl": TaxonomyNodeInfo("hamza_wasl", "همزة الوصل",
+                ["imlaa", "hamza_wasl"], ["إملاء", "همزة الوصل"],
+                True, "imlaa/hamza_wasl"),
+        }
+
+    def test_direct_lookup(self):
+        nid, info, was_norm = normalize_node_id("al_istiwa", self._map())
+        assert nid == "al_istiwa"
+        assert info is not None
+        assert was_norm is False
+
+    def test_dot_separated_path(self):
+        nid, info, was_norm = normalize_node_id(
+            "aqidah.al_iman.al_istiwa", self._map())
+        assert nid == "al_istiwa"
+        assert info is not None
+        assert was_norm is True
+
+    def test_colon_separated_path(self):
+        nid, info, was_norm = normalize_node_id(
+            "aqidah:al_iman:al_istiwa", self._map())
+        assert nid == "al_istiwa"
+        assert info is not None
+        assert was_norm is True
+
+    def test_slash_separated_path(self):
+        nid, info, was_norm = normalize_node_id(
+            "aqidah/al_iman/al_istiwa", self._map())
+        assert nid == "al_istiwa"
+        assert info is not None
+        assert was_norm is True
+
+    def test_unmapped_returns_none(self):
+        nid, info, was_norm = normalize_node_id("_unmapped", self._map())
+        assert nid == "_unmapped"
+        assert info is None
+        assert was_norm is False
+
+    def test_unknown_node(self):
+        nid, info, was_norm = normalize_node_id("nonexistent", self._map())
+        assert nid == "nonexistent"
+        assert info is None
+        assert was_norm is False
+
+    def test_empty_string(self):
+        nid, info, was_norm = normalize_node_id("", self._map())
+        assert nid == ""
+        assert info is None
+        assert was_norm is False
+
+
+# ---------------------------------------------------------------------------
 # Validation Tests
 # ---------------------------------------------------------------------------
 
@@ -699,6 +763,7 @@ class TestValidation:
             "book_title": "Test Book",
             "taxonomy_node_id": "test_node",
             "taxonomy_path": "Test > Path",
+            "scholarly_context": {"author_death_hijri": 1351},
         }
         assert validate_assembled_excerpt(exc) == []
 
@@ -709,6 +774,7 @@ class TestValidation:
             "book_title": "Test Book",
             "taxonomy_node_id": "test_node",
             "taxonomy_path": "Test > Path",
+            "scholarly_context": {"author_death_hijri": 1351},
         }
         issues = validate_assembled_excerpt(exc)
         assert any("empty core_text" in i for i in issues)
@@ -719,9 +785,33 @@ class TestValidation:
             "book_title": "Book",
             "taxonomy_node_id": "node",
             "taxonomy_path": "path",
+            "scholarly_context": {"author_death_hijri": 1351},
         }
         issues = validate_assembled_excerpt(exc)
         assert any("missing excerpt_id" in i for i in issues)
+
+    def test_missing_scholarly_context(self):
+        exc = {
+            "excerpt_id": "q:exc:001",
+            "core_text": "text",
+            "book_title": "Book",
+            "taxonomy_node_id": "node",
+            "taxonomy_path": "path",
+        }
+        issues = validate_assembled_excerpt(exc)
+        assert any("scholarly_context" in i for i in issues)
+
+    def test_empty_scholarly_context_warns(self):
+        exc = {
+            "excerpt_id": "q:exc:001",
+            "core_text": "text",
+            "book_title": "Book",
+            "taxonomy_node_id": "node",
+            "taxonomy_path": "path",
+            "scholarly_context": {},
+        }
+        issues = validate_assembled_excerpt(exc)
+        assert any("no populated fields" in i for i in issues)
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ excerpt level using text overlap, not atom-ID matching.
 import copy
 import json
 import re
+import sys
 import unicodedata
 
 
@@ -217,14 +218,15 @@ def _merge_atoms_for_consensus(
             if aid:
                 needed_ids.add(aid)
 
-    # Check for collisions: same ID, different text
+    # Check for collisions: same ID, different text (use normalized comparison
+    # to avoid false collisions from diacritics/whitespace differences)
     remap = {}
     tag = _model_tag(losing_model)
     for aid in needed_ids:
         if aid in winning_atoms and aid in losing_atoms:
             w_text = winning_atoms[aid].get("text", "")
             l_text = losing_atoms[aid].get("text", "")
-            if w_text != l_text:
+            if normalize_for_comparison(w_text) != normalize_for_comparison(l_text):
                 # Real collision — disambiguate with _tag suffix to keep
                 # the 3-segment atom ID format (book:section:seq)
                 parts = aid.rsplit(":", 1)
@@ -920,6 +922,13 @@ def resolve_placement_disagreement(
         if not isinstance(parsed, dict):
             raise ValueError(f"Arbiter returned non-dict: {type(parsed)}")
 
+        # Validate expected keys are present
+        expected_keys = {"correct_placement", "reasoning", "confidence"}
+        missing_keys = expected_keys - set(parsed.keys())
+        if missing_keys:
+            print(f"  WARNING: arbiter response missing keys {missing_keys}; "
+                  f"received keys: {list(parsed.keys())}", file=sys.stderr)
+
         inp_tok = response.get("input_tokens", 0)
         out_tok = response.get("output_tokens", 0)
         cost = _compute_arbiter_cost(inp_tok, out_tok, arbiter_pricing)
@@ -1009,6 +1018,14 @@ def resolve_unmatched_excerpt(
         parsed = response.get("parsed")
         if not isinstance(parsed, dict):
             raise ValueError(f"Arbiter returned non-dict: {type(parsed)}")
+
+        # Validate expected keys
+        expected_keys = {"verdict", "reasoning", "confidence"}
+        missing_keys = expected_keys - set(parsed.keys())
+        if missing_keys:
+            print(f"  WARNING: unmatched arbiter response missing keys "
+                  f"{missing_keys}; received keys: {list(parsed.keys())}",
+                  file=sys.stderr)
 
         inp_tok = response.get("input_tokens", 0)
         out_tok = response.get("output_tokens", 0)

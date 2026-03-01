@@ -48,6 +48,35 @@ KNOWN_SCIENCES = {"imlaa", "sarf", "nahw", "balagha"}
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def normalize_node_id(node_id: str, taxonomy_map: dict) -> tuple[str, "TaxonomyNodeInfo | None", bool]:
+    """Normalize a taxonomy node_id, handling full-path formats (BUG-043).
+
+    LLMs sometimes return full paths like "aqidah.al_iman.al_istiwa" instead
+    of just the leaf "al_istiwa".  This helper tries direct lookup first, then
+    strips known separators (".", ":", "/") to extract the last segment.
+
+    Returns (resolved_node_id, node_info_or_None, was_normalized).
+    """
+    node_info = taxonomy_map.get(node_id)
+    if node_info is not None:
+        return node_id, node_info, False
+
+    if not node_id or node_id == "_unmapped":
+        return node_id, None, False
+
+    for sep in (".", ":", "/"):
+        if sep in node_id:
+            last_segment = node_id.rsplit(sep, 1)[-1]
+            if last_segment in taxonomy_map:
+                return last_segment, taxonomy_map[last_segment], True
+    return node_id, None, False
+
+
+# ---------------------------------------------------------------------------
 # Taxonomy parser
 # ---------------------------------------------------------------------------
 
@@ -361,18 +390,8 @@ def assemble_matn_excerpt(
             })
 
     # Look up taxonomy node title — normalize full paths to leaf IDs (BUG-043)
-    node_id = excerpt.get("taxonomy_node_id", "")
-    node_id_was_normalized = False
-    node_info = taxonomy_map.get(node_id)
-    if node_info is None and node_id and node_id != "_unmapped":
-        for sep in (".", ":", "/"):
-            if sep in node_id:
-                last_segment = node_id.rsplit(sep, 1)[-1]
-                if last_segment in taxonomy_map:
-                    node_id = last_segment
-                    node_info = taxonomy_map[last_segment]
-                    node_id_was_normalized = True
-                    break
+    raw_node_id = excerpt.get("taxonomy_node_id", "")
+    node_id, node_info, node_id_was_normalized = normalize_node_id(raw_node_id, taxonomy_map)
     node_title = node_info.title if node_info else ""
 
     # Extract source atom IDs for provenance
@@ -452,19 +471,8 @@ def assemble_footnote_excerpt(
     extraction_filename: str,
 ) -> dict:
     """Assemble a self-contained footnote excerpt (already has inline text)."""
-    node_id = fn_excerpt.get("taxonomy_node_id", "")
-    node_id_was_normalized = False
-    node_info = taxonomy_map.get(node_id)
-    # BUG-043: normalize full paths to leaf IDs
-    if node_info is None and node_id and node_id != "_unmapped":
-        for sep in (".", ":", "/"):
-            if sep in node_id:
-                last_segment = node_id.rsplit(sep, 1)[-1]
-                if last_segment in taxonomy_map:
-                    node_id = last_segment
-                    node_info = taxonomy_map[last_segment]
-                    node_id_was_normalized = True
-                    break
+    raw_node_id = fn_excerpt.get("taxonomy_node_id", "")
+    node_id, node_info, node_id_was_normalized = normalize_node_id(raw_node_id, taxonomy_map)
     node_title = node_info.title if node_info else ""
     fn_text = fn_excerpt.get("text", "")
 
@@ -577,21 +585,13 @@ def distribute_excerpts(
         excerpt_id = exc.get("excerpt_id", "")
         book_id = exc.get("book_id", "")
 
-        # Determine folder path — try direct lookup first, then normalize
-        # BUG-043: LLMs sometimes return full paths like
-        # "aqidah.al_iman_billah.asma_wa_sifat.al_istiwa" instead of "al_istiwa"
-        node_info = taxonomy_map.get(node_id)
-        if node_info is None and node_id and node_id != "_unmapped":
-            for sep in (".", ":", "/"):
-                if sep in node_id:
-                    last_segment = node_id.rsplit(sep, 1)[-1]
-                    if last_segment in taxonomy_map:
-                        node_info = taxonomy_map[last_segment]
-                        exc["taxonomy_node_id"] = last_segment
-                        # Also fix taxonomy_path if node_info has it
-                        if node_info.path_titles:
-                            exc["taxonomy_path"] = " > ".join(node_info.path_titles)
-                        break
+        # Determine folder path — normalize full paths to leaf IDs (BUG-043)
+        resolved_id, node_info, was_norm = normalize_node_id(node_id, taxonomy_map)
+        if was_norm:
+            exc["taxonomy_node_id"] = resolved_id
+            node_id = resolved_id
+            if node_info and node_info.path_titles:
+                exc["taxonomy_path"] = " > ".join(node_info.path_titles)
         if node_info is not None:
             folder_path = node_info.folder_path
         elif node_id == "_unmapped" or not node_id:
@@ -649,17 +649,27 @@ def distribute_excerpts(
 def validate_assembled_excerpt(exc: dict) -> list[str]:
     """Validate a single assembled excerpt. Returns list of issues."""
     issues = []
+    eid = exc.get("excerpt_id", "?")
 
     if not exc.get("excerpt_id"):
         issues.append("missing excerpt_id")
     if not exc.get("core_text", "").strip():
-        issues.append(f"{exc.get('excerpt_id', '?')}: empty core_text")
+        issues.append(f"{eid}: empty core_text")
     if not exc.get("book_title"):
-        issues.append(f"{exc.get('excerpt_id', '?')}: missing book_title")
+        issues.append(f"{eid}: missing book_title")
     if not exc.get("taxonomy_node_id"):
-        issues.append(f"{exc.get('excerpt_id', '?')}: missing taxonomy_node_id")
+        issues.append(f"{eid}: missing taxonomy_node_id")
     if not exc.get("taxonomy_path"):
-        issues.append(f"{exc.get('excerpt_id', '?')}: missing taxonomy_path")
+        issues.append(f"{eid}: missing taxonomy_path")
+
+    # Self-containment: scholarly_context should have at least some data
+    sc = exc.get("scholarly_context")
+    if sc is None or not isinstance(sc, dict):
+        issues.append(f"{eid}: missing scholarly_context (synthesis LLM needs author attribution)")
+    elif not any(sc.get(k) for k in ("author_death_hijri", "fiqh_madhab",
+                                       "grammatical_school", "geographic_origin")):
+        issues.append(f"{eid}: scholarly_context has no populated fields "
+                      "(synthesis LLM cannot attribute author perspective)")
 
     return issues
 
