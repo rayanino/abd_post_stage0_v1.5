@@ -328,7 +328,6 @@ def _optimal_assignment(overlap_matrix: list[list[float]],
     used = 0
     for row in range(n_a):
         optimal_from_here = dp(row, used)
-        skip_val = dp(row + 1, used)
         # Try each column to see which one achieves optimal
         matched = False
         for col in range(n_b):
@@ -1338,7 +1337,7 @@ def build_consensus(
             if resolution:
                 keep = resolution.get("verdict") != "discard"
                 if resolution.get("confidence") == "certain":
-                    confidence = "medium" if keep else "discard"
+                    confidence = "medium" if keep else "low"
 
             detail = {
                 "type": "unmatched_excerpt",

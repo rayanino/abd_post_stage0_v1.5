@@ -760,7 +760,10 @@ def call_llm_openrouter(system: str, user: str, model: str,
         break  # success
 
     data = resp.json()
-    choice = data["choices"][0]
+    choices = data.get("choices", [])
+    if not choices:
+        raise RuntimeError(f"API returned empty choices for model {model}: {str(data)[:500]}")
+    choice = choices[0]
     text = choice["message"]["content"]
 
     # Strip markdown fences if present
@@ -861,7 +864,10 @@ def call_llm_openai(system: str, user: str, model: str,
         break  # success
 
     data = resp.json()
-    choice = data["choices"][0]
+    choices = data.get("choices", [])
+    if not choices:
+        raise RuntimeError(f"API returned empty choices for model {model}: {str(data)[:500]}")
+    choice = choices[0]
     text = choice["message"]["content"]
 
     # Strip markdown fences if present
@@ -1238,6 +1244,8 @@ def validate_extraction(result: dict, passage_id: str,
         eid = exc.get("excerpt_id", "???")
         for entry in exc.get("core_atoms", []):
             aid = _extract_atom_id(entry)
+            if not aid:
+                continue  # skip empty/missing atom IDs
             if aid in core_seen:
                 errors.append(
                     f"Atom {aid} is core in both {core_seen[aid]} and {eid}"

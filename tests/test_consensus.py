@@ -2967,3 +2967,55 @@ class TestFieldEnrichmentOnFullAgreement:
         # Winning model's values should be preserved
         assert exc["case_types"] == ["A1_pure_definition"]
         assert exc["boundary_reasoning"] == "Good reasoning here"
+
+
+class TestConfidenceValues:
+    """Tests that confidence values are always valid (high/medium/low)."""
+
+    def test_no_discard_confidence(self):
+        """Confidence must never be 'discard' — previously a bug in unmatched handling."""
+        # The valid confidence values used throughout the codebase
+        valid_confidences = {"high", "medium", "low"}
+
+        # Build minimal data where one model has an unmatched excerpt
+        atoms_a = [_make_atom("A1", "content", "نص عربي أول")]
+        exc_a = [_make_excerpt("E1", ["A1"], "node_a",
+                               excerpt_title="القسم الأول")]
+        ra = _make_result(atoms_a, exc_a)
+
+        # Model B has completely different content → unmatched
+        atoms_b = [_make_atom("B1", "content", "محتوى مختلف تماما")]
+        exc_b = [_make_excerpt("E2", ["B1"], "node_b",
+                               excerpt_title="القسم الثاني")]
+        rb = _make_result(atoms_b, exc_b)
+
+        issues = {"errors": [], "warnings": [], "info": []}
+        consensus = build_consensus(
+            "P004", ra, rb, "claude", "gpt4o", issues, issues,
+        )
+
+        # Check all per_excerpt confidence values are valid
+        for entry in consensus.get("consensus_meta", {}).get("per_excerpt", []):
+            conf = entry.get("confidence", "")
+            assert conf in valid_confidences, (
+                f"Invalid confidence '{conf}' found in per_excerpt entry: {entry}"
+            )
+
+
+class TestOptimalAssignmentDeadCode:
+    """Tests that _optimal_assignment reconstruction has no dead code."""
+
+    def test_skip_row_reconstruction(self):
+        """Verify reconstruction works when some rows are skipped (no match above threshold)."""
+        # 3x3 matrix where row 1 has no value above threshold
+        matrix = [
+            [0.8, 0.1, 0.0],
+            [0.05, 0.03, 0.02],  # all below 0.3 threshold
+            [0.0, 0.1, 0.9],
+        ]
+        pairs = _optimal_assignment(matrix, threshold=0.3)
+        assert pairs is not None
+        # Should match row 0→col 0 and row 2→col 2, skipping row 1
+        assert len(pairs) == 2
+        assert (0, 0) in pairs
+        assert (2, 2) in pairs
