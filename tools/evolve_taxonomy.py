@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """
-Stage 6: Taxonomy Evolution Engine (Phase A)
-=============================================
-Detects signals that the taxonomy tree needs to grow, calls an LLM to propose
-changes, and generates human-review artifacts. All changes are proposals —
-nothing is auto-applied.
-
+Stage 6: Taxonomy Evolution Engine (Phase A + B)
+=================================================
 Phase A: Signal detection + LLM proposal generation + review artifacts.
-Phase B (future): Multi-model consensus, apply step, version control.
+Phase B: Apply approved proposals, version control, excerpt redistribution,
+         rollback capability.
 
 Usage:
     # Detect + Propose
@@ -867,6 +864,150 @@ def propose_evolution_for_signal(
 
 
 # ---------------------------------------------------------------------------
+# Multi-model consensus for evolution proposals
+# ---------------------------------------------------------------------------
+
+def _compare_evolution_proposals(
+    proposals: list[EvolutionProposal | None],
+    models: list[str],
+) -> dict:
+    """Compare evolution proposals from multiple models.
+
+    Returns a consensus result with:
+    - status: "agreement", "partial", "disagreement", or "no_change"
+    - agreed_nodes: node IDs that all models proposed
+    - disagreed_nodes: node IDs that only some models proposed
+    - chosen_proposal: the selected proposal (highest confidence, or first agreement)
+    - model_proposals: per-model details
+    """
+    # Filter out None proposals (models that decided no change needed)
+    active = [(p, m) for p, m in zip(proposals, models) if p is not None]
+    none_count = len(proposals) - len(active)
+
+    if not active:
+        return {
+            "status": "no_change",
+            "note": f"All {len(models)} models agreed: no change needed",
+            "chosen_proposal": None,
+            "model_proposals": {m: None for m in models},
+        }
+
+    if none_count > 0 and len(active) == 1:
+        # Only one model wants a change — low confidence
+        return {
+            "status": "disagreement",
+            "note": (
+                f"Only {active[0][1]} proposes a change; "
+                f"{none_count} model(s) say no change needed"
+            ),
+            "chosen_proposal": active[0][0],
+            "confidence_override": "uncertain",
+            "model_proposals": {
+                m: p for p, m in zip(proposals, models)
+            },
+        }
+
+    # Multiple active proposals — compare node IDs
+    node_sets = []
+    for proposal, _ in active:
+        nids = frozenset(n.get("node_id", "") for n in proposal.new_nodes)
+        node_sets.append(nids)
+
+    # Check for full agreement on node IDs
+    if len(set(node_sets)) == 1:
+        # All active models propose the same nodes
+        # Choose the one with highest confidence
+        confidence_order = {"certain": 3, "likely": 2, "uncertain": 1}
+        best = max(active, key=lambda x: confidence_order.get(x[0].confidence, 0))
+        return {
+            "status": "agreement",
+            "agreed_nodes": list(node_sets[0]),
+            "chosen_proposal": best[0],
+            "model_proposals": {m: p for p, m in zip(proposals, models)},
+        }
+
+    # Partial agreement — find common and differing nodes
+    all_nodes = set()
+    for ns in node_sets:
+        all_nodes.update(ns)
+
+    agreed = set.intersection(*[set(ns) for ns in node_sets]) if node_sets else set()
+    disagreed = all_nodes - agreed
+
+    # Choose the proposal with most agreed nodes and highest confidence
+    confidence_order = {"certain": 3, "likely": 2, "uncertain": 1}
+    best = max(active, key=lambda x: (
+        len(set(n.get("node_id", "") for n in x[0].new_nodes) & agreed),
+        confidence_order.get(x[0].confidence, 0),
+    ))
+
+    status = "partial" if agreed else "disagreement"
+
+    return {
+        "status": status,
+        "agreed_nodes": list(agreed),
+        "disagreed_nodes": list(disagreed),
+        "chosen_proposal": best[0],
+        "confidence_override": "uncertain" if status == "disagreement" else None,
+        "model_proposals": {m: p for p, m in zip(proposals, models)},
+    }
+
+
+def propose_with_consensus(
+    signal: EvolutionSignal,
+    taxonomy_yaml_raw: str,
+    taxonomy_map: dict[str, TaxonomyNodeInfo],
+    models: list[str],
+    api_key: str,
+    openrouter_key: str | None = None,
+    openai_key: str | None = None,
+    call_llm_fn=None,
+    proposal_seq: int = 1,
+) -> tuple[EvolutionProposal | None, dict]:
+    """Run multiple models on the same signal and compare proposals.
+
+    Returns (chosen_proposal, consensus_result).
+    """
+    proposals: list[EvolutionProposal | None] = []
+
+    for model in models:
+        proposal = propose_evolution_for_signal(
+            signal=signal,
+            taxonomy_yaml_raw=taxonomy_yaml_raw,
+            taxonomy_map=taxonomy_map,
+            model=model,
+            api_key=api_key,
+            openrouter_key=openrouter_key,
+            openai_key=openai_key,
+            call_llm_fn=call_llm_fn,
+            proposal_seq=proposal_seq,
+        )
+        proposals.append(proposal)
+
+    consensus = _compare_evolution_proposals(proposals, models)
+
+    chosen = consensus.get("chosen_proposal")
+
+    # Apply confidence override if disagreement detected
+    if chosen and consensus.get("confidence_override"):
+        # Create a new proposal with overridden confidence
+        chosen = EvolutionProposal(
+            signal=chosen.signal,
+            proposal_id=chosen.proposal_id,
+            change_type=chosen.change_type,
+            parent_node_id=chosen.parent_node_id,
+            new_nodes=chosen.new_nodes,
+            redistribution=chosen.redistribution,
+            reasoning=chosen.reasoning + f" [consensus: {consensus['status']}]",
+            confidence=consensus["confidence_override"],
+            model="+".join(models),
+            cost=chosen.cost,
+        )
+
+    return chosen, consensus
+
+
+# ---------------------------------------------------------------------------
 # Output artifact generation
 # ---------------------------------------------------------------------------
 
@@ -1127,20 +1268,632 @@ def generate_review_md(
 
 
 # ---------------------------------------------------------------------------
-# Apply step (Phase B stub)
+# Phase B: Apply, Version Control, Rollback, Redistribution
 # ---------------------------------------------------------------------------
+
+try:
+    import yaml as _yaml
+except ImportError:
+    _yaml = None  # type: ignore[assignment]
+
+
+def _increment_version(version_str: str) -> str:
+    """Increment the last numeric segment of a version string.
+
+    ``imlaa_v1_0`` → ``imlaa_v1_1``, ``aqidah_v0_2`` → ``aqidah_v0_3``.
+    """
+    parts = version_str.rsplit("_", 1)
+    if len(parts) == 2 and parts[1].isdigit():
+        return f"{parts[0]}_{int(parts[1]) + 1}"
+    return f"{version_str}_1"
+
+
+def _modify_v0_yaml(
+    data: dict,
+    parent_node_id: str,
+    new_nodes: list[dict],
+) -> dict:
+    """Apply a leaf_granulated change to a v0 (nested-dict) taxonomy.
+
+    Converts the parent leaf to a branch by removing ``_leaf: true`` and
+    adding new sub-nodes as children.
+    """
+    def _walk(d: dict) -> bool:
+        if not isinstance(d, dict):
+            return False
+        for key, value in list(d.items()):
+            if key == parent_node_id and isinstance(value, dict):
+                # Found the target node — convert leaf to branch
+                value.pop("_leaf", None)
+                for new_node in new_nodes:
+                    nid = new_node["node_id"]
+                    child = {"_leaf": True}
+                    label = new_node.get("title_ar", "")
+                    if label:
+                        child["_label"] = label
+                    value[nid] = child
+                return True
+            if isinstance(value, dict) and _walk(value):
+                return True
+        return False
+
+    _walk(data)
+    return data
+
+
+def _modify_v1_yaml(
+    data: dict,
+    parent_node_id: str,
+    new_nodes: list[dict],
+) -> dict:
+    """Apply a leaf_granulated change to a v1 (structured) taxonomy.
+
+    Converts the parent leaf to a branch by removing ``leaf: true`` and
+    adding ``children`` with the new sub-nodes.
+    """
+    taxonomy_block = data.get("taxonomy", {})
+    nodes = taxonomy_block.get("nodes", [])
+
+    def _walk(node_list: list[dict]) -> bool:
+        for node in node_list:
+            if node.get("id") == parent_node_id:
+                # Found the target — convert leaf to branch
+                node.pop("leaf", None)
+                children = []
+                for new_node in new_nodes:
+                    child = {
+                        "id": new_node["node_id"],
+                        "title": new_node.get("title_ar", new_node["node_id"]),
+                        "leaf": True,
+                    }
+                    children.append(child)
+                node["children"] = children
+                return True
+            if "children" in node:
+                if _walk(node["children"]):
+                    return True
+        return False
+
+    _walk(nodes)
+    return data
+
+
+def _add_node_v0(
+    data: dict,
+    parent_node_id: str,
+    new_nodes: list[dict],
+) -> dict:
+    """Add new leaf nodes under an existing branch in v0 format."""
+    def _walk(d: dict) -> bool:
+        if not isinstance(d, dict):
+            return False
+        for key, value in list(d.items()):
+            if key == parent_node_id and isinstance(value, dict):
+                for new_node in new_nodes:
+                    nid = new_node["node_id"]
+                    child = {"_leaf": True}
+                    label = new_node.get("title_ar", "")
+                    if label:
+                        child["_label"] = label
+                    value[nid] = child
+                return True
+            if isinstance(value, dict) and _walk(value):
+                return True
+        return False
+
+    _walk(data)
+    return data
+
+
+def _add_node_v1(
+    data: dict,
+    parent_node_id: str,
+    new_nodes: list[dict],
+) -> dict:
+    """Add new leaf nodes under an existing branch in v1 format."""
+    taxonomy_block = data.get("taxonomy", {})
+    nodes = taxonomy_block.get("nodes", [])
+
+    def _walk(node_list: list[dict]) -> bool:
+        for node in node_list:
+            if node.get("id") == parent_node_id:
+                if "children" not in node:
+                    node["children"] = []
+                for new_node in new_nodes:
+                    child = {
+                        "id": new_node["node_id"],
+                        "title": new_node.get("title_ar", new_node["node_id"]),
+                        "leaf": True,
+                    }
+                    node["children"].append(child)
+                return True
+            if "children" in node:
+                if _walk(node["children"]):
+                    return True
+        return False
+
+    _walk(nodes)
+    return data
+
+
+def _detect_yaml_format(data: dict) -> str:
+    """Detect if parsed YAML data is v0 or v1 format."""
+    if isinstance(data, dict) and "taxonomy" in data:
+        tb = data["taxonomy"]
+        if isinstance(tb, dict) and "nodes" in tb:
+            return "v1"
+    return "v0"
+
+
+def apply_proposal_to_yaml(
+    taxonomy_path: str,
+    proposals: list[dict],
+    new_version: str,
+    output_dir: str,
+) -> str:
+    """Apply approved proposals to a taxonomy YAML, producing a new version file.
+
+    Reads the existing taxonomy, applies each proposal's structural changes,
+    and writes a new versioned YAML file. The original file is never modified.
+
+    Returns the path to the new taxonomy YAML file.
+    """
+    if _yaml is None:
+        raise ImportError("PyYAML is required for taxonomy evolution apply step")
+
+    with open(taxonomy_path, encoding="utf-8") as f:
+        raw = f.read()
+
+    data = _yaml.safe_load(raw)
+    fmt = _detect_yaml_format(data)
+
+    for proposal in proposals:
+        change_type = proposal.get("change_type", "")
+        parent_node_id = proposal.get("parent_node_id", "")
+        new_nodes = proposal.get("new_nodes", [])
+
+        if not new_nodes:
+            continue
+
+        if change_type == "leaf_granulated":
+            if fmt == "v0":
+                data = _modify_v0_yaml(data, parent_node_id, new_nodes)
+            else:
+                data = _modify_v1_yaml(data, parent_node_id, new_nodes)
+        elif change_type == "node_added":
+            if fmt == "v0":
+                data = _add_node_v0(data, parent_node_id, new_nodes)
+            else:
+                data = _add_node_v1(data, parent_node_id, new_nodes)
+
+    # Write new version
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+    new_filename = f"{new_version}.yaml"
+    new_filepath = out_path / new_filename
+
+    with open(new_filepath, "w", encoding="utf-8") as f:
+        _yaml.dump(data, f, allow_unicode=True, default_flow_style=False,
+                   sort_keys=False)
+
+    return str(new_filepath)
+
+
+def update_taxonomy_registry(
+    registry_path: str,
+    science: str,
+    new_version: str,
+    new_relpath: str,
+    previous_version: str,
+    notes: str = "",
+) -> None:
+    """Add a new version entry to taxonomy_registry.yaml.
+
+    Marks the previous version as ``historical`` and adds the new version
+    as ``active``.
+    """
+    if _yaml is None:
+        raise ImportError("PyYAML is required for registry updates")
+
+    with open(registry_path, encoding="utf-8") as f:
+        registry = _yaml.safe_load(f)
+
+    if registry is None:
+        registry = {"registry_version": "0.1", "sciences": []}
+
+    sciences = registry.get("sciences", [])
+
+    # Find existing science entry
+    science_entry = None
+    for entry in sciences:
+        if entry.get("science_id") == science:
+            science_entry = entry
+            break
+
+    if science_entry is None:
+        # Create new science entry
+        science_entry = {
+            "science_id": science,
+            "display_name_ar": science,
+            "versions": [],
+        }
+        sciences.append(science_entry)
+
+    # Mark previous version as historical
+    for ver in science_entry.get("versions", []):
+        if ver.get("taxonomy_version") == previous_version:
+            ver["status"] = "historical"
+
+    # Add new version
+    science_entry.setdefault("versions", []).append({
+        "taxonomy_version": new_version,
+        "relpath": new_relpath,
+        "status": "active",
+        "notes": notes or f"Evolved from {previous_version}.",
+    })
+
+    with open(registry_path, "w", encoding="utf-8") as f:
+        _yaml.dump(registry, f, allow_unicode=True, default_flow_style=False,
+                   sort_keys=False)
+
+
+def redistribute_excerpts(
+    assembly_dir: str,
+    old_node_id: str,
+    new_nodes: list[dict],
+    science: str,
+    taxonomy_path: str,
+    call_llm_fn=None,
+    model: str = "claude-sonnet-4-5-20250929",
+    api_key: str = "",
+    openrouter_key: str | None = None,
+    openai_key: str | None = None,
+) -> dict:
+    """Redistribute assembled excerpt files from an old leaf to new sub-leaves.
+
+    Reads all excerpt files at the old node's folder, uses an LLM to assign
+    each to the correct new sub-leaf, and moves the files. Returns a mapping
+    of {excerpt_file: new_node_id} plus any flagged excerpts.
+
+    Files are MOVED (not deleted) so rollback can reverse the operation.
+    """
+    base_path = Path(assembly_dir)
+    taxonomy_map = parse_taxonomy_yaml(taxonomy_path, science)
+
+    # Find the old node's folder path
+    old_info = taxonomy_map.get(old_node_id)
+    if old_info is None:
+        # Try to find via folder search
+        old_folder = base_path / science / old_node_id
+    else:
+        old_folder = base_path / old_info.folder_path
+
+    if not old_folder.exists():
+        return {"moves": {}, "flagged": [], "error": f"Folder not found: {old_folder}"}
+
+    # Collect excerpt files at old folder
+    excerpt_files = list(old_folder.glob("*.json"))
+    if not excerpt_files:
+        return {"moves": {}, "flagged": [], "note": "No excerpt files to redistribute"}
+
+    # Build new node descriptions for LLM
+    node_descriptions = []
+    for node in new_nodes:
+        nid = node.get("node_id", "")
+        title = node.get("title_ar", nid)
+        node_descriptions.append(f"- {nid}: {title}")
+    nodes_text = "\n".join(node_descriptions)
+
+    moves: dict[str, str] = {}
+    flagged: list[str] = []
+
+    for excerpt_file in excerpt_files:
+        try:
+            with open(excerpt_file, encoding="utf-8") as f:
+                excerpt_data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            flagged.append(str(excerpt_file))
+            continue
+
+        # Extract the Arabic text from the assembled excerpt
+        arabic_text = excerpt_data.get("arabic_text", "")
+        if not arabic_text:
+            arabic_text = excerpt_data.get("text", "")
+        excerpt_title = excerpt_data.get("excerpt_title", "")
+
+        if call_llm_fn is not None or api_key or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY"):
+            # Use LLM for placement
+            system_prompt = (
+                "You are a taxonomy placement advisor. Given an Arabic excerpt and "
+                "a list of available taxonomy nodes, determine the most appropriate "
+                "node for this excerpt. Respond with ONLY a JSON object: "
+                '{"node_id": "chosen_node_id", "confidence": "certain|likely|uncertain", '
+                '"reasoning": "brief explanation"}'
+            )
+            user_prompt = (
+                f"## Excerpt\nTitle: {excerpt_title}\n\n"
+                f"Arabic text:\n{arabic_text[:3000]}\n\n"
+                f"## Available nodes\n{nodes_text}\n\n"
+                f"Which node should this excerpt be placed at?"
+            )
+
+            if call_llm_fn is None:
+                from tools.extract_passages import call_llm_dispatch
+                actual_fn = call_llm_dispatch
+            else:
+                actual_fn = call_llm_fn
+
+            try:
+                effective_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+                eff_openai = openai_key or os.environ.get("OPENAI_API_KEY")
+                response = actual_fn(
+                    system_prompt, user_prompt, model,
+                    effective_key, openrouter_key, eff_openai,
+                )
+                parsed = response.get("parsed")
+                if parsed is None:
+                    raw = response.get("raw_text", "")
+                    parsed = _parse_llm_json(raw) if raw else None
+
+                if parsed and parsed.get("node_id"):
+                    target_node = parsed["node_id"]
+                    confidence = parsed.get("confidence", "uncertain")
+                    if confidence == "uncertain":
+                        flagged.append(str(excerpt_file))
+                    moves[str(excerpt_file)] = target_node
+                else:
+                    flagged.append(str(excerpt_file))
+            except Exception:
+                flagged.append(str(excerpt_file))
+        else:
+            # No LLM available — flag all for manual review
+            flagged.append(str(excerpt_file))
+
+    # Execute moves
+    for filepath_str, target_node_id in moves.items():
+        filepath = Path(filepath_str)
+        # Determine target directory
+        target_dir = old_folder.parent / old_node_id / target_node_id
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_path = target_dir / filepath.name
+        filepath.rename(target_path)
+        # Update the moves dict with the new path
+        moves[filepath_str] = target_node_id
+
+    return {"moves": moves, "flagged": flagged}
+
+
+def rollback_evolution(
+    rollback_manifest_path: str,
+) -> dict:
+    """Rollback a taxonomy evolution using its manifest.
+
+    The manifest (created during apply) records:
+    - original taxonomy path and version
+    - new taxonomy path and version
+    - all file moves (original path → new path)
+    - registry update info
+
+    Rollback reverses all file moves and restores the previous taxonomy
+    as active in the registry.
+
+    Returns a summary dict.
+    """
+    with open(rollback_manifest_path, encoding="utf-8") as f:
+        manifest = json.load(f)
+
+    errors: list[str] = []
+    reversed_moves = 0
+
+    # Reverse file moves
+    for move in manifest.get("file_moves", []):
+        src = Path(move["from"])
+        dst = Path(move["to"])
+        if dst.exists():
+            try:
+                # Move back
+                src.parent.mkdir(parents=True, exist_ok=True)
+                dst.rename(src)
+                reversed_moves += 1
+            except OSError as e:
+                errors.append(f"Failed to move {dst} → {src}: {e}")
+        else:
+            errors.append(f"Target file not found for rollback: {dst}")
+
+    # Clean up empty directories created during redistribution
+    for move in manifest.get("file_moves", []):
+        dst_dir = Path(move["to"]).parent
+        try:
+            if dst_dir.exists() and not list(dst_dir.iterdir()):
+                dst_dir.rmdir()
+        except OSError:
+            pass
+
+    # Restore registry (if applicable)
+    registry_path = manifest.get("registry_path")
+    if registry_path and _yaml is not None and Path(registry_path).exists():
+        try:
+            with open(registry_path, encoding="utf-8") as f:
+                registry = _yaml.safe_load(f)
+
+            science = manifest.get("science", "")
+            old_version = manifest.get("previous_version", "")
+            new_version = manifest.get("new_version", "")
+
+            for entry in registry.get("sciences", []):
+                if entry.get("science_id") == science:
+                    versions = entry.get("versions", [])
+                    # Remove the new version
+                    entry["versions"] = [
+                        v for v in versions
+                        if v.get("taxonomy_version") != new_version
+                    ]
+                    # Restore old version as active
+                    for v in entry["versions"]:
+                        if v.get("taxonomy_version") == old_version:
+                            v["status"] = "active"
+
+            with open(registry_path, "w", encoding="utf-8") as f:
+                _yaml.dump(registry, f, allow_unicode=True,
+                           default_flow_style=False, sort_keys=False)
+        except Exception as e:
+            errors.append(f"Registry rollback failed: {e}")
+
+    # Delete the new taxonomy file if it exists
+    new_taxonomy_path = manifest.get("new_taxonomy_path")
+    if new_taxonomy_path and Path(new_taxonomy_path).exists():
+        try:
+            Path(new_taxonomy_path).unlink()
+        except OSError as e:
+            errors.append(f"Could not delete new taxonomy file: {e}")
+
+    return {
+        "reversed_moves": reversed_moves,
+        "errors": errors,
+        "status": "success" if not errors else "partial",
+    }
+
 
 def apply_evolution(
     proposal_path: str,
     taxonomy_path: str,
     assembly_dir: str | None,
     output_dir: str,
-) -> None:
-    """Apply approved taxonomy changes. Phase B — not yet implemented."""
-    raise NotImplementedError(
-        "The apply step is planned for Phase B. "
-        "Currently, review evolution_review.md and apply changes manually."
+    registry_path: str | None = None,
+    call_llm_fn=None,
+    model: str = "claude-sonnet-4-5-20250929",
+    api_key: str = "",
+    openrouter_key: str | None = None,
+    openai_key: str | None = None,
+) -> dict:
+    """Apply approved taxonomy evolution proposals.
+
+    1. Reads the proposal JSON (output of Phase A).
+    2. Applies structural changes to the taxonomy YAML → new version file.
+    3. Updates the taxonomy registry with the new version.
+    4. Redistributes assembled excerpt files to new sub-leaves.
+    5. Creates a rollback manifest for reversal.
+
+    Returns a summary dict with paths to all created artifacts.
+    """
+    # Load proposal
+    with open(proposal_path, encoding="utf-8") as f:
+        proposal_data = json.load(f)
+
+    proposals = proposal_data.get("proposals", [])
+    if not proposals:
+        return {"status": "no_proposals", "note": "No proposals to apply"}
+
+    science = proposal_data.get("science", "")
+    old_version = proposal_data.get("taxonomy_version", "")
+    new_version = _increment_version(old_version)
+
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    # 1. Apply structural changes to taxonomy YAML
+    new_taxonomy_path = apply_proposal_to_yaml(
+        taxonomy_path=taxonomy_path,
+        proposals=proposals,
+        new_version=new_version,
+        output_dir=output_dir,
     )
+
+    # 2. Update registry
+    actual_registry = registry_path or str(
+        Path(taxonomy_path).parent.parent / "taxonomy_registry.yaml"
+    )
+    if Path(actual_registry).exists():
+        try:
+            # Try to compute relative path; fall back to absolute
+            try:
+                rel = str(Path(new_taxonomy_path).relative_to(
+                    Path(actual_registry).parent
+                ))
+            except ValueError:
+                rel = new_taxonomy_path
+            update_taxonomy_registry(
+                registry_path=actual_registry,
+                science=science,
+                new_version=new_version,
+                new_relpath=rel,
+                previous_version=old_version,
+                notes=f"Evolved from {old_version}. {len(proposals)} proposals applied.",
+            )
+        except Exception as e:
+            print(f"WARNING: Could not update registry: {e}", file=sys.stderr)
+
+    # 3. Redistribute excerpts (if assembly_dir provided)
+    file_moves: list[dict] = []
+    redistribution_summary: dict = {}
+
+    if assembly_dir:
+        for proposal in proposals:
+            if proposal.get("change_type") != "leaf_granulated":
+                continue
+
+            parent_node = proposal.get("parent_node_id", "")
+            new_nodes = proposal.get("new_nodes", [])
+
+            if not parent_node or not new_nodes:
+                continue
+
+            result = redistribute_excerpts(
+                assembly_dir=assembly_dir,
+                old_node_id=parent_node,
+                new_nodes=new_nodes,
+                science=science,
+                taxonomy_path=new_taxonomy_path,
+                call_llm_fn=call_llm_fn,
+                model=model,
+                api_key=api_key,
+                openrouter_key=openrouter_key,
+                openai_key=openai_key,
+            )
+            redistribution_summary[parent_node] = result
+
+            # Record moves for rollback manifest
+            for original_path, target_node in result.get("moves", {}).items():
+                old_folder = Path(original_path).parent
+                new_folder = old_folder / parent_node / target_node
+                file_moves.append({
+                    "from": original_path,
+                    "to": str(new_folder / Path(original_path).name),
+                })
+
+    # 4. Create rollback manifest
+    manifest = {
+        "schema_version": "rollback_manifest_v0.1",
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "science": science,
+        "previous_version": old_version,
+        "new_version": new_version,
+        "original_taxonomy_path": taxonomy_path,
+        "new_taxonomy_path": new_taxonomy_path,
+        "registry_path": actual_registry if Path(actual_registry).exists() else None,
+        "file_moves": file_moves,
+        "proposals_applied": len(proposals),
+    }
+
+    manifest_path = out_path / "rollback_manifest.json"
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+    print(f"\n=== Evolution Applied ===")
+    print(f"New taxonomy: {new_taxonomy_path}")
+    print(f"Version: {old_version} → {new_version}")
+    print(f"Proposals applied: {len(proposals)}")
+    print(f"File moves: {len(file_moves)}")
+    print(f"Rollback manifest: {manifest_path}")
+
+    return {
+        "status": "applied",
+        "new_version": new_version,
+        "new_taxonomy_path": new_taxonomy_path,
+        "manifest_path": str(manifest_path),
+        "file_moves": len(file_moves),
+        "redistribution": redistribution_summary,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1153,6 +1906,7 @@ def run_evolution(
     science: str,
     output_dir: str,
     model: str = "claude-sonnet-4-5-20250929",
+    models: list[str] | None = None,
     api_key: str | None = None,
     openrouter_key: str | None = None,
     openai_key: str | None = None,
@@ -1271,41 +2025,92 @@ def run_evolution(
         return {"signals": len(signals), "proposals": 0, "error": "no_api_key"}
 
     # 9. Generate proposals
+    use_consensus = models and len(models) > 1
+    effective_models = models if use_consensus else [model]
+    consensus_results: list[dict] = []
+
     proposals: list[EvolutionProposal] = []
     for i, signal in enumerate(signals, 1):
         print(f"\n--- Signal {i}/{len(signals)}: [{signal.signal_type}] "
               f"{signal.node_id} ---")
-        proposal = propose_evolution_for_signal(
-            signal=signal,
-            taxonomy_yaml_raw=taxonomy_yaml_raw,
-            taxonomy_map=taxonomy_map,
-            model=model,
-            api_key=effective_key,
-            openrouter_key=openrouter_key,
-            openai_key=openai_key,
-            call_llm_fn=call_llm_fn,
-            proposal_seq=len(proposals) + 1,
-        )
-        if proposal is not None:
-            proposals.append(proposal)
-            print(f"  -> Proposal {proposal.proposal_id}: "
-                  f"{proposal.change_type} ({proposal.confidence})")
+
+        if use_consensus:
+            # Multi-model consensus mode
+            proposal, consensus = propose_with_consensus(
+                signal=signal,
+                taxonomy_yaml_raw=taxonomy_yaml_raw,
+                taxonomy_map=taxonomy_map,
+                models=effective_models,
+                api_key=effective_key,
+                openrouter_key=openrouter_key,
+                openai_key=openai_key,
+                call_llm_fn=call_llm_fn,
+                proposal_seq=len(proposals) + 1,
+            )
+            consensus_results.append(consensus)
+            if proposal is not None:
+                proposals.append(proposal)
+                print(f"  -> Consensus ({consensus['status']}): "
+                      f"Proposal {proposal.proposal_id}: "
+                      f"{proposal.change_type} ({proposal.confidence})")
+            else:
+                print(f"  -> Consensus ({consensus['status']}): No change needed")
         else:
-            print(f"  -> No change needed")
+            # Single-model mode
+            proposal = propose_evolution_for_signal(
+                signal=signal,
+                taxonomy_yaml_raw=taxonomy_yaml_raw,
+                taxonomy_map=taxonomy_map,
+                model=model,
+                api_key=effective_key,
+                openrouter_key=openrouter_key,
+                openai_key=openai_key,
+                call_llm_fn=call_llm_fn,
+                proposal_seq=len(proposals) + 1,
+            )
+            if proposal is not None:
+                proposals.append(proposal)
+                print(f"  -> Proposal {proposal.proposal_id}: "
+                      f"{proposal.change_type} ({proposal.confidence})")
+            else:
+                print(f"  -> No change needed")
 
     # 10. Generate output artifacts
     # 10a. evolution_proposal.json
+    effective_model_label = "+".join(effective_models) if use_consensus else model
     proposal_dict = generate_proposal_json(
         signals=signals,
         proposals=proposals,
         science=science,
         taxonomy_version=taxonomy_version,
         taxonomy_path=taxonomy_path,
-        model=model,
+        model=effective_model_label,
     )
     proposal_path = out_path / "evolution_proposal.json"
     with open(proposal_path, "w", encoding="utf-8") as f:
         json.dump(proposal_dict, f, ensure_ascii=False, indent=2)
+
+    # 10a-bis. consensus_results.json (when multi-model)
+    if use_consensus and consensus_results:
+        # Serialize consensus results (strip non-serializable proposal objects)
+        serializable_consensus = []
+        for cr in consensus_results:
+            entry = {
+                "status": cr.get("status"),
+                "note": cr.get("note"),
+                "agreed_nodes": cr.get("agreed_nodes"),
+                "disagreed_nodes": cr.get("disagreed_nodes"),
+                "confidence_override": cr.get("confidence_override"),
+            }
+            # Record per-model proposal IDs
+            mp = cr.get("model_proposals", {})
+            entry["model_proposals"] = {
+                m: (p.proposal_id if p else None) for m, p in mp.items()
+            }
+            serializable_consensus.append(entry)
+        consensus_path = out_path / "consensus_results.json"
+        with open(consensus_path, "w", encoding="utf-8") as f:
+            json.dump(serializable_consensus, f, ensure_ascii=False, indent=2)
 
     # 10b. taxonomy_changes.jsonl
     if proposals:
@@ -1324,7 +2129,7 @@ def run_evolution(
         science=science,
         taxonomy_version=taxonomy_version,
         taxonomy_map=taxonomy_map,
-        model=model,
+        model=effective_model_label,
     )
     review_path = out_path / "evolution_review.md"
     with open(review_path, "w", encoding="utf-8") as f:
@@ -1386,6 +2191,13 @@ def main():
         help="Model for evolution proposals (default: claude-sonnet-4-5-20250929)",
     )
     parser.add_argument(
+        "--models", default=None,
+        help=(
+            "Comma-separated list of models for multi-model consensus "
+            "(e.g., claude-sonnet-4-5-20250929,gpt-4o). Overrides --model."
+        ),
+    )
+    parser.add_argument(
         "--api-key", default=None,
         help="Anthropic API key (or set ANTHROPIC_API_KEY env var)",
     )
@@ -1420,10 +2232,18 @@ def main():
         help="Skip multi-topic excerpt signals (single large excerpt at solo node)",
     )
 
-    # Phase 2: Apply (Phase B stub)
+    # Phase B: Apply / Rollback
     parser.add_argument(
         "--apply", default=None,
-        help="Path to evolution_proposal.json to apply (Phase B — not yet implemented)",
+        help="Path to evolution_proposal.json to apply",
+    )
+    parser.add_argument(
+        "--rollback", default=None,
+        help="Path to rollback_manifest.json to revert an applied evolution",
+    )
+    parser.add_argument(
+        "--registry", default=None,
+        help="Path to taxonomy_registry.yaml (default: auto-detected from taxonomy path)",
     )
 
     # Mode
@@ -1434,9 +2254,30 @@ def main():
 
     args = parser.parse_args()
 
+    # Route to rollback mode
+    if args.rollback:
+        result = rollback_evolution(args.rollback)
+        print(f"Rollback result: {result['status']}")
+        if result.get("errors"):
+            for err in result["errors"]:
+                print(f"  ERROR: {err}", file=sys.stderr)
+        print(f"  Reversed {result['reversed_moves']} file moves")
+        return
+
     # Route to apply mode
     if args.apply:
-        apply_evolution(args.apply, args.taxonomy, args.assembly_dir, args.output_dir)
+        result = apply_evolution(
+            proposal_path=args.apply,
+            taxonomy_path=args.taxonomy,
+            assembly_dir=args.assembly_dir,
+            output_dir=args.output_dir,
+            registry_path=args.registry,
+            model=args.model,
+            api_key=args.api_key,
+            openrouter_key=args.openrouter_key,
+            openai_key=args.openai_key,
+        )
+        print(f"Apply result: {result.get('status', 'unknown')}")
         return
 
     # Validate required args for detect+propose mode
@@ -1448,12 +2289,18 @@ def main():
     if args.node_ids:
         node_id_list = [n.strip() for n in args.node_ids.split(",") if n.strip()]
 
+    # Parse models list
+    models_list = None
+    if args.models:
+        models_list = [m.strip() for m in args.models.split(",") if m.strip()]
+
     run_evolution(
         extraction_dir=args.extraction_dir,
         taxonomy_path=args.taxonomy,
         science=args.science,
         output_dir=args.output_dir,
         model=args.model,
+        models=models_list,
         api_key=args.api_key,
         openrouter_key=args.openrouter_key,
         openai_key=args.openai_key,

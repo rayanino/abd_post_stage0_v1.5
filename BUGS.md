@@ -548,7 +548,7 @@ Unchanged.
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 539 engine tests pass (extraction + evolution + assembly + consensus + intake). 841+ total across full suite.
+**Test suite:** 567 engine tests pass (extraction + evolution + assembly + consensus + intake). 869+ total across full suite.
 
 ### Remaining Fix Priority
 
