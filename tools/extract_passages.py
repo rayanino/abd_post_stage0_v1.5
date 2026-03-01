@@ -620,7 +620,8 @@ def call_llm(system: str, user: str, model: str, api_key: str) -> dict:
                 },
                 timeout=180.0,
             )
-        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout,
+                       httpx.PoolTimeout) as e:
             last_err = e
             if attempt >= _ANTHROPIC_MAX_RETRIES:
                 raise RuntimeError(
@@ -734,7 +735,8 @@ def call_llm_openrouter(system: str, user: str, model: str,
                 },
                 timeout=240.0,
             )
-        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout,
+                       httpx.PoolTimeout) as e:
             last_error = e
             if attempt < _OPENROUTER_MAX_RETRIES:
                 wait = _OPENROUTER_RETRY_BACKOFF[min(attempt, len(_OPENROUTER_RETRY_BACKOFF) - 1)]
@@ -832,7 +834,8 @@ def call_llm_openai(system: str, user: str, model: str,
                 },
                 timeout=240.0,
             )
-        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout,
+                       httpx.PoolTimeout) as e:
             last_error = e
             if attempt >= _ANTHROPIC_MAX_RETRIES:
                 raise RuntimeError(
@@ -970,8 +973,9 @@ def _normalize_atom_entries(entries, default_role: str) -> list[dict]:
         if isinstance(entry, str):
             normalized.append({"atom_id": entry, "role": default_role})
         elif isinstance(entry, dict):
-            entry.setdefault("role", default_role)
-            normalized.append(entry)
+            entry_copy = dict(entry)
+            entry_copy.setdefault("role", default_role)
+            normalized.append(entry_copy)
         else:
             normalized.append({"atom_id": str(entry), "role": default_role})
     return normalized
@@ -1041,6 +1045,17 @@ def post_process_extraction(result: dict, book_id: str, science: str,
         exc.setdefault("case_types", [])
         exc.setdefault("heading_path", [])
         exc.setdefault("context_atoms", [])
+        exc.setdefault("excerpt_kind", "teaching")
+        exc.setdefault("taxonomy_path", "")
+        # Normalize dot-path / colon-path / slash-path taxonomy_node_id
+        # to just the last segment (leaf ID). LLMs sometimes return full
+        # paths like "aqidah.al_iman.ta3rif" instead of just "ta3rif".
+        node = exc.get("taxonomy_node_id", "")
+        if node:
+            for sep in (".", ":", "/"):
+                if sep in node:
+                    exc["taxonomy_node_id"] = node.rsplit(sep, 1)[-1]
+                    break
         # Normalize core/context atoms to objects with roles
         exc["core_atoms"] = _normalize_atom_entries(
             exc.get("core_atoms", []), "author_prose"
@@ -1269,25 +1284,8 @@ def validate_extraction(result: dict, passage_id: str,
                 )
 
     # --- Check 10: Leaf-only placement (PLACE.P2) ---
-    # First, normalize taxonomy_node_id: LLMs sometimes return full paths
-    # (e.g., "aqidah.al_iman_billah.asma_wa_sifat.al_istiwa" or
-    # "manhaj_ahl_al_sunna:al_ittiba3") instead of just the leaf ID.
-    # Extract the last segment and check if it's a valid leaf.
-    for exc in excerpts:
-        node = exc.get("taxonomy_node_id", "")
-        if node and node != "_unmapped" and node not in taxonomy_leaves:
-            # Try extracting last segment from dot-path or colon-path
-            for sep in (".", ":", "/"):
-                if sep in node:
-                    last_segment = node.rsplit(sep, 1)[-1]
-                    if last_segment in taxonomy_leaves:
-                        exc["taxonomy_node_id"] = last_segment
-                        info.append(
-                            f"Normalized taxonomy_node_id '{node}' → "
-                            f"'{last_segment}' for {exc.get('excerpt_id','???')}"
-                        )
-                        break
-
+    # Note: taxonomy_node_id normalization (dot/colon/slash path → leaf ID)
+    # now happens in post_process_extraction. Validation only reports.
     for exc in excerpts:
         node = exc.get("taxonomy_node_id", "")
         if node and node != "_unmapped" and node not in taxonomy_leaves:

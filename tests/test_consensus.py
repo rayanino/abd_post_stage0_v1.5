@@ -3019,3 +3019,85 @@ class TestOptimalAssignmentDeadCode:
         assert len(pairs) == 2
         assert (0, 0) in pairs
         assert (2, 2) in pairs
+
+
+class TestPreferModelValidation:
+    """BUG-FIX: prefer_model should be validated against actual model names."""
+
+    def test_invalid_prefer_model_ignored(self, capsys):
+        """Mistyped prefer_model should be ignored with a warning."""
+        from consensus import build_consensus
+
+        result_a = {
+            "atoms": [{"atom_id": "a:matn:000001", "text": "نص",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "a:exc:000001",
+                          "taxonomy_node_id": "leaf1",
+                          "core_atoms": [{"atom_id": "a:matn:000001",
+                                          "role": "author_prose"}]}],
+        }
+        result_b = {
+            "atoms": [{"atom_id": "b:matn:000001", "text": "نص",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "b:exc:000001",
+                          "taxonomy_node_id": "leaf1",
+                          "core_atoms": [{"atom_id": "b:matn:000001",
+                                          "role": "author_prose"}]}],
+        }
+        issues_a = {"errors": [], "warnings": []}
+        issues_b = {"errors": [], "warnings": ["some warning"]}
+
+        consensus = build_consensus(
+            "P001", result_a, result_b,
+            "model_a", "model_b",
+            issues_a, issues_b,
+            prefer_model="typo_model",  # doesn't match either
+        )
+        captured = capsys.readouterr()
+        assert "typo_model" in captured.err
+        assert "Ignoring" in captured.err
+        # Should fall back to model_a (fewer issues)
+        assert consensus["excerpts"][0].get("taxonomy_node_id") == "leaf1"
+
+
+class TestEnrichmentNonMutating:
+    """BUG-FIX: enrichment in full agreement should not mutate original results."""
+
+    def test_enrichment_does_not_mutate_original(self):
+        """Full agreement enrichment should copy the excerpt, not mutate it."""
+        from consensus import build_consensus
+
+        result_a = {
+            "atoms": [{"atom_id": "a:matn:000001", "text": "نص",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "a:exc:000001",
+                          "taxonomy_node_id": "leaf1",
+                          "core_atoms": [{"atom_id": "a:matn:000001",
+                                          "role": "author_prose"}],
+                          "case_types": []}],  # empty, will be enriched
+        }
+        result_b = {
+            "atoms": [{"atom_id": "b:matn:000001", "text": "نص",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "b:exc:000001",
+                          "taxonomy_node_id": "leaf1",
+                          "core_atoms": [{"atom_id": "b:matn:000001",
+                                          "role": "author_prose"}],
+                          "case_types": ["A1_pure_definition"]}],
+        }
+        issues_a = {"errors": [], "warnings": []}
+        issues_b = {"errors": [], "warnings": []}
+
+        # Save reference to original excerpt
+        original_exc_a = result_a["excerpts"][0]
+
+        consensus = build_consensus(
+            "P001", result_a, result_b,
+            "model_a", "model_b",
+            issues_a, issues_b,
+        )
+        # The consensus should have enriched case_types
+        consensus_exc = consensus["excerpts"][0]
+        assert consensus_exc.get("case_types") == ["A1_pure_definition"]
+        # The original should NOT have been mutated
+        assert original_exc_a["case_types"] == []

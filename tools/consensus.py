@@ -1151,6 +1151,12 @@ def build_consensus(
     issues_a_count = len(issues_a.get("errors", [])) + len(issues_a.get("warnings", []))
     issues_b_count = len(issues_b.get("errors", [])) + len(issues_b.get("warnings", []))
     if prefer_model:
+        if prefer_model not in (model_a, model_b):
+            print(f"  WARNING: prefer_model '{prefer_model}' doesn't match either "
+                  f"model ({model_a}, {model_b}). Ignoring.",
+                  file=sys.stderr)
+            prefer_model = None
+    if prefer_model:
         winning = prefer_model
     elif issues_a_count <= issues_b_count:
         winning = model_a
@@ -1225,7 +1231,7 @@ def build_consensus(
             })
         elif m["same_taxonomy"]:
             # FULL AGREEMENT -- high confidence
-            exc = m["excerpt_a"] if winning == model_a else m["excerpt_b"]
+            exc = dict(m["excerpt_a"] if winning == model_a else m["excerpt_b"])
             other_exc = m["excerpt_b"] if winning == model_a else m["excerpt_a"]
             # H06: Enrich winning excerpt's empty metadata from losing model.
             # Only metadata fields — never overwrite content (core_atoms, etc.)

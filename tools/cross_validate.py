@@ -45,7 +45,6 @@ from tools.assemble_excerpts import (
     build_atoms_index,
     load_extraction_files,
     parse_taxonomy_yaml,
-    resolve_atom_texts,
 )
 
 
@@ -251,7 +250,11 @@ def validate_placement(
     taxonomy_map = parse_taxonomy_yaml(taxonomy_path, science)
     extraction_data = load_extraction_files(extraction_dir)
     if not extraction_data:
-        return {"status": "no_data", "results": []}
+        return {
+            "status": "no_data", "validation_type": "placement",
+            "results": [], "total_excerpts": 0, "agreements": 0,
+            "disagreements": 0, "error_count": 0,
+        }
 
     # Build atom indexes
     atoms_indexes: dict[str, dict[str, dict]] = {}
@@ -369,7 +372,8 @@ def _check_fields_algorithmic(excerpt_data: dict) -> list[str]:
     # Check author/book context
     if not excerpt_data.get("book_title"):
         issues.append("Missing book_title")
-    if not excerpt_data.get("author_name") and not excerpt_data.get("book_title"):
+    # Assembly writes "author"; older formats might use "author_name"
+    if not excerpt_data.get("author") and not excerpt_data.get("author_name"):
         issues.append("Missing author identification")
 
     # Check taxonomy context
@@ -378,8 +382,15 @@ def _check_fields_algorithmic(excerpt_data: dict) -> list[str]:
     if not excerpt_data.get("taxonomy_node_id"):
         issues.append("Missing taxonomy_node_id")
 
-    # Check source reference
-    if not excerpt_data.get("source_pages") and not excerpt_data.get("page_range"):
+    # Check source reference — assembly stores provenance in nested dict
+    provenance = excerpt_data.get("provenance", {})
+    has_source_ref = (
+        excerpt_data.get("source_pages")
+        or excerpt_data.get("page_range")
+        or provenance.get("extraction_passage_id")
+        or provenance.get("source_atoms")
+    )
+    if not has_source_ref:
         issues.append("Missing source page reference")
 
     # Check excerpt ID
@@ -408,7 +419,11 @@ def validate_self_containment(
     """
     assembly_path = Path(assembly_dir)
     if not assembly_path.exists():
-        return {"status": "no_data", "results": []}
+        return {
+            "status": "no_data", "validation_type": "self_containment",
+            "results": [], "total_excerpts": 0, "pass_count": 0,
+            "fail_count": 0, "error_count": 0,
+        }
 
     effective_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
     effective_openrouter = openrouter_key or os.environ.get("OPENROUTER_API_KEY")
@@ -519,7 +534,11 @@ def validate_cross_book_consistency(
     """
     assembly_path = Path(assembly_dir)
     if not assembly_path.exists():
-        return {"status": "no_data", "results": []}
+        return {
+            "status": "no_data", "validation_type": "cross_book_consistency",
+            "results": [], "total_nodes_checked": 0,
+            "coherent_count": 0, "incoherent_count": 0, "error_count": 0,
+        }
 
     effective_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
     effective_openrouter = openrouter_key or os.environ.get("OPENROUTER_API_KEY")
@@ -544,7 +563,7 @@ def validate_cross_book_consistency(
     # Filter to nodes with 2+ excerpts from different books
     multi_book_nodes = {}
     for node_id, excerpts in node_excerpts.items():
-        book_ids = set(e.get("book_id", "") for e in excerpts)
+        book_ids = set(e.get("book_id", "") for e in excerpts) - {""}
         if len(book_ids) >= 2:
             multi_book_nodes[node_id] = excerpts
 

@@ -80,19 +80,19 @@ def _write_assembly_file(assembly_dir: Path, node_path: str, excerpt_data: dict)
 
 SAMPLE_V1_YAML = """\
 taxonomy:
-  science: imlaa
-  version: "1.0"
+  id: imlaa_v1_0
+  title: "علم الإملاء"
   nodes:
-    - node_id: imlaa
+    - id: imlaa
       title: "علم الإملاء"
       children:
-        - node_id: alhamza
+        - id: alhamza
           title: "الهمزة"
           children:
-            - node_id: ta3rif_alhamza
+            - id: ta3rif_alhamza
               title: "تعريف الهمزة"
               leaf: true
-            - node_id: hamzat_alwasl
+            - id: hamzat_alwasl
               title: "همزة الوصل"
               leaf: true
 """
@@ -140,13 +140,42 @@ class TestCheckFieldsAlgorithmic:
             "excerpt_id": "E001",
             "full_text": "نص عربي طويل بما فيه الكفاية للاختبار",
             "book_title": "قواعد الإملاء",
-            "author_name": "عبد السلام هارون",
+            "author": "عبد السلام هارون",
             "taxonomy_path": "imlaa > alhamza > ta3rif_alhamza",
             "taxonomy_node_id": "ta3rif_alhamza",
             "source_pages": "19-20",
         }
         issues = _check_fields_algorithmic(data)
         assert issues == []
+
+    def test_author_field_accepted(self):
+        """Assembly uses 'author' not 'author_name' — should be accepted."""
+        data = {
+            "excerpt_id": "E001",
+            "full_text": "نص عربي طويل بما فيه الكفاية للاختبار",
+            "book_title": "قواعد الإملاء",
+            "author": "عبد السلام هارون",
+            "taxonomy_path": "imlaa > alhamza > ta3rif_alhamza",
+            "taxonomy_node_id": "ta3rif_alhamza",
+            "provenance": {"extraction_passage_id": "P004"},
+        }
+        issues = _check_fields_algorithmic(data)
+        assert not any("author" in i.lower() for i in issues)
+        assert not any("page" in i.lower() for i in issues)
+
+    def test_provenance_satisfies_source_ref(self):
+        """Provenance with extraction_passage_id should satisfy source ref check."""
+        data = {
+            "excerpt_id": "E001",
+            "full_text": "نص عربي طويل بما فيه الكفاية للاختبار",
+            "book_title": "قواعد الإملاء",
+            "author": "مؤلف",
+            "taxonomy_path": "x",
+            "taxonomy_node_id": "x",
+            "provenance": {"extraction_passage_id": "P004"},
+        }
+        issues = _check_fields_algorithmic(data)
+        assert not any("page" in i.lower() for i in issues)
 
     def test_missing_text(self):
         data = {"excerpt_id": "E001", "book_title": "X", "taxonomy_path": "x",

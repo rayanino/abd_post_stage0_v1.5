@@ -1729,7 +1729,10 @@ class TestResolveKeyForModel:
 
 
 class TestTaxonomyNodeNormalization:
-    """BUG-043: LLMs return full paths instead of leaf IDs."""
+    """BUG-043: LLMs return full paths instead of leaf IDs.
+
+    Normalization now happens in post_process_extraction (not validate_extraction).
+    """
 
     LEAVES = {"al_istiwa", "ta3rif_al_iman", "al_karamat", "al_ittiba3"}
 
@@ -1746,6 +1749,7 @@ class TestTaxonomyNodeNormalization:
 
     def test_dot_path_normalized(self):
         result = self._make_result("aqidah.al_iman_billah.asma_wa_sifat.al_istiwa")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "al_istiwa"
@@ -1753,6 +1757,7 @@ class TestTaxonomyNodeNormalization:
 
     def test_colon_path_normalized(self):
         result = self._make_result("manhaj_ahl_al_sunna:al_ittiba3")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "al_ittiba3"
@@ -1760,6 +1765,7 @@ class TestTaxonomyNodeNormalization:
 
     def test_slash_path_normalized(self):
         result = self._make_result("aqidah/al_iman/ta3rif_al_iman")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "ta3rif_al_iman"
@@ -1767,6 +1773,7 @@ class TestTaxonomyNodeNormalization:
 
     def test_plain_leaf_unchanged(self):
         result = self._make_result("al_karamat")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "al_karamat"
@@ -1774,12 +1781,64 @@ class TestTaxonomyNodeNormalization:
 
     def test_unknown_path_still_warns(self):
         result = self._make_result("aqidah.unknown_branch.unknown_leaf")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         assert any("non-leaf" in w for w in v["warnings"])
 
     def test_unmapped_not_normalized(self):
         result = self._make_result("_unmapped")
+        result = post_process_extraction(result, "test", "aqidah")
         v = validate_extraction(result, "P001", self.LEAVES)
         exc = result["excerpts"][0]
         assert exc["taxonomy_node_id"] == "_unmapped"
         assert len(v["warnings"]) == 0
+
+
+class TestPostProcessDefaults:
+    """BUG-FIX: post_process_extraction should set defaults for missing fields."""
+
+    def test_excerpt_kind_defaulted(self):
+        """excerpt_kind should default to 'teaching' if LLM omits it."""
+        result = {
+            "atoms": [{"atom_id": "x:matn:001", "text": "test",
+                        "atom_type": "prose_sentence", "source_layer": "matn"}],
+            "excerpts": [{"excerpt_id": "x:exc:001",
+                          "core_atoms": [{"atom_id": "x:matn:001"}],
+                          "taxonomy_node_id": "leaf1"}],
+        }
+        result = post_process_extraction(result, "test", "imlaa")
+        assert result["excerpts"][0]["excerpt_kind"] == "teaching"
+
+    def test_taxonomy_path_defaulted(self):
+        """taxonomy_path should default to empty string."""
+        result = {
+            "atoms": [], "excerpts": [{"excerpt_id": "x:exc:001",
+                                        "taxonomy_node_id": "leaf1"}],
+        }
+        result = post_process_extraction(result, "test", "imlaa")
+        assert result["excerpts"][0]["taxonomy_path"] == ""
+
+    def test_existing_excerpt_kind_not_overwritten(self):
+        """Existing excerpt_kind should not be overwritten by default."""
+        result = {
+            "atoms": [],
+            "excerpts": [{"excerpt_id": "x:exc:001",
+                          "excerpt_kind": "methodology",
+                          "taxonomy_node_id": "leaf1"}],
+        }
+        result = post_process_extraction(result, "test", "imlaa")
+        assert result["excerpts"][0]["excerpt_kind"] == "methodology"
+
+
+class TestNormalizeAtomEntriesNonMutating:
+    """BUG-FIX: _normalize_atom_entries should not mutate original dicts."""
+
+    def test_original_dict_not_mutated(self):
+        """Original atom dict should not be modified by normalization."""
+        original = {"atom_id": "x:matn:001"}
+        entries = [original]
+        normalized = _normalize_atom_entries(entries, "author_prose")
+        # Normalized result should have 'role' added
+        assert normalized[0]["role"] == "author_prose"
+        # Original should NOT have been mutated
+        assert "role" not in original
