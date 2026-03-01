@@ -773,20 +773,120 @@ Unchanged.
 
 ---
 
+### BUG-071 🔴 FIXED — `cross_validate.py` Checks `author_name` but Assembly Produces `author`
+
+**Location:** `tools/cross_validate.py` → `_check_fields_algorithmic()` (line 372)
+
+**Problem:** The self-containment check looked for `author_name` but `assemble_excerpts.py` writes the field as `author`. Combined with an `and` condition requiring `book_title` also missing, this partially masked the issue but made the author check unreliable.
+
+**Fix:** Check both `author` and `author_name` fields. Made the author check independent of book_title.
+
+---
+
+### BUG-072 🔴 FIXED — `cross_validate.py` `source_pages` Check Always Fails on Assembled Excerpts
+
+**Location:** `tools/cross_validate.py` → `_check_fields_algorithmic()` (line 382)
+
+**Problem:** The algorithmic check required `source_pages` or `page_range`, but assembly stores provenance in a nested `provenance` dict with `extraction_passage_id` and `source_atoms`. Every assembled excerpt failed this check with a false positive "Missing source page reference", which then blocked the LLM self-containment check from ever running (line 443: `if model and not algo_issues`).
+
+**Fix:** Also check `provenance.extraction_passage_id` and `provenance.source_atoms` as valid source references.
+
+---
+
+### BUG-073 🟡 FIXED — `consensus.py` `prefer_model` Not Validated Against Actual Model Names
+
+**Location:** `tools/consensus.py` → `build_consensus()` (line 1153)
+
+**Problem:** If `prefer_model` was set to a typo (e.g., `claude-sonet` instead of `claude-sonnet-4-5-20250929`), `winning` was silently set to the wrong string, causing all subsequent model selection logic to use `result_b` regardless of intent.
+
+**Fix:** Validate `prefer_model` against `(model_a, model_b)`. If mismatched, emit warning and fall back to issue-count-based selection.
+
+---
+
+### BUG-074 🟡 FIXED — `consensus.py` Enrichment Mutates Original Model Results
+
+**Location:** `tools/consensus.py` → `build_consensus()` (line 1234)
+
+**Problem:** In the full agreement path, `exc = m["excerpt_a"]` gave a direct reference into the original model result. Enrichment then mutated this dict in place via `exc[field] = other_val`. If downstream code re-examined the per-model results after consensus, it would see unexpectedly modified data.
+
+**Fix:** Shallow copy the excerpt before enriching: `exc = dict(m["excerpt_a"] if ...)`.
+
+---
+
+### BUG-075 🟡 FIXED — `extract_passages.py` Validation Check 10 Mutates Data During Validation
+
+**Location:** `tools/extract_passages.py` → `validate_extraction()` (lines 1277-1295)
+
+**Problem:** The taxonomy_node_id normalization (dot-path/colon-path → leaf ID) was performed inside `validate_extraction`, which should be a pure reporting function. This meant validation had side effects, making it non-idempotent and causing the normalization to be entangled with the validation report.
+
+**Fix:** Moved normalization to `post_process_extraction` where other normalizations happen. Validation now only reports non-leaf placement.
+
+---
+
+### BUG-076 🟡 FIXED — `extract_passages.py` Missing Defaults for `excerpt_kind` and `taxonomy_path`
+
+**Location:** `tools/extract_passages.py` → `post_process_extraction()` (line ~1039)
+
+**Problem:** `post_process_extraction` set defaults for many fields but omitted `excerpt_kind` and `taxonomy_path`. If the LLM omitted these, they silently became absent in the output. Assembly would get empty taxonomy_path fallback (no harm) but `excerpt_kind` would be missing from the assembled excerpt.
+
+**Fix:** Added `exc.setdefault("excerpt_kind", "teaching")` and `exc.setdefault("taxonomy_path", "")`.
+
+---
+
+### BUG-077 🟡 FIXED — `extract_passages.py` `_normalize_atom_entries` Mutates Original Dicts
+
+**Location:** `tools/extract_passages.py` → `_normalize_atom_entries()` (line 973)
+
+**Problem:** `entry.setdefault("role", default_role)` mutated the original LLM output dict in place. In consensus mode, both the raw saved output and the post-processed output could point to the same dict objects.
+
+**Fix:** Copy the dict before modifying: `entry_copy = dict(entry)`.
+
+---
+
+### BUG-078 🟡 FIXED — `extract_passages.py` `httpx.PoolTimeout` Not Caught in Retry Logic
+
+**Location:** `tools/extract_passages.py` → `call_llm()`, `call_llm_openrouter()`, `call_llm_openai()` (lines 623, 737, 835)
+
+**Problem:** Retry handlers caught `ConnectError`, `ReadTimeout`, `WriteTimeout` but not `PoolTimeout` (connection pool exhaustion). On long-running extraction jobs, pool exhaustion can occur since each call creates a fresh httpx client.
+
+**Fix:** Added `httpx.PoolTimeout` to the retry exception tuple in all three API call functions.
+
+---
+
+### BUG-079 🟡 FIXED — `cross_validate.py` `no_data` Reports Missing Standard Keys
+
+**Location:** `tools/cross_validate.py` → `validate_placement()`, `validate_self_containment()`, `validate_cross_book_consistency()`
+
+**Problem:** When there was no data, functions returned `{"status": "no_data", "results": []}` missing standard keys like `agreements`, `total_excerpts`, etc. Programmatic consumers (e.g., human_gate) accessing these keys would get `KeyError`.
+
+**Fix:** Added zeroed standard keys to all three no_data returns.
+
+---
+
+### BUG-080 🟡 FIXED — `cross_validate.py` Empty `book_id` Treated as Valid Book
+
+**Location:** `tools/cross_validate.py` → `validate_cross_book_consistency()` (line 566)
+
+**Problem:** `book_ids = set(e.get("book_id", "") for e in excerpts)` treated empty string as a valid book ID, skewing multi-book detection.
+
+**Fix:** Filter out empty values: `book_ids = ... - {""}`.
+
+---
+
 ## Summary
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
-| 🔴 CRITICAL | 24 | 0 | 24 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043, 047, 048, 049, 051, 053, 056, 057, 058, 065, 066) |
-| 🟡 MODERATE | 34 | 1 | 33 (BUG-005, 006, 008, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 032, 037, 039, 044, 045, 046, 050, 052, 055, 059, 060, 061, 062, 063, 064, 067, 068) |
+| 🔴 CRITICAL | 26 | 0 | 26 (BUG-001–004, 021–023, 035, 036, 038, 040–043, 047–049, 051, 053, 056–058, 065, 066, 071, 072) |
+| 🟡 MODERATE | 42 | 1 | 41 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080) |
 | 🟢 LOW | 13 | 1 | 12 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070 + audit fixes) |
-| **Total** | **71** | **2** | **69** |
+| **Total** | **81** | **2** | **79** |
 
-**69 bugs fixed across Audits 2–10.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
+**79 bugs fixed across Audits 2–11.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 1016 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
+**Test suite:** 1024 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
 
 ### Remaining Open Bugs (Low Priority)
 

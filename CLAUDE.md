@@ -139,7 +139,7 @@ provenance tracking, taxonomy version control
 ## Running Things
 
 ```bash
-# Unit tests (1016 pass, ~34s)
+# Unit tests (1024 pass, ~35s)
 python -m pytest tests/ -q
 
 # Single test file
@@ -294,7 +294,7 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 - Taxonomy evolution engine Phase A + B (`tools/evolve_taxonomy.py`) — signal detection (5 types), LLM proposal generation, apply approved proposals to YAML (v0 + v1 formats), excerpt redistribution, rollback capability, multi-model consensus for proposals, taxonomy registry version control
 - Human gate infrastructure (`tools/human_gate.py`) — correction persistence (JSONL), correction replay (re-extract with correction context), pattern detection (recurring errors, model/node/passage analysis), gate checkpoints (reviewed/pending tracking per excerpt)
 - Cross-validation layers (`tools/cross_validate.py`) — placement cross-validation (independent LLM re-checks placement), self-containment validation (algorithmic + LLM), cross-book consistency (topic coherence at multi-book leaves)
-- 1016 tests pass across the full suite (~165 extraction, ~120 consensus, ~70 assembly, ~108 evolution, ~90 intake, ~46 human gate, ~32 cross-validation, ~96 structure discovery, ~80 normalization, ~13 utility tools)
+- 1024 tests pass across the full suite (~168 extraction, ~122 consensus, ~70 assembly, ~108 evolution, ~90 intake, ~46 human gate, ~34 cross-validation, ~96 structure discovery, ~80 normalization, ~13 utility tools)
 - 3-way API dispatch: Anthropic direct, OpenAI direct, OpenRouter (model prefix routing)
 - Live-validated on 5 إملاء passages (P004, P005, P006, P010, P020) with Claude + GPT-4o consensus
 - All 4 core taxonomy trees complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves
