@@ -713,20 +713,80 @@ Unchanged.
 
 ---
 
+### BUG-065 🔴 FIXED — `assemble_excerpts.py` v0 Parser Ignores `_label` for Node Titles
+
+**Location:** `tools/assemble_excerpts.py` → `_parse_v0()` (line 177 + line 196)
+
+**Problem:** The v0 taxonomy parser used the raw node_id (e.g., `al_hamza`) as the title for every node, ignoring the `_label` field that carries the Arabic display name (e.g., `الهمزة`). This caused `taxonomy_path` in assembled excerpts to contain Latin IDs instead of Arabic titles (e.g., `imlaa > al_hamza > ...` instead of `إملاء > الهمزة > ...`). The root title was hardcoded to `science` name regardless of `_label`.
+
+**Fix:** Read `_label` from each node dict for title fallback: `title = value.get("_label", key)`. For root: `root_title = root_data.get("_label", science)`.
+
+---
+
+### BUG-066 🔴 FIXED — `evolve_taxonomy.py` `redistribute_excerpts` Reads Wrong Field Names
+
+**Location:** `tools/evolve_taxonomy.py` → `redistribute_excerpts()` (line ~1633)
+
+**Problem:** The function read `arabic_text` and `text` from excerpt files, but assembled excerpts use `full_text` and `core_text`. This meant the LLM redistribution prompt received empty text for all assembled excerpts, making redistribution decisions effectively random.
+
+**Fix:** Priority chain: `full_text` → `core_text` → `arabic_text` → `text`, covering both assembled and raw extraction formats.
+
+---
+
+### BUG-067 🟡 FIXED — `assemble_excerpts.py` `taxonomy_path` Only Updated on Normalization
+
+**Location:** `tools/assemble_excerpts.py` → `assemble_matn_excerpt()` and `assemble_footnote_excerpt()`
+
+**Problem:** The authoritative `taxonomy_path` from the parsed YAML tree was only applied when `normalize_node_id()` changed the node ID. If the node ID was already correct, the LLM-provided `taxonomy_path` was kept, which could be wrong or use different Arabic phrasing than the canonical tree.
+
+**Fix:** Always use the authoritative `taxonomy_path` from the parsed tree, regardless of whether the node ID was normalized.
+
+---
+
+### BUG-068 🟡 FIXED — `assemble_excerpts.py` Duplicate Node IDs Silently Overwrite
+
+**Location:** `tools/assemble_excerpts.py` → `_parse_v0()` and `_parse_v1()`
+
+**Problem:** When a taxonomy YAML had duplicate node IDs (e.g., two siblings each with a child named `overview`), later entries silently overwrote earlier ones in the result dict. No warning was emitted, causing excerpts to be placed in the wrong folder.
+
+**Fix:** Added duplicate detection in both parsers with stderr warning: `WARNING: duplicate taxonomy node_id '{nid}'`.
+
+---
+
+### BUG-069 🟢 FIXED — `assemble_excerpts.py` KNOWN_SCIENCES Missing `aqidah`
+
+**Location:** `tools/assemble_excerpts.py` → `KNOWN_SCIENCES` set
+
+**Problem:** عقيدة (aqidah) was E2E-tested and had its own taxonomy (v0.1, v0.2) but wasn't in `KNOWN_SCIENCES`, causing a spurious warning during assembly runs.
+
+**Fix:** Added `"aqidah"` to the set.
+
+---
+
+### BUG-070 🟢 FIXED — `assemble_excerpts.py` No Error Handling for Corrupted JSON
+
+**Location:** `tools/assemble_excerpts.py` → `load_extraction_files()` and `load_intake_metadata()`
+
+**Problem:** Corrupted extraction JSON files (e.g., truncated writes, encoding errors) caused unhandled `json.JSONDecodeError`, crashing the entire assembly run instead of skipping the bad file.
+
+**Fix:** Wrapped JSON loading in try/except with warning message and continue.
+
+---
+
 ## Summary
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
-| 🔴 CRITICAL | 22 | 0 | 22 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043, 047, 048, 049, 051, 053, 056, 057, 058) |
-| 🟡 MODERATE | 32 | 1 | 31 (BUG-005, 006, 008, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 032, 037, 039, 044, 045, 046, 050, 052, 055, 059, 060, 061, 062, 063, 064) |
-| 🟢 LOW | 11 | 1 | 10 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054 + audit fixes) |
-| **Total** | **65** | **2** | **63** |
+| 🔴 CRITICAL | 24 | 0 | 24 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043, 047, 048, 049, 051, 053, 056, 057, 058, 065, 066) |
+| 🟡 MODERATE | 34 | 1 | 33 (BUG-005, 006, 008, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 032, 037, 039, 044, 045, 046, 050, 052, 055, 059, 060, 061, 062, 063, 064, 067, 068) |
+| 🟢 LOW | 13 | 1 | 12 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070 + audit fixes) |
+| **Total** | **71** | **2** | **69** |
 
-**63 bugs fixed across Audits 2–9.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
+**69 bugs fixed across Audits 2–10.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 1003 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
+**Test suite:** 1016 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
 
 ### Remaining Open Bugs (Low Priority)
 
