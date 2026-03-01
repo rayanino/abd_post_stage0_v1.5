@@ -99,6 +99,7 @@ taxonomy/
 | `tools/consensus.py` | ~1722 | 3+4 | Multi-model consensus engine: text-overlap matching, LLM arbiter |
 | `tools/assemble_excerpts.py` | ~530 | 7 | Self-contained excerpt assembly + taxonomy folder distribution |
 | `tools/evolve_taxonomy.py` | ~2280 | 6 | Taxonomy evolution: signal detection, LLM proposals, apply, redistribute, rollback, multi-model consensus (Phase A + B) |
+| `tools/human_gate.py` | ~570 | Cross | Human gate: correction persistence, correction replay, pattern detection, gate checkpoints |
 | `tools/extract_clean_input.py` | 234 | 3 (CP1) | Extract clean text from HTML for manual atomization (legacy) |
 | `tools/validate_gold.py` | ~1930 | QA | Validate gold baselines against schema |
 | `tools/render_excerpts_md.py` | 271 | QA | Render excerpts as readable Markdown |
@@ -142,7 +143,7 @@ Each `intake_metadata.json` carries a `scholarly_context` block (author death/bi
 
 ### Tests
 
-869+ tests pass across 8 test files (parametrized tests expand the count).
+908+ tests pass across 9 test files (parametrized tests expand the count).
 
 | Test file | Tests | Covers |
 |-----------|-------|--------|
@@ -154,6 +155,7 @@ Each `intake_metadata.json` carries a `scholarly_context` block (author death/bi
 | `tests/test_consensus.py` | ~120 | `tools/consensus.py` |
 | `tests/test_assembly.py` | ~50 | `tools/assemble_excerpts.py` |
 | `tests/test_evolution.py` | ~90 | `tools/evolve_taxonomy.py` |
+| `tests/test_human_gate.py` | ~39 | `tools/human_gate.py` |
 
 ---
 

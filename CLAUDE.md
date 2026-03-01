@@ -127,11 +127,11 @@ provenance tracking, taxonomy version control
 | 5 Taxonomy Trees | `taxonomy/*.yaml` | ✅ All 4 sciences (892 leaves) | — |
 | 6 Taxonomy Evolution | `tools/evolve_taxonomy.py` | ✅ Phase A + B (signal detect, LLM propose, apply, rollback, multi-model consensus) | `tests/test_evolution.py` |
 | 7 Assembly + Distribution | `tools/assemble_excerpts.py` | ✅ Complete | `tests/test_assembly.py` |
+| — Human Gate | `tools/human_gate.py` | ✅ Complete (corrections, replay, patterns, checkpoints) | `tests/test_human_gate.py` |
 
 **Extraction verified on إملاء and عقيدة.** إملاء: 5 passages (P004, P005, P006, P010, P020) with Claude + GPT-4o consensus. عقيدة: 10 passages from العقيدة الواسطية — full E2E pipeline (intake → normalize → discover → extract → assemble → evolve). Other sciences have taxonomy trees but extraction is untested against them.
 
 **Not yet built:**
-- Human gate with feedback persistence and correction learning
 - Cross-validation layers (placement, self-containment, cross-book consistency)
 - Enrichment extension (intelligent author scholarly context research)
 - Quality scoring and provenance tracking
@@ -139,7 +139,7 @@ provenance tracking, taxonomy version control
 ## Running Things
 
 ```bash
-# Unit tests (841 pass, ~30s)
+# Unit tests (908 pass, ~36s)
 python -m pytest tests/ -q
 
 # Single test file
@@ -223,6 +223,9 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 **Taxonomy evolution (read when working on evolution):**
 - `tools/evolve_taxonomy.py` — signal detection, LLM proposal generation, apply proposals, excerpt redistribution, rollback, multi-model consensus (~2280 lines)
 
+**Human gate (read when working on review/corrections):**
+- `tools/human_gate.py` — correction persistence, correction replay, pattern detection, gate checkpoints (~570 lines)
+
 **Specs (read when working on a specific stage):**
 - `0_intake/INTAKE_SPEC.md`
 - `1_normalization/NORMALIZATION_SPEC_v0.5.md`
@@ -286,17 +289,17 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 - Consensus engine (1722 lines, `tools/consensus.py`) — text-overlap matching, LLM arbiter for disagreements, per-excerpt confidence scoring
 - Assembly tool (`tools/assemble_excerpts.py`) — transforms extraction output into self-contained excerpt files placed in taxonomy folder tree
 - Taxonomy evolution engine Phase A + B (`tools/evolve_taxonomy.py`) — signal detection (5 types), LLM proposal generation, apply approved proposals to YAML (v0 + v1 formats), excerpt redistribution, rollback capability, multi-model consensus for proposals, taxonomy registry version control
-- 869+ tests pass across the full suite (~165 extraction, ~120 consensus, ~57 assembly, ~90 evolution, ~90 intake)
+- Human gate infrastructure (`tools/human_gate.py`) — correction persistence (JSONL), correction replay (re-extract with correction context), pattern detection (recurring errors, model/node/passage analysis), gate checkpoints (reviewed/pending tracking per excerpt)
+- 908+ tests pass across the full suite (~165 extraction, ~120 consensus, ~57 assembly, ~90 evolution, ~90 intake, ~39 human gate)
 - 3-way API dispatch: Anthropic direct, OpenAI direct, OpenRouter (model prefix routing)
 - Live-validated on 5 إملاء passages (P004, P005, P006, P010, P020) with Claude + GPT-4o consensus
 - All 4 core taxonomy trees complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves
 - عقيدة taxonomy v0.2 (28 leaves) — evolved from v0.1 (21 leaves) after E2E testing revealed granularity gaps
 
 **What needs to be built (in priority order):**
-1. Human gate with feedback persistence and correction learning
-2. Cross-validation layers (placement, self-containment, cross-book consistency)
-3. Enrichment extension (intelligent author scholarly context research)
-4. Quality scoring and provenance tracking
+1. Cross-validation layers (placement, self-containment, cross-book consistency)
+2. Enrichment extension (intelligent author scholarly context research)
+3. Quality scoring and provenance tracking
 
 **Do NOT spend time on:**
 - Building synthesis tooling — synthesis is external to this repo
