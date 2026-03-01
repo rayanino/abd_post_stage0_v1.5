@@ -364,9 +364,9 @@ Still applies. Extraction output has 11 fields; gold schema requires 14+ fields 
 
 **Fix:** Cost calculation now uses `MODEL_PRICING` dict with per-model rates. `get_model_cost()` dynamically looks up pricing.
 
-### BUG-011 🟢 OPEN — Empty/Duplicate Files in Repository
+### BUG-011 🟢 FIXED — Empty/Duplicate Files in Repository
 
-Unchanged.
+**Fix:** Removed `5_taxonomy/ZOOM_BRIEF.md` (0 bytes, empty placeholder). Gold baseline empty `.stderr.txt`/`.stdout.txt` files are intentional artifacts (recording that steps had no output) and were retained.
 
 ### BUG-012 🟡 FIXED — `requirements.txt` Missing `httpx` Dependency
 
@@ -392,9 +392,9 @@ Unchanged.
 
 Unchanged.
 
-### BUG-019 🟢 OPEN — Page 0 Not Explicitly Excluded from Structure Discovery
+### BUG-019 🟢 CLOSED (NOT A BUG) — Page 0 Not Explicitly Excluded from Structure Discovery
 
-Unchanged.
+**Investigation:** Page 0 (seq_index=0) contains book metadata (title, author, publisher) with `page_number: None`. Structure discovery implicitly skips it because headings are discovered from HTML tags on content pages starting at seq_index=1. Verified on imla (P001 starts at seq_index=1) and wasitiyyah. No explicit guard needed — the existing behavior is correct.
 
 ### BUG-020 🟢 OPEN — Gold Baselines vs Extraction Tool Use Different Output Formats
 
@@ -539,14 +539,14 @@ Unchanged.
 |----------|-------|------|-------|
 | 🔴 CRITICAL | 14 | 0 | 14 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043) |
 | 🟡 MODERATE | 23 | 1 | 22 (BUG-005, 006, 008, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 032, 037, 039, 044, 045, 046) |
-| 🟢 LOW | 10 | 3 | 7 (BUG-010, 015, 017, 020, 033, 034 + audit fixes) |
-| **Total** | **47** | **4** | **43** |
+| 🟢 LOW | 10 | 1 | 9 (BUG-010, 011, 015, 017, 019, 020, 033, 034 + audit fixes) |
+| **Total** | **47** | **2** | **45** |
 
-**43 bugs fixed across Audits 2–6.** All CRITICAL bugs are resolved. Remaining 4 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018), Page 0 exclusion (BUG-019), empty/duplicate files (BUG-011).
+**45 bugs fixed across Audits 2–7.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 948+ tests pass across 10 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment).
+**Test suite:** 969 tests pass across 10 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment). 0 failures, 7 skipped.
 
 ### Remaining Open Bugs (Low Priority)
 
@@ -555,5 +555,3 @@ Unchanged.
 
 **Code quality:**
 2. **BUG-018** 🟢 — Mixed HTTP clients (anthropic SDK vs raw httpx)
-3. **BUG-019** 🟢 — Page 0 not explicitly excluded from structure discovery
-4. **BUG-011** 🟢 — Empty/duplicate files in repository

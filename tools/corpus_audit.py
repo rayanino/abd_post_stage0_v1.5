@@ -210,7 +210,7 @@ def main():
     print(f"{'='*72}")
 
     if args.json_out:
-        with open(args.json_out, "w") as f:
+        with open(args.json_out, "w", encoding="utf-8") as f:
             json.dump({"results": results, "errors": errors}, f, ensure_ascii=False, indent=2)
         print(f"\nRaw results written to {args.json_out}")
 

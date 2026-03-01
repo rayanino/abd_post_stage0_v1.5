@@ -1831,7 +1831,7 @@ def main():
 
     schema = None
     if args.schema:
-        with open(args.schema) as f:
+        with open(args.schema, encoding="utf-8") as f:
             schema = json.load(f)
         report.note(f"Schema: {args.schema}")
 
