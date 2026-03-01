@@ -153,7 +153,8 @@ def main():
     print(f"\n{'='*72}")
     print(f"CORPUS AUDIT RESULTS  ({len(results)} books, {total_pages:,} pages, {total_fns:,} footnotes)")
     print(f"{'='*72}")
-    print(f"Processed in {elapsed:.1f}s ({total_pages/elapsed:.0f} pages/sec)")
+    pps = f"{total_pages/elapsed:.0f}" if elapsed > 0 else "N/A"
+    print(f"Processed in {elapsed:.1f}s ({pps} pages/sec)")
     if errors:
         print(f"\n⚠ {len(errors)} books failed to process:")
         for e in errors:
@@ -199,7 +200,8 @@ def main():
     total_zwnj = sum(r["zwnj_pages"] for r in results)
     books_with_zwnj = sum(1 for r in results if r["zwnj_pages"] > 0)
     print(f"\n--- Fix 5: ZWNJ HEADING MARKERS ---")
-    print(f"  Pages with ZWNJ heading marker: {total_zwnj:,} ({total_zwnj/total_pages*100:.1f}% of corpus)")
+    zwnj_pct = f"{total_zwnj/total_pages*100:.1f}" if total_pages > 0 else "0.0"
+    print(f"  Pages with ZWNJ heading marker: {total_zwnj:,} ({zwnj_pct}% of corpus)")
     print(f"  Books containing ZWNJ markers: {books_with_zwnj}/{len(results)}")
 
     # --- Overall verdict ---

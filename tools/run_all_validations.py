@@ -55,7 +55,8 @@ def run_one(baseline_dir: str) -> bool:
     if not md:
         print(f"ERROR: no metadata in {baseline_dir}")
         return False
-    meta = json.load(open(md, encoding="utf-8"))
+    with open(md, encoding="utf-8") as f:
+        meta = json.load(f)
     cmd = meta.get("validation", {}).get("command")
     if not cmd:
         print(f"ERROR: missing validation.command in {md}")

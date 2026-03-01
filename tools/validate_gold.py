@@ -250,7 +250,8 @@ def _validate_jsonl_file(path: str, schema_obj, report, prefix: str) -> bool:
 def _sha256_bytes(path: str) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
-        h.update(f.read())
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
     return h.hexdigest()
 
 

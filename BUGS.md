@@ -1081,33 +1081,75 @@ Unchanged.
 
 ---
 
+### BUG-104 — 🟡 MODERATE — corpus_audit.py division by zero on empty corpus [FIXED]
+**File:** `tools/corpus_audit.py` (lines 156, 202)
+**Found:** Audit 15 (2026-03-01) — code review of utility tools
+**Status:** FIXED
+
+**Problem:** When no books process successfully (wrong `--books-dir` path, all books error), `total_pages == 0` causing `ZeroDivisionError` at line 202 (`total_zwnj/total_pages*100`) and line 156 (`total_pages/elapsed`).
+
+**Fix:** Added guards: `if total_pages > 0` before division, `if elapsed > 0` before pages/sec calculation.
+
+---
+
+### BUG-105 — 🟡 MODERATE — pipeline_gold.py run_cmd UnboundLocalError [FIXED]
+**File:** `tools/pipeline_gold.py` (lines 172–187)
+**Found:** Audit 15 (2026-03-01) — code review of utility tools
+**Status:** FIXED
+
+**Problem:** If `open()` or `os.makedirs()` raised before `subprocess.run`, `res` was never assigned. After the `finally` block, `res.returncode` at line 186 raised `UnboundLocalError`, hiding the actual filesystem error.
+
+**Fix:** Initialize `res = None` before `try`, add `if res is None: die(...)` guard after `finally`.
+
+---
+
+### BUG-106 — 🟡 MODERATE — validate_structure.py page range check silently passes with missing fields [FIXED]
+**File:** `tools/validate_structure.py` (lines 143–154)
+**Found:** Audit 15 (2026-03-01) — code review of utility tools
+**Status:** FIXED
+
+**Problem:** `d.get("start_seq_index", 0)` defaulted missing fields to `0`, so a division missing both fields appeared valid (0 == 0) instead of being flagged.
+
+**Fix:** Use `None` sentinel instead of `0`; skip divisions with `None` start/end (already reported by `validate_required_fields`).
+
+---
+
+### BUG-107 — 🟢 LOW — run_all_validations.py file handle leak [FIXED]
+**File:** `tools/run_all_validations.py` (line 58)
+**Found:** Audit 15 (2026-03-01) — code review of utility tools
+**Status:** FIXED
+
+**Problem:** `json.load(open(md, encoding="utf-8"))` never explicitly closes the file handle. On Windows, leaked handles can block other processes.
+
+**Fix:** Changed to `with open(...) as f: json.load(f)`.
+
+---
+
+### BUG-108 — 🟢 LOW — validate_gold.py _sha256_bytes reads entire file into memory [FIXED]
+**File:** `tools/validate_gold.py` (lines 250–254)
+**Found:** Audit 15 (2026-03-01) — code review of utility tools
+**Status:** FIXED
+
+**Problem:** `f.read()` loads the entire file at once. Source HTML files (Shamela exports) can be many megabytes. Sister functions `sha256_file` in `pipeline_gold.py` and `checkpoint_index_lib.py` correctly use chunked reading.
+
+**Fix:** Changed to chunked reading: `for chunk in iter(lambda: f.read(1 << 20), b"")`.
+
+---
+
 ## Summary
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
 | 🔴 CRITICAL | 36 | 0 | 36 (BUG-001–004, 021–023, 035, 036, 038, 040–043, 047–049, 051, 053, 056–058, 065, 066, 071, 072, 081–084, 089, 091, 092, 094, 099, 100) |
-| 🟡 MODERATE | 54 | 1 | 53 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080, 085–088, 090, 093, 095–098, 101, 102) |
-| 🟢 LOW | 14 | 1 | 13 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070, 103 + audit fixes) |
-| **Total** | **104** | **2** | **102** |
+| 🟡 MODERATE | 57 | 1 | 56 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080, 085–088, 090, 093, 095–098, 101, 102, 104–106) |
+| 🟢 LOW | 16 | 1 | 15 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070, 103, 107, 108 + audit fixes) |
+| **Total** | **109** | **2** | **107** |
 
-**102 bugs fixed across Audits 2–14.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
+**107 bugs fixed across Audits 2–15.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
 **Test suite:** 1030 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
-
-| Severity | Count | Open | Fixed |
-|----------|-------|------|-------|
-| 🔴 CRITICAL | 34 | 0 | 34 (BUG-001–004, 021–023, 035, 036, 038, 040–043, 047–049, 051, 053, 056–058, 065, 066, 071, 072, 081–084, 089, 091, 092, 094) |
-| 🟡 MODERATE | 49 | 1 | 48 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080, 085–088, 090, 093, 095) |
-| 🟢 LOW | 13 | 1 | 12 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070 + audit fixes) |
-| **Total** | **96** | **2** | **94** |
-
-**94 bugs fixed across Audits 2–12.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
-
-**Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
-
-**Test suite:** 1024 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|

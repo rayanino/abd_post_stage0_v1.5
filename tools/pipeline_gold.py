@@ -169,6 +169,7 @@ def write_state(baseline_dir: str, st: Dict[str, Any]) -> None:
 def run_cmd(cmd: str, cwd: str, stdout_path: str | None = None, stderr_path: str | None = None) -> None:
     """Run a shell command, optionally capturing stdout/stderr to files."""
     print(f"\nRUN: {cmd}\nCWD: {cwd}\n")
+    res = None
     out_f = err_f = None
     try:
         if stdout_path:
@@ -183,6 +184,8 @@ def run_cmd(cmd: str, cwd: str, stdout_path: str | None = None, stderr_path: str
             out_f.close()
         if err_f:
             err_f.close()
+    if res is None:
+        die("Command did not execute (file I/O error before subprocess)")
     if res.returncode != 0:
         die(f"Command failed with exit code {res.returncode}")
 

@@ -142,8 +142,11 @@ def validate_page_ranges(divisions: list[dict], result: ValidationResult):
     """Check page range validity and consistency."""
     for d in divisions:
         did = d["id"]
-        start = d.get("start_seq_index", 0)
-        end = d.get("end_seq_index", 0)
+        start = d.get("start_seq_index")
+        end = d.get("end_seq_index")
+
+        if start is None or end is None:
+            continue  # Missing fields already reported by validate_required_fields
 
         if end < start:
             result.error(f"Division {did}: end_seq_index ({end}) < start_seq_index ({start})")
