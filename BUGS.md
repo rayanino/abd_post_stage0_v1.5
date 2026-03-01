@@ -623,20 +623,110 @@ Unchanged.
 
 ---
 
+### BUG-056 🔴 FIXED — Taxonomy Modification Silently No-Ops When Parent Node Missing
+
+**Location:** `tools/evolve_taxonomy.py` → `_modify_v0_yaml()`, `_modify_v1_yaml()`, `_add_node_v0()`, `_add_node_v1()`
+
+**Problem:** When the parent node ID specified in a proposal didn't exist in the taxonomy, these functions returned the data unmodified with no error or warning. The caller (`apply_proposal_to_yaml`) had no way to detect the failure, so it would bump the taxonomy version, update the registry, and proceed with redistribution — all against a taxonomy that wasn't actually modified.
+
+**Fix:** All four functions now return `(data, found)` tuples. The caller checks `found` and prints a warning when a parent node is not located. Version bump still occurs (proposals may have mixed results) but the operator gets a clear diagnostic.
+
+---
+
+### BUG-057 🔴 FIXED — `_modify_v1_yaml` Overwrites Existing Children
+
+**Location:** `tools/evolve_taxonomy.py` → `_modify_v1_yaml()` (line ~1359)
+
+**Problem:** When converting a leaf to a branch in v1 format, the function unconditionally set `node["children"] = children` with only the new nodes. If the node had any pre-existing children (edge case: malformed but recoverable state), they were silently destroyed. By contrast, `_add_node_v1` correctly used `node.get("children", [])` and appended.
+
+**Fix:** Changed to `children = node.get("children", [])` then append new nodes, consistent with `_add_node_v1`.
+
+---
+
+### BUG-058 🔴 FIXED — `replay_correction` Calls `run_extraction` With Wrong Signature
+
+**Location:** `tools/human_gate.py` → `replay_correction()` (lines 312-338)
+
+**Problem:** The function called `run_extraction()` with keyword arguments (`passages_path=`, `pages_path=`, etc.), but `run_extraction()` takes a single `argparse.Namespace` parameter. This crashed with `TypeError` on every real invocation. Additionally, `correction_context` was passed as a parameter but `run_extraction` had no mechanism to use it. The testing path (mock function) worked fine, which is why the test suite didn't catch this.
+
+**Fix:** Build an `argparse.Namespace` object with all required attributes and pass it to `run_extraction()`. The `correction_context` attribute is included for future use when extraction prompt injection is implemented.
+
+---
+
+### BUG-059 🟡 FIXED — Correction ID Collision at Second Precision
+
+**Location:** `tools/human_gate.py` → `create_correction_record()` (lines 110-112)
+
+**Problem:** Auto-generated correction IDs used second-precision timestamps (`%Y%m%d%H%M%S`). Two corrections for the same excerpt within the same second would get identical IDs, making the second one unreachable via `find_correction_by_id`. Additionally, `datetime.now()` was called twice (once for ID, once for timestamp field), producing potentially different values.
+
+**Fix:** Use microsecond precision (`%Y%m%d%H%M%S%f`) and capture `datetime.now()` once for both ID and timestamp.
+
+---
+
+### BUG-060 🟡 FIXED — `load_checkpoint` Accepts Corrupt JSON Without Validation
+
+**Location:** `tools/human_gate.py` → `load_checkpoint()` (lines 553-566)
+
+**Problem:** If the checkpoint file contained corrupt JSON (e.g., a list instead of a dict, or a dict missing the `"excerpts"` key), the function returned the parsed data as-is. Downstream code like `update_checkpoint` directly accessed `checkpoint["excerpts"]`, causing `KeyError` or `TypeError` crashes.
+
+**Fix:** Added validation — checks that loaded data is a dict with an `"excerpts"` key that is also a dict. Returns default empty checkpoint on validation failure.
+
+---
+
+### BUG-061 🟡 FIXED — `validate_gold.py` Missing `--skip-checkpoint-state-check` Argument
+
+**Location:** `tools/validate_gold.py` → argparse setup (line ~1755)
+
+**Problem:** The code used `getattr(args, "skip_checkpoint_state_check", False)` to check for this flag, but the argument was never added to the argparse parser. The `getattr` default meant the flag was always `False` — users could never skip checkpoint state checks from the CLI despite the feature being referenced in the codebase.
+
+**Fix:** Added `parser.add_argument("--skip-checkpoint-state-check", action="store_true")`.
+
+---
+
+### BUG-062 🟡 FIXED — Baseline Dir Regex Mismatch Between Validators
+
+**Location:** `tools/validate_gold.py` → `_parse_baseline_dirs()` (line 154); `tools/run_all_validations.py` → `parse_baseline_dirs()` (line 34)
+
+**Problem:** `validate_gold.py` used regex `passage\d+_v[0-9.]+` (only digits and dots in version), while `run_all_validations.py` used `passage\d+_v[0-9][0-9A-Za-z._+\-]*` (letters, plus, dash allowed). Baseline directories with non-numeric version suffixes (e.g., `passage4_v0.3.13_plus1`) were found by one tool but not the other, causing inconsistent validation results.
+
+**Fix:** Harmonized both to use the more permissive regex from `run_all_validations.py`.
+
+---
+
+### BUG-063 🟡 FIXED — `validate_structure.py` Fabricates Phantom Page Indices
+
+**Location:** `tools/validate_structure.py` → `load_page_indices()` (lines 44-49)
+
+**Problem:** When a page record in JSONL lacked `seq_index`, the code used `len(indices)` as a fallback — a fabricated value that didn't correspond to any real page. This polluted the validation set with phantom indices and could mask missing-page errors. Empty lines also caused `json.JSONDecodeError`.
+
+**Fix:** Skip records without `seq_index` instead of fabricating values. Skip empty lines before JSON parsing.
+
+---
+
+### BUG-064 🟡 FIXED — `pipeline_gold.py` Windows Path Backslash Inconsistency
+
+**Location:** `tools/pipeline_gold.py` → artifact path recording (lines 222, 323-327, 459-463)
+
+**Problem:** Artifact paths stored in `checkpoint_state.json` used `os.path.relpath()` which returns backslash-separated paths on Windows. But `checkpoint_index_lib.py` normalizes paths to forward slashes. This mismatch caused artifact path comparisons to fail on Windows.
+
+**Fix:** Added `.replace("\\", "/")` to all `os.path.relpath()` calls used for artifact recording. Also fixed a no-op ternary in `baseline_version` extraction that returned the same value on both branches.
+
+---
+
 ## Summary
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
-| 🔴 CRITICAL | 19 | 0 | 19 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043, 047, 048, 049, 051, 053) |
-| 🟡 MODERATE | 26 | 1 | 25 (BUG-005, 006, 008, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 032, 037, 039, 044, 045, 046, 050, 052, 055) |
+| 🔴 CRITICAL | 22 | 0 | 22 (BUG-001, 002, 003, 004, 021, 022, 023, 035, 036, 038, 040, 041, 042, 043, 047, 048, 049, 051, 053, 056, 057, 058) |
+| 🟡 MODERATE | 32 | 1 | 31 (BUG-005, 006, 008, 009, 012, 013, 014, 024, 025, 026, 027, 028, 029, 030, 031, 032, 037, 039, 044, 045, 046, 050, 052, 055, 059, 060, 061, 062, 063, 064) |
 | 🟢 LOW | 11 | 1 | 10 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054 + audit fixes) |
-| **Total** | **56** | **2** | **54** |
+| **Total** | **65** | **2** | **63** |
 
-**54 bugs fixed across Audits 2–8.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
+**63 bugs fixed across Audits 2–9.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
 
 **Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
 
-**Test suite:** 977 tests pass across 10 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment). 0 failures, 7 skipped.
+**Test suite:** 1003 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
 
 ### Remaining Open Bugs (Low Priority)
 
