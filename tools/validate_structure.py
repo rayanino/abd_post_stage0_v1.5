@@ -45,8 +45,13 @@ def load_page_indices(path: str) -> set[int]:
     indices = set()
     with open(path, encoding="utf-8") as f:
         for line in f:
-            rec = json.loads(line.strip())
-            indices.add(rec.get("seq_index", len(indices)))
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            si = rec.get("seq_index")
+            if si is not None:
+                indices.add(si)
     return indices
 
 

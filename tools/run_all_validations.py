@@ -28,13 +28,14 @@ def find_active_gold_files(root: str):
 def parse_baseline_dirs(active_gold_md: str):
     base = os.path.dirname(active_gold_md)
     dirs = []
-    for line in open(active_gold_md, encoding="utf-8"):
-        # Paths in ACTIVE_GOLD.md may begin with `passage...` directly.
-        # Accept suffixes such as passage4_v0.3.13_plus1/ (avoid silent CI skips).
-        m = re.search(r"`([^`]*passage\d+_v[0-9][0-9A-Za-z._+\-]*/?)`", line)
-        if m:
-            rel = m.group(1).rstrip("/")
-            dirs.append(os.path.abspath(os.path.join(base, rel)))
+    with open(active_gold_md, encoding="utf-8") as f:
+        for line in f:
+            # Paths in ACTIVE_GOLD.md may begin with `passage...` directly.
+            # Accept suffixes such as passage4_v0.3.13_plus1/ (avoid silent CI skips).
+            m = re.search(r"`([^`]*passage\d+_v[0-9][0-9A-Za-z._+\-]*/?)`", line)
+            if m:
+                rel = m.group(1).rstrip("/")
+                dirs.append(os.path.abspath(os.path.join(base, rel)))
     return dirs
 
 
