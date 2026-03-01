@@ -1253,6 +1253,72 @@ class TestExtractTaxonomyLeavesV1:
         leaves = extract_taxonomy_leaves(path, "imlaa")
         assert len(leaves) >= 40, f"Expected ~44 leaves, got {len(leaves)}"
 
+    def test_real_v1_sarf_taxonomy(self):
+        """BUG-001: sarf v1 taxonomy must return 226 leaves."""
+        import os
+        path = os.path.join("taxonomy", "sarf", "sarf_v1_0.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("sarf v1 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "sarf")
+        assert len(leaves) == 226, f"Expected 226 leaves, got {len(leaves)}"
+
+    def test_real_v1_nahw_taxonomy(self):
+        """BUG-001: nahw v1 taxonomy must return 226 leaves."""
+        import os
+        path = os.path.join("taxonomy", "nahw", "nahw_v1_0.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("nahw v1 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "nahw")
+        assert len(leaves) == 226, f"Expected 226 leaves, got {len(leaves)}"
+
+    def test_real_v0_aqidah_v01_taxonomy(self):
+        """BUG-001: aqidah v0.1 taxonomy must return 21 leaves."""
+        import os
+        path = os.path.join("taxonomy", "aqidah", "aqidah_v0_1.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("aqidah v0.1 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "aqidah")
+        assert len(leaves) == 21, f"Expected 21 leaves, got {len(leaves)}"
+
+    def test_real_v0_aqidah_v02_taxonomy(self):
+        """BUG-001: aqidah v0.2 taxonomy must return 28 leaves."""
+        import os
+        path = os.path.join("taxonomy", "aqidah", "aqidah_v0_2.yaml")
+        if not os.path.exists(path):
+            import pytest
+            pytest.skip("aqidah v0.2 taxonomy file not found")
+        leaves = extract_taxonomy_leaves(path, "aqidah")
+        assert len(leaves) == 28, f"Expected 28 leaves, got {len(leaves)}"
+
+    def test_all_taxonomy_files_exact_counts(self):
+        """BUG-001 acceptance: every taxonomy file returns the documented leaf count."""
+        import os
+        import pytest
+        expected = {
+            ("taxonomy/imlaa/imlaa_v1_0.yaml", "imlaa"): 105,
+            ("taxonomy/sarf/sarf_v1_0.yaml", "sarf"): 226,
+            ("taxonomy/nahw/nahw_v1_0.yaml", "nahw"): 226,
+            ("taxonomy/balagha/balagha_v1_0.yaml", "balagha"): 335,
+            ("taxonomy/aqidah/aqidah_v0_1.yaml", "aqidah"): 21,
+            ("taxonomy/aqidah/aqidah_v0_2.yaml", "aqidah"): 28,
+            ("taxonomy/imlaa_v0.1.yaml", "imlaa"): 44,
+        }
+        missing = []
+        wrong = []
+        for (path, science), count in expected.items():
+            if not os.path.exists(path):
+                missing.append(path)
+                continue
+            leaves = extract_taxonomy_leaves(path, science)
+            if len(leaves) != count:
+                wrong.append(f"{path}: expected {count}, got {len(leaves)}")
+        if missing:
+            pytest.skip(f"Taxonomy files not found: {missing}")
+        assert not wrong, "Leaf count mismatches:\n" + "\n".join(wrong)
+
     def test_empty_yaml(self):
         assert extract_taxonomy_leaves("") == set()
         assert extract_taxonomy_leaves("# just a comment\n") == set()

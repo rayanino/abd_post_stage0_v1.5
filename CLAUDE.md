@@ -140,7 +140,7 @@ provenance tracking, taxonomy version control
 ## Running Things
 
 ```bash
-# Unit tests (832 pass, ~14s)
+# Unit tests (841 pass, ~30s)
 python -m pytest tests/ -q
 
 # Single test file
@@ -287,7 +287,7 @@ Python 3.11+ required. API keys needed: `ANTHROPIC_API_KEY` (required for Claude
 - Consensus engine (1722 lines, `tools/consensus.py`) — text-overlap matching, LLM arbiter for disagreements, per-excerpt confidence scoring
 - Assembly tool (`tools/assemble_excerpts.py`) — transforms extraction output into self-contained excerpt files placed in taxonomy folder tree
 - Taxonomy evolution engine Phase A (`tools/evolve_taxonomy.py`) — signal detection (5 types: unmapped, same_book_cluster, category_leaf, multi_topic_excerpt, user_specified), LLM proposal generation, human review artifacts
-- 832+ tests pass across the full suite (~160 extraction, ~120 consensus, ~57 assembly, ~62 evolution, ~90 intake)
+- 841+ tests pass across the full suite (~165 extraction, ~120 consensus, ~57 assembly, ~62 evolution, ~90 intake)
 - 3-way API dispatch: Anthropic direct, OpenAI direct, OpenRouter (model prefix routing)
 - Live-validated on 5 إملاء passages (P004, P005, P006, P010, P020) with Claude + GPT-4o consensus
 - All 4 core taxonomy trees complete: إملاء (105 leaves), صرف (226), نحو (226), بلاغة (335) — 892 total leaves
