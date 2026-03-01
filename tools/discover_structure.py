@@ -782,7 +782,7 @@ def _build_context_samples(
 
         text = page.matn_text
         # If inline heading, start after the heading boundary
-        if h.heading_text_boundary and h.heading_text_boundary < len(text):
+        if h.heading_text_boundary is not None and h.heading_text_boundary < len(text):
             text = text[h.heading_text_boundary:]
         else:
             # Skip lines that ARE the heading
@@ -907,7 +907,7 @@ def pass3a_macro_structure(
 
     # Validate each decision
     valid_actions = {"confirm", "reject", "modify"}
-    max_seq = max(p.seq_index for p in pages)
+    max_seq = max((p.seq_index for p in pages), default=0)
     for d in decisions:
         if d.get("action") not in valid_actions:
             print(f"  [Pass 3a] WARNING: invalid action '{d.get('action')}' for candidate {d.get('candidate_index')}")
@@ -1054,7 +1054,7 @@ def integrate_pass3_results(
     print(f"  [Pass 3] {len(confirmed)} confirmed, {rejected_count} rejected")
 
     # Phase 2: Add new divisions from Pass 3a
-    max_seq = max(p.seq_index for p in pages)
+    max_seq = max((p.seq_index for p in pages), default=0)
     page_by_seq = {p.seq_index: p for p in pages}
     # Track next document_position for new headings
     max_doc_pos = max((h.document_position for h in headings), default=0) + 1
@@ -1208,7 +1208,7 @@ def build_hierarchical_tree(
             seen.add(key)
             deduped.append(h)
 
-    max_seq = max(p.seq_index for p in pages)
+    max_seq = max((p.seq_index for p in pages), default=0)
     page_by_seq = {p.seq_index: p for p in pages}
 
     # Phase 1: Create all DivisionNode objects
@@ -1407,20 +1407,18 @@ def build_hierarchical_tree(
         end_page = page_by_seq.get(div.end_seq_index)
         if end_page:
             if multi_volume:
-                div.page_hint_end = f"ج{end_page.volume}:ص:{int_to_indic(end_page.page_number_int)}"
+                div.page_hint_end = make_page_hint(end_page.volume, end_page.page_number_int, multi_volume=True)
             else:
                 div.page_hint_end = f"ص:{int_to_indic(end_page.page_number_int)}"
 
-    # Phase 5: Add review flags
+    # Phase 5: Add review flags (extend existing, don't replace)
     for div in divisions:
-        flags = []
-        if div.digestible == "uncertain":
-            flags.append("needs_human_review")
-        if div.confidence == "low":
-            flags.append("low_confidence")
-        if div.page_count > 30:
-            flags.append("long_passage")
-        div.review_flags = flags
+        if div.digestible == "uncertain" and "needs_human_review" not in div.review_flags:
+            div.review_flags.append("needs_human_review")
+        if div.confidence == "low" and "low_confidence" not in div.review_flags:
+            div.review_flags.append("low_confidence")
+        if div.page_count > 30 and "long_passage" not in div.review_flags:
+            div.review_flags.append("long_passage")
 
     return divisions
 
@@ -1459,6 +1457,9 @@ def cross_reference_toc(
     matched_div_ids: set[str] = set()
 
     for ti, toc in enumerate(toc_entries):
+        if toc.page_number is None:
+            missed.append({"toc_index": ti, "title": toc.title, "reason": "no_page_number"})
+            continue
         best_score = 0.0
         best_div = None
 
@@ -1634,14 +1635,14 @@ def apply_overrides(
                 div.digestible = "false"
                 div.content_type = "non_content"
                 div.review_flags.append("human_rejected")
-                div.human_override = ov.get("notes", "rejected by human")
+                div.human_override = {"action": "rejected", "notes": ov.get("notes", "rejected by human")}
                 changes += 1
 
             elif action == "confirmed":
                 if div.digestible == "uncertain":
                     div.digestible = "true"
                 div.confidence = "confirmed"
-                div.human_override = ov.get("notes", "confirmed by human")
+                div.human_override = {"action": "confirmed", "notes": ov.get("notes", "confirmed by human")}
                 changes += 1
 
             elif action == "modify":
@@ -1653,7 +1654,7 @@ def apply_overrides(
                     div.digestible = ov["digestible"]
                 if "content_type" in ov:
                     div.content_type = ov["content_type"]
-                div.human_override = ov.get("notes", "modified by human")
+                div.human_override = {"action": "modified", "notes": ov.get("notes", "modified by human")}
                 changes += 1
 
         elif item_type == "passage":
@@ -1687,7 +1688,7 @@ def apply_overrides(
                                 page_hint_end=owner_div.page_hint_end,
                                 parent_id=owner_div.parent_id,
                                 page_count=owner_div.end_seq_index - split_seq + 1,
-                                human_override=ov.get("notes", "split by human"),
+                                human_override={"action": "split", "notes": ov.get("notes", "split by human")},
                             )
                             # Truncate the original division
                             owner_div.end_seq_index = split_seq - 1
@@ -2703,7 +2704,7 @@ def main():
                         confirmed_headings.append((i, h))
 
                     # Compute approximate page ranges for deep scan eligibility
-                    max_seq = max(p.seq_index for p in pages)
+                    max_seq = max((p.seq_index for p in pages), default=0)
                     deep_scan_targets = []
                     for idx_in_list, (orig_idx, h) in enumerate(confirmed_headings):
                         dec = decision_map.get(orig_idx, {})

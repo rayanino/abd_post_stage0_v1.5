@@ -323,7 +323,6 @@ def replay_correction(
         effective_openrouter = openrouter_key or os.environ.get("OPENROUTER_API_KEY")
 
         # run_extraction expects an argparse Namespace, not keyword args
-        import argparse
         extraction_args = argparse.Namespace(
             passages=passages_file,
             pages=pages_file,
@@ -345,7 +344,21 @@ def replay_correction(
             arbiter_model=None,
             correction_context=context,
         )
-        result = run_extraction(extraction_args)
+        # NOTE: correction_context is included for future use when extraction
+        # prompt injection is implemented. Currently run_extraction does not
+        # read this attribute — the re-extraction runs without correction context.
+        try:
+            result = run_extraction(extraction_args)
+        except Exception as e:
+            result = {"status": "error", "error": str(e)}
+
+    # Determine result status
+    if isinstance(result, dict):
+        result_status = result.get("status", "unknown")
+    elif result is None:
+        result_status = "extraction_returned_none"
+    else:
+        result_status = "completed"
 
     # Save replay metadata
     replay_meta = {
@@ -354,7 +367,7 @@ def replay_correction(
         "correction_context": context,
         "model": model,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "result_status": result.get("status", "unknown") if isinstance(result, dict) else "completed",
+        "result_status": result_status,
     }
     meta_path = out_path / f"replay_{correction.get('correction_id', 'unknown')}.json"
     with open(meta_path, "w", encoding="utf-8") as f:
@@ -571,7 +584,7 @@ def load_checkpoint(extraction_dir: str) -> dict:
     if not cp_path.exists():
         return default
     with open(cp_path, "r", encoding="utf-8") as f:
-        data = json.loads(f.read())
+        data = json.load(f)
     if not isinstance(data, dict) or not isinstance(data.get("excerpts"), dict):
         print(f"  WARNING: corrupt gate_checkpoint.json — resetting to default",
               file=sys.stderr)
@@ -658,6 +671,9 @@ def initialize_checkpoint_from_extraction(extraction_dir: str) -> dict:
         "excerpts": {},
     }
 
+    # Single timestamp for all excerpts in this initialization batch
+    now = datetime.now(timezone.utc).isoformat()
+
     # Scan for extraction JSON files
     for json_file in sorted(ext_path.glob("*_extraction.json")):
         try:
@@ -671,7 +687,7 @@ def initialize_checkpoint_from_extraction(extraction_dir: str) -> dict:
             if eid:
                 checkpoint["excerpts"][eid] = {
                     "state": "pending",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": now,
                     "reviewer": "",
                 }
 
@@ -680,7 +696,7 @@ def initialize_checkpoint_from_extraction(extraction_dir: str) -> dict:
             if eid:
                 checkpoint["excerpts"][eid] = {
                     "state": "pending",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": now,
                     "reviewer": "",
                 }
 

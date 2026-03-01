@@ -1163,12 +1163,13 @@ class TestAssemblyPathNormalization:
         }
 
         result = distribute_excerpts(
-            [excerpt], taxonomy_map, "aqidah", tmp_path, dry_run=True
+            [excerpt], taxonomy_map, str(tmp_path), "aqidah", dry_run=True
         )
         # Should NOT appear in warnings about _unmapped
         unmapped_warnings = [w for w in result.get("warnings", []) if "_unmapped" in w]
         assert len(unmapped_warnings) == 0
-        assert excerpt["taxonomy_node_id"] == "ta3rif"
+        # Original excerpt should NOT be mutated (distribute copies before normalizing)
+        assert excerpt["taxonomy_node_id"] == "aqidah.al_iman.ta3rif"
 
     def test_distribute_normalizes_colon_path(self, tmp_path):
         """Excerpt with colon-path taxonomy_node_id should be normalized."""
@@ -1188,11 +1189,12 @@ class TestAssemblyPathNormalization:
         }
 
         result = distribute_excerpts(
-            [excerpt], taxonomy_map, "aqidah", tmp_path, dry_run=True
+            [excerpt], taxonomy_map, str(tmp_path), "aqidah", dry_run=True
         )
         unmapped_warnings = [w for w in result.get("warnings", []) if "_unmapped" in w]
         assert len(unmapped_warnings) == 0
-        assert excerpt["taxonomy_node_id"] == "maratib"
+        # Original excerpt should NOT be mutated
+        assert excerpt["taxonomy_node_id"] == "aqidah:qadr:maratib"
 
     def test_plain_leaf_not_modified(self, tmp_path):
         """Excerpt with plain leaf ID should not be modified."""
@@ -1212,7 +1214,7 @@ class TestAssemblyPathNormalization:
         }
 
         result = distribute_excerpts(
-            [excerpt], taxonomy_map, "aqidah", tmp_path, dry_run=True
+            [excerpt], taxonomy_map, str(tmp_path), "aqidah", dry_run=True
         )
         unmapped_warnings = [w for w in result.get("warnings", []) if "_unmapped" in w]
         assert len(unmapped_warnings) == 0

@@ -73,6 +73,9 @@ FONT_COLOR_RE = re.compile(r"<font\s+color=[^>]+>(.*?)</font>", re.DOTALL)
 # guard ensures we only strip confirmed footnote ref numbers.
 FN_REF_IN_MATN_RE = re.compile(r"\s*\((\d+)\)\s*(?=[.،؛:؟!»\])}\s(]|$)")
 
+# Footnote boundary in footnote section text: (N) at start or after newline
+FN_BOUNDARY_RE = re.compile(r"(?:^|\n)\((\d+)\)\s*(?:[ـ\-–]\s*)?", re.MULTILINE)
+
 # Verse star markers: * text * (rare in Shamela)
 VERSE_STAR_RE = re.compile(r"\*\s*([^*]+?)\s*\*")
 
@@ -305,8 +308,7 @@ def detect_fn_section_format(fn_text: str) -> str:
         return "none"
     
     # Check for (N) markers first (most common)
-    FN_BOUNDARY = re.compile(r"(?:^|\n)\((\d+)\)\s*(?:[ـ\-–]\s*)?", re.MULTILINE)
-    if FN_BOUNDARY.search(fn_text):
+    if FN_BOUNDARY_RE.search(fn_text):
         return "numbered_parens"
     
     # Check for bare-number markers: "1 text" or "1 ـ text" at line start
@@ -354,10 +356,8 @@ def parse_footnotes(fn_html: str) -> tuple[list[FootnoteRecord], str, str]:
     # A footnote boundary is: (N) at the start of text, or (N) after a newline,
     # optionally followed by ـ or - or –
     # Pattern: start-or-newline, then (digits), then optional separator
-    FN_BOUNDARY = re.compile(r"(?:^|\n)\((\d+)\)\s*(?:[ـ\-–]\s*)?", re.MULTILINE)
-    
     records = []
-    matches = list(FN_BOUNDARY.finditer(fn_text))
+    matches = list(FN_BOUNDARY_RE.finditer(fn_text))
     
     if not matches:
         # No structured footnotes found — entire text is preamble

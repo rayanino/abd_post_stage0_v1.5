@@ -609,6 +609,8 @@ def distribute_excerpts(
         # Determine folder path — normalize full paths to leaf IDs (BUG-043)
         resolved_id, node_info, was_norm = normalize_node_id(node_id, taxonomy_map)
         if was_norm:
+            # Copy before mutation to avoid modifying caller's data
+            exc = dict(exc)
             exc["taxonomy_node_id"] = resolved_id
             node_id = resolved_id
             if node_info and node_info.path_titles:
@@ -646,11 +648,10 @@ def distribute_excerpts(
 
     # Check for same-book duplicates at same node
     same_book_dupes = []
-    for node_id, exc_ids in nodes_populated.items():
-        if len(exc_ids) > 1:
-            # Check if they're from the same book (they will be in single-book runs)
+    for nid, exc_ids in nodes_populated.items():
+        if len(exc_ids) > 1 and nid not in ("_unmapped", ""):
             same_book_dupes.append({
-                "node_id": node_id,
+                "node_id": nid,
                 "count": len(exc_ids),
                 "excerpt_ids": exc_ids,
             })

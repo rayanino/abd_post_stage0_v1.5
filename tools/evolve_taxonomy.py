@@ -857,7 +857,7 @@ def propose_evolution_for_signal(
         parent_node_id = signal.node_id
     else:
         change_type = "node_added"
-        parent_node_id = new_nodes_raw[0].get("parent_node_id", "")
+        parent_node_id = validated_nodes[0].get("parent_node_id", "")
 
     redistribution = parsed.get("redistribution", {})
 
@@ -917,7 +917,7 @@ def _compare_evolution_proposals(
             "chosen_proposal": active[0][0],
             "confidence_override": "uncertain",
             "model_proposals": {
-                m: p for p, m in zip(proposals, models)
+                m: p for m, p in zip(models, proposals)
             },
         }
 
@@ -1176,10 +1176,11 @@ def generate_review_md(
     lines.append(f"- **Cost:** ${total_cost:.4f}")
     lines.append("")
 
-    # Build a mapping from signal node_id to proposal
-    proposal_map: dict[str, EvolutionProposal] = {}
+    # Build a mapping from signal identity to proposal
+    # (keyed by id(signal) because unmapped signals all share node_id="_unmapped")
+    proposal_map: dict[int, EvolutionProposal] = {}
     for p in proposals:
-        proposal_map[p.signal.node_id] = p
+        proposal_map[id(p.signal)] = p
 
     # Signal-by-signal detail
     for i, signal in enumerate(signals, 1):
@@ -1189,7 +1190,8 @@ def generate_review_md(
         lines.append("")
 
         if signal.signal_type == "unmapped":
-            lines.append(f"**Excerpt:** `{signal.excerpt_ids[0]}`")
+            eid_display = signal.excerpt_ids[0] if signal.excerpt_ids else "unknown"
+            lines.append(f"**Excerpt:** `{eid_display}`")
             if signal.excerpt_metadata:
                 meta = signal.excerpt_metadata[0]
                 lines.append(f"**Title:** {meta.get('excerpt_title', '')}")
@@ -1202,7 +1204,8 @@ def generate_review_md(
             lines.append(text[:500] + ("..." if len(text) > 500 else ""))
             lines.append("")
 
-        elif signal.signal_type in ("same_book_cluster", "user_specified"):
+        elif signal.signal_type in ("same_book_cluster", "user_specified",
+                                      "category_leaf", "multi_topic_excerpt"):
             node_info = taxonomy_map.get(signal.node_id)
             node_title = node_info.title if node_info else signal.node_id
             node_path = (
@@ -1210,6 +1213,8 @@ def generate_review_md(
             )
             lines.append(f"**Node:** `{signal.node_id}` — {node_title}")
             lines.append(f"**Path:** {node_path}")
+            if signal.context:
+                lines.append(f"**Context:** {signal.context[:200]}")
             lines.append(f"**Excerpts:** {len(signal.excerpt_ids)}")
             lines.append("")
             for j, (eid, text) in enumerate(
@@ -1221,7 +1226,7 @@ def generate_review_md(
                 lines.append("")
 
         # Show proposal if one was generated
-        proposal = proposal_map.get(signal.node_id)
+        proposal = proposal_map.get(id(signal))
         if proposal is not None:
             lines.append(f"### LLM Proposal ({proposal.proposal_id})")
             lines.append("")
