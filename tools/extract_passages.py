@@ -587,6 +587,9 @@ def repair_truncated_json(text: str) -> str:
             repair += '}'
         else:
             repair += ']'
+    # Final pass: remove any trailing comma before ] or } that the stack
+    # closing may have introduced (e.g., …"bar"}, ] → …"bar"}])
+    repair = re.sub(r',(\s*[}\]])', r'\1', repair)
     return repair
 
 
@@ -1681,7 +1684,8 @@ def extract_single_model(
 
     # Correction retry loop
     retries_used = 0
-    prev_n_issues = n_issues
+    prev_n_errors = len(issues["errors"])
+    prev_n_warnings = len(issues["warnings"])
     if n_issues > 0 and max_retries > 0:
         for retry in range(max_retries):
             print(f"  [{model}] Correction attempt {retry + 1}/{max_retries}...")
@@ -1715,13 +1719,19 @@ def extract_single_model(
             if n_issues == 0:
                 break
 
-            # Detect persistent errors: if no improvement, stop wasting tokens
-            if n_issues >= prev_n_issues:
-                print(f"    No improvement ({n_issues} issues remain, "
-                      f"was {prev_n_issues}) — stopping retries",
+            # Detect persistent errors: stop if errors didn't improve
+            # (errors are blocking; warnings are not — compare separately)
+            cur_errors = len(issues["errors"])
+            cur_warnings = len(issues["warnings"])
+            if cur_errors > prev_n_errors or (
+                cur_errors == prev_n_errors and cur_warnings >= prev_n_warnings
+            ):
+                print(f"    No improvement ({cur_errors}E {cur_warnings}W, "
+                      f"was {prev_n_errors}E {prev_n_warnings}W) — stopping retries",
                       file=sys.stderr)
                 break
-            prev_n_issues = n_issues
+            prev_n_errors = cur_errors
+            prev_n_warnings = cur_warnings
 
     cost_info = {
         "model": model,

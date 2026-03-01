@@ -1078,22 +1078,20 @@ def _extract_taxonomy_context(taxonomy_yaml: str, node_a: str, node_b: str) -> s
         if bare in targets and bare != stripped:  # must have had a trailing ':'
             matched_indices.add(i)
 
+    # Collect context windows, deduplicating by line index (not content)
+    # so that structurally identical lines from different nodes are preserved
+    seen_line_indices: set[int] = set()
     for idx in sorted(matched_indices):
         start = max(0, idx - 5)
         end = min(len(lines), idx + 6)
-        relevant.extend(lines[start:end])
+        for li in range(start, end):
+            if li not in seen_line_indices:
+                seen_line_indices.add(li)
+                relevant.append(lines[li])
         relevant.append("---")
 
     if relevant:
-        # Deduplicate overlapping context windows while preserving order
-        seen: set[str] = set()
-        deduped = []
-        for line in relevant:
-            key = line.rstrip()
-            if key not in seen:
-                seen.add(key)
-                deduped.append(line)
-        return "\n".join(deduped)
+        return "\n".join(relevant)
     return f"(nodes {node_a} and {node_b} not found in taxonomy)"
 
 

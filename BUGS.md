@@ -993,7 +993,53 @@ Unchanged.
 
 ---
 
+### BUG-096 — 🟡 MODERATE — Retry stopping criterion conflates errors and warnings [FIXED]
+**File:** `tools/extract_passages.py` (lines 1718–1724)
+**Found:** Audit 13 (2026-03-01) — code review of extract_passages.py
+**Status:** FIXED
+
+**Problem:** The retry loop's "no improvement" check used `n_issues = len(errors) + len(warnings)` — treating errors and warnings as interchangeable. If a correction converted 1 error + 2 warnings into 0 errors + 3 warnings (same total), the loop stopped prematurely with "No improvement" even though the blocking error was resolved.
+
+**Fix:** Compare errors and warnings independently. Stop only if errors didn't decrease, or if errors stayed the same AND warnings didn't decrease.
+
+---
+
+### BUG-097 — 🟡 MODERATE — repair_truncated_json leaves trailing comma before closing brackets [FIXED]
+**File:** `tools/extract_passages.py` (lines 578–590)
+**Found:** Audit 13 (2026-03-01) — code review of extract_passages.py
+**Status:** FIXED
+
+**Problem:** After closing unclosed brackets/braces from the stack, a trailing comma could remain before the first closing bracket (e.g., `"bar"}, ]`). `json.loads` rejects this, causing `RuntimeError` and passage data loss when truncation lands after a complete JSON object followed by a comma inside an array.
+
+**Fix:** Added a final `re.sub(r',(\s*[}\]])', r'\1', repair)` pass to strip trailing commas introduced by stack closing.
+
+---
+
+### BUG-098 — 🟡 MODERATE — _extract_taxonomy_context deduplicates by content not position [FIXED]
+**File:** `tools/consensus.py` (lines 1087–1096)
+**Found:** Audit 13 (2026-03-01) — code review of consensus.py
+**Status:** FIXED
+
+**Problem:** The taxonomy context deduplication used raw line content as the uniqueness key. YAML taxonomy files have many structurally identical lines (`_leaf: true`, `children:`, etc.). When two nodes' context windows both contained lines with identical content, the second occurrence was silently dropped — giving the arbiter an incomplete view of the taxonomy, especially for sibling leaf nodes (the most common arbiter scenario).
+
+**Fix:** Changed deduplication from content-based to position-based (`seen_line_indices` set), preserving all structurally identical lines from different nodes while still deduplicating overlapping windows.
+
+---
+
 ## Summary
+
+| Severity | Count | Open | Fixed |
+|----------|-------|------|-------|
+| 🔴 CRITICAL | 34 | 0 | 34 (BUG-001–004, 021–023, 035, 036, 038, 040–043, 047–049, 051, 053, 056–058, 065, 066, 071, 072, 081–084, 089, 091, 092, 094) |
+| 🟡 MODERATE | 52 | 1 | 51 (BUG-005, 006, 008, 009, 012–014, 024–032, 037, 039, 044–046, 050, 052, 055, 059–064, 067, 068, 073–080, 085–088, 090, 093, 095–098) |
+| 🟢 LOW | 13 | 1 | 12 (BUG-010, 011, 015, 017, 019, 020, 033, 034, 054, 069, 070 + audit fixes) |
+| **Total** | **99** | **2** | **97** |
+
+**97 bugs fixed across Audits 2–13.** All CRITICAL bugs are resolved. BUG-019 closed as not-a-bug. Remaining 2 open bugs are minor: schema drift documentation (BUG-007), mixed HTTP clients (BUG-018).
+
+**Live API validation:** Extraction + consensus + assembly + evolution verified end-to-end on both إملاء (5 passages, $1.01) and عقيدة (10 passages, $2.67). Engine is science-agnostic.
+
+**Test suite:** 1032 tests pass across 11 test files (extraction + evolution + assembly + consensus + intake + human gate + cross-validation + normalization + structure discovery + enrichment + utility tools). 0 failures, 7 skipped.
 
 | Severity | Count | Open | Fixed |
 |----------|-------|------|-------|
